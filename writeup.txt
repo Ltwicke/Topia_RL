@@ -1,0 +1,48 @@
+What actions can be taken by the agent?
+
+baseline-----------------------------------
+move unit: 		move a unit to the allowed, unoccupied node
+train unit:		create a unit on a city node, if pop not filled
+(move and-)attack:	attack an enemy unit
+heal: 			Heal HP
+-------------------------------------------	
+advanced-----------------------------------
+add rider:		add rider as a new potential unit type
+add currency:		add currency to limit the training of units
+add first city upgrade:	important choice between eco and vision
+add obstructions:	add nodes that are not passable
+------------------------------------------
+beyond advanced---------------------------
+
+
+
+
+
+
+
+ACTION SPACE:::::::::
+
+Constructing action masks:
+
+For the choice of movement; first select action head MOVEMENT, then mask out all positions that are not reachable (done by two functions, one is giving all possible nodes for the movement of the unit, another one masks out the ones blocked), then do softmax
+THE BIG IDEA: As often as possible, mask out invalid actions as to simplify the life of the agent (by adding -infty to the logits before softmax, the prob gets 0)
+
+
+
+I probably need a NN in the beginning of the turn that decides on the order of actions. This also needs a notion to recalculate, if some major board-changing event happened. 
+
+
+
+
+
+
+OBSERVATION SPACE::::::::
+
+Very simple in my case; I simply have the partial graph visible to a player and then use a MPNN to construct a final vector representation of the current visible graph (later, the opponents score will be added to this).
+
+
+
+
+
+
+

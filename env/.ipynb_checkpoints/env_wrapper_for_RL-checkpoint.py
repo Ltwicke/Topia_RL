@@ -1,0 +1,1 @@
+## This wraps the entire game folder to be used as the environment for RL

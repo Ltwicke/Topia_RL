@@ -1,0 +1,302 @@
+28.12.2025: First tough design choice: Its about how to represent the game board; It can either be represented as a simple graph consisting of a feature matrix and an adjecancy matrix, where the adjacency matrix will be very boring, because it just indicates next neighbor edges. With this, I can then use the power of MPNN to handle the observation task.
+
+On the other hand, due to the simplicity of the board, I could also use a simple tensor-notation and have CNNs handle the observation task. CNNs can be accelerated with GPUs, but I think MPNNs can too (in fact, they are quite similar). 
+
+Today, i think, I will go with the graph structure, because I think, it captures the idea of findind a "path" through the board for strategy. However, for dense convolutions there is also the explicit bias of locality and therefore, both are suspected to work. But GNNs are a little bit more modern and if need be, one could also change the adjecancy matrix in the future, while this is not possible in the tensor notation. Graphs are in this sense a little bit more modern. 
+
+
+--> Focus on the observation space first!!! board.py initialize and create_graph, use also player.py, units.py
+
+
+29.12.2025: Designed tile.py for Tile class to be used for the board list. However, should it just be a list? Or some better structure?
+
+The problem with observation: Say, there are 3 players in the map, then we have the following observation unit featurization for a tile considering only warrior yes/no:
+
+all players view: (player 1 has warr on tile)
+
+P1: 0 1 0 0 0 0
+P2: 0 0 0 0 0 0		stack: 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+P3: 0 0 0 0 0 0
+
+
+all players view: (player 2 has warr on tile)
+
+P1: 0 0 0 0 0 0
+P2: 0 1 0 0 0 0		stack: 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0
+P3: 0 0 0 0 0 0
+
+
+
+These two vectors are different, yet, when training RL agents from perspective P1 and perspective P2, they should actually be the same, because they describe the same state; both P1 and P2 have a warr on the tile from their perspective, yet the total observation vector is (thruthfully) different. However, in order to use the same agents to train against each other, the respective views vector must be changed to reflect the SAME state. Both should be 
+
+			stack: 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+
+We therefore need to reorder the dimensions in the partial graph representations in the player class;
+
+P1 view: P1 P2 P3 ...
+P2 view: P2 P1 P3 ...
+P3 view: P3 P1 P2 ...
+
+This will signify: First dimensions: MY UNITS, later dimensions: Enemy/ Friend units
+
+
+
+
+
+30.12.: Problem with Village and City; Village has no playerId but city has and this can make code cluttery; with some if == None statements, which are not clean. So, instead, the city class will inherit from the village class. But the city featurizer in tile.py works already pretty well and should be taken for the other featurizers too.
+--> This turned out to be worst, because capturing a village would create a new city object and having all of these functions in an existing object is better 
+
+22:50 Uhr: The board is now finished and can easily be transformed into the graph via create_graph_from_board_state() function call. 
+
+Next, I will probably have to program player.py and game.py and distribute functions like unit movement etc. based on the followin criteria:
+
+1) The interface needs to be perfectly prepared to create the action masks and translate smoothly into the environment wrapper.
+2) For this, it is important to define one instance (player/ unit/ board) that makes DECISIONS in the game, while the other instances should just be responsive to decisions. 
+3) Player will include the notion of the partial graph (fog, switch PX to position P1 in local node feats), which is created from the global graph. All (current) actions will manifest in a change in the global graph, and after every single decision, the new global and partial graphs need to be created!
+
+Good luck and god speed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+14.01.2026: Some prep be4 coding
+
+player.py will be a wrapper for everything visible to the player with playerId: partial graph, list of units, list of own cities, stars per turn, stars, etc.
+
+--> It is NOT making any board changes; this will be happening in game.py
+
+----------------------
+game.py: Includes game mechanics, such as "can_spawn_unit(player, unit, city)" and "move_unit(player, unit)"
+	- Include "interactive" flag in the class constructor to enable a mode, where you play the game
+	- (Not only) For interactive mode, he solves things by introducing "validate_action" and "apply_action" functions in the game class to have you play the game
+	- "apply_action(player, action)" applies every possible action. It has if statements for all 13 possible action types and iterates through IntEnum "ActionTypes".
+		--> This will work together with "translated_action" in env.py. It is used to have the RL algorithm choose an action and let game.py process it using only one function. The alternative would be calling a lot of different functions, where only one logic is handled. Its prob best to go with his idea. 
+	- game class instantiates the players in the constructor
+	- all board modifications are defined here!
+
+
+
+----------------------
+env.py: Here, the action masks are build and other RL stuff... I dont know exactly yet
+
+
+----------------------
+First things first: In comparison to the catan 13 basic actions that the mother action head chooses from, what will be the ausgangssituation in this game?
+--> 1. Move unit (also which order???)
+	2. Attack with unit (composite action? move and attack? not make composite?)
+	3. create new unit (composite action: decide action -> decide city -> decide unit)
+	4. research tech (decide research -> which tech)
+	5. interact with tile; harvest resource, chop forest, build forge, etc. (decide tile interaction -> decide tile -> decide action)
+	6. 
+
+14.01., 2:08 Uhr. The above list is WORK IN PROGRESS and not yet final. Make decisions on what actions should be composite and how fine detailed!!!
+
+Next: player.py holding all relevant player information
+Then: game.py handling basic game mechanics
+Then then: "validate_action" and "apply_action" to work towards env
+
+
+
+22:51 Uhr: node features:
+0 1 2	3  4        5 6 7 8 9	0 1 2 3 4 5 6 7 8 9 0 1
+1 0 0	0  1		0 0 0 0 0 	0 0 0 0 0 0 0 0 0 0 0 0
+		P1 P2		v P1-P2--	P1----------P2----------
+field	player		city 		W-----R-----W-----R-----
+type	control		feats		i r p i r p i r p i r p
+								Units
+
+idle ready process
+
+
+
+15.01.: partial_graph for 2player games can now be constructed via player.py "construct_partial_graph_2players"
+
+Next: Where are the units for the player stored to iterate over? How can the order be reimagined every step? 
+How does it work with the mother action head?
+
+Begin from the end: When a unit moves and applies vision, this must modify the player.uncovered_tiles_ids, but player does not modify the board.
+Therefore, the modification must happen in game.py  <---> it would be best to start game.py on account of unit movement and vision application,
+bc. this brings everything together: 
+	agent decides unit move (&player instance has unit) --> game.py "apply action"  --> unit.move (given partial graph) --> board changes, player uncovered tiles change
+
+
+15.01. 9:53 Uhr:
+
+Move unit as composite action:
+-> Select MoveUnit action in mother selection head
+	-> Another mask is applied over all possible units under players control marked with either r or p (where additional statements for p are required)
+	How to handle mask of variable length?
+	---> Can be solved by treating the list of units as variable input length sequence and working with cross attention module
+	unit.tile is linking the unit to the graph. This will help for context-information.
+		-> Move validation: First get all possible destination tiles. Then calculate paths to all possible destination tiles. If path not possible, mask False.
+		Return only options that are True. Context could be provided by creating the partial graph for every possible move (MAKING IT EXPLICIT)
+		Happens in game.py
+			-> Make move: unit.move and unit.apply_vision are used to complete the action. 
+
+
+In general, there is a lot of cross-referencing going on rn: The tile holds a unit class, which is also referencing to the tile its standing on.
+Then player has a list of units pointers, pointing to his units under control. 
+If I understand correctly, these cross references are just pointers and no object is saved to memory twice unless deepcopy is used. 
+This is good from a memory management point, but be carefull to only have ONE way to modify the class instances;
+for example, dont have functions in player.py that modify the board.
+
+Next TODO: code all the necessary game logic for unit movement and interaction using the apply_action function in game.py
+
+
+16.01.:
+- Using networkx for path finding algorithms.
+- Included self.movement_topology_graph for the graph topology for movement. However, it is recommended (by AI) to have the partial graph stay 
+as numpy arrays, because this would be faster compared to having partial graphs be a nx.graph and modifying, because of metadata overhang
+- "calc_movement_target_and_shortest_path" in game.py calculates the target locations aswell as the shortest path to it, excluding invalid paths and therefore invalid target locations
+- Had to change the feature dimension to include escaping for units with escape:
+
+
+
+0 1 2	3  4        5 6 7 8 9	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+1 0 0	0  1		0 0 0 0 0 	0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+		P1 P2		v P1--P2--	P1--------------P2-------------
+field	player		city 		W-------R-------W-------R------
+type	control		feats		i r e h i r e h i r e h i r e h
+								Units
+
+
+
+idle ready escape can_hit
+
+
+17.01., 2:45 Uhr:
+
+The first apply_action works now, wohoo. Next steps are:
+- implement attack logic and apply action
+- implement seiging logic and apply action
+- implement unit creation apply action 
+- implement end turn apply action
+
+Then, we can go to env and finally work towards the first agent :DDD
+
+
+
+
+
+25.01.
+
+Include city holding unit pointer also into game.py move_unit() and into the apply_action() and into board.py initialize() at the very bottom
+Basically, we always have to check, if there is a city on the tile and then attach the unit pointer to the city the same way as we attach it to
+the tile. This is a bit cumbersome, but so far, the situation are quite limited. NEED BETTER SOLUTION IN THE FUTURE!
+
+--> It would be better to have City(Object) inherit from Tile and have just the additional self variables and functions!
+
+
+
+25.01. 23:41 Uhr:
+
+Only the seiging mechanic is missing, then everything in the base game can be managed with actions. However, now, the action masks need to be coded.
+
+For example; 	action type = move --> which unit? which location?
+				action type = attack --> which unit? attack which enemy unit (as id)?	These masks include some logic for example attack range
+
+For things like these, i need a way to connect a local graph with the id of the unit/ city/ opponent unit. Otherwise the agent wont connect 
+the unit id with the actual position of the unit.
+	I have to really think about this one. One idea could be a positional embedding like a periodic 
+	function over the grid to give the agent a notion of geometric proximity. 
+
+
+IMPORTANT: Since the game mechanism are now coded in .py files, it is now time to switch to a jupyter notebook to readily try the env functions
+while they are coded. Create jupyter notebooks, import all necessary classes and then create the objects and run a random game.
+
+Let the visualization be done completely with AI, dont spend notable time on this yet!!!
+
+Good luck!
+
+
+
+
+04.02.2026:
+
+Added jupyter notebook environment to work towards env wrapper. In the file "first_game_tests" everything runs now. For this, some minor changes had to be done to the folder structure to more mimic the python package structure: https://stackoverflow.com/questions/20552338/handling-complicated-directory-structure-with-python-imports
+
+Now, lets see, if it is possible to play a random game only using the move masks and selecting randomly and have a little stoopid visualization coded up by free AI agents to follow along...
+
+
+05.02. 23.19 Uhr:
+
+I can run random games now and have a simple visualization of the game board. However, there are still bugs;
+
+1. It appears, in some cases of unit deletion, they still stay on the board graph; I can have more units on the board tiles, while the number on units_under_control never goes beyond the allowed maximum. I suspect that in some kind of interaction, a unit is not properly deleted from a tile object.
+
+2. Maybe caused by 1., in some cases, when a unit can_hit, because it senses an enemy unit on a neighboring tile (because this uses all tiles on board), there is no unit in opponent.units_under_control which causes the action mask to be empty and crashed the random game. 
+
+---> The problem lies in the attacking mechanism; it appears that the attacker, when reducing the hp of the defender to 0 does not take its place, but rather stays in his original place. Then he somehow doubles...
+
+
+Here is what was missing: 
+1. Unit.tile was not updated in attacking action
+2. Apply vision was missing in attacking action
+3. when there are two units that can_hit, but one unit deletes the defender, then there will be a unit left that can hit but has no target. I included it into the action mask
+4. Because of the return statements in the attack action, the board graph was not updated, which led to problems in the rendering. 
+5. If unit did not have a single valid move location, it was not checked and movement was still a valid action for this unit.
+6. 
+
+
+06.02.2026
+
+Can now run random games. Only need to implement the seige city mechanic to make caputing villaged and seiging cities possible. Then, we can code up the env wrapper but read the blog first to make sure to understand what comes next!
+
+Good luck!!
+
+
+07.02.2026:
+
+How to incorporate seiging cities in the current codebase?
+
+-> The idea: A unit can capture a city, if it is a) from the opponent player and b) in state ready. This way, the city doesnt need a history of units. 
+For building the mask: Look at every unit in the ready state; check their tiles; check if there is village/ city of opponent player_id; enable capturing
+
+The following problems occurr at this point in time:
+
+1. Unit can capture city while being in state idle
+2. Instead of becoming a city, village just dissapears...
+
+--> Needs fixing!
+
+
+08.02.2026:
+
+1. Simply was forgotten... now worked into city_bool
+2. because city.lvl was not updated from being a city
+
+The base game is now finished in its first form.
+
+The next steps are:
+
+1. Read the blog to make sure to understand the following steps
+    a) Including how to use the functions of action mask to implement into the env wrapper class
+    b) How the actuall interface looks to the neural networks; are they different in the case for dynamic lengths?
+    c) Where do I need to implement the location embedding in order to make it most effectively?
+2. Fix one last problem: Riders in escape can currently move to an occupied tile; this should not be
+3. Set up a github for the project. Use version control and branching for any additions!
+
+
+
+
+
