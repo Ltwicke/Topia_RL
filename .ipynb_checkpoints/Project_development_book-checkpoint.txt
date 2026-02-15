@@ -298,5 +298,50 @@ The next steps are:
 
 
 
+10.02.2026:
+
+The next steps:
+
+1. Build the env wrapper and understand where the interface between the action mask and the model output is
+	--> I think it just provides it and then RL adds logits to it
+2. Find the actual interface. This is more important than the model for now. It will probably be found in game_manager.
+3. 
+
+
+
+
+15.02.2026:
+
+Ive started a claude ai project in hopes to increase the speed of implementing the skeletal structure but atm it cant read subfolders of github for some reason...
+
+wrapper.py is programmed in its base form. The template was analyzed by claude ai with the following results:
+
+1) Good RL practice is to follow the gymnasium template: env has 
+    a) reset() to start a new episode
+    b) step() that returns the RL tuple obs, reward, done, info
+    c) render() that shows the game state in the environment
+
+2) get_action_mask dictates the set of possible actions and can be translated into actions together with a policy networks logits
+
+3) _get_obs() is the function that all the necessary observations from the game state to the network. All network (training) things are done in the RL folder structure.
+Next to the partial_graph, this includes the opponent score, the list of your units and cities to fix the length of the networks output, etc. 
+
+4) Because the rewards and wether or not the game is done depends on the game, it is also handled here. The rewards are fixed values and do not depend on the network and are therefore handed over as simple float values. done simply adds a lot of points to the winner.
+
+5) step() translates and combines the action and returns the observation after the action to be used to gradient descent
+
+
+Need to include code for _get_obs and _get_done_and_reward; choose something arbitrary for now. 
+
+Next, test if the environment works with a random policy network (construct a torch network that returns random logits based on the correct length)
+
+Next next, deal with the actual implementation of PPO...
+
+
+Good luck with that!
+
+
+
+
 
 
