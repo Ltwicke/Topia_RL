@@ -57,7 +57,7 @@ def unit_featurizer(unit: Unit):
         full_units_vec = [np.zeros(N_UNIT_TYPES * N_UNIT_STATES) for n in range(N_PLAYERS)] # for all players the full vector
 
         all_unit_state_vecs = [np.zeros(N_UNIT_STATES) for n in range(N_UNIT_TYPES)] # all possible states for all possible unit types
-        all_unit_state_vecs[unit.unit_type][unit.turn_state] = unit.current_hp / unit.hp # specific unit type; warr = 0, rider = 1 ... and turn state
+        all_unit_state_vecs[unit.unit_type][unit.turn_state] = float(unit.current_hp / unit.hp) # specific unit type; warr = 0, rider = 1 ... and turn state
 
         full_units_vec[unit.player_id] = np.hstack(all_unit_state_vecs)
 

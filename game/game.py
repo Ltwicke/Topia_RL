@@ -3,7 +3,7 @@ import numpy as np
 import math
 import networkx as nx
 
-from game.enums import UnitType, TileType, BoardType, PlayerId, TileStatus, Tribes, ActionTypes, UnitState
+from game.enums import UnitType, TileType, BoardType, PlayerId, TileStatus, Tribes, ActionTypes, UnitState, DefenseBonus
 from game.components.board import Board
 from game.components.player import Player
 from game.components.units import Warrior, Rider
@@ -31,7 +31,7 @@ class Game(object):
             player.reset(self.game_board)
 
         self.player_go_id = 0
-
+        self.turn = 0
 
 
     def apply_action(self, action: dict, return_message=False):
@@ -41,15 +41,24 @@ class Game(object):
         
         player = self.players[self.player_go_id]
         opponent = self.players[(self.player_go_id + 1) % 2] ## works only for 2 player mode
+        message = {}
+        message["action_type"] = action["type"] # stores ActionTypes
 
         if action["type"] == ActionTypes.MoveUnit:
             unit = player.units_under_control[action["unit"]]
             
             self.move_unit(unit, action["target_id"])
 
-            self.apply_unit_vision(unit, action["path"])
+            n_tiles_uncovered = self.apply_unit_vision(unit, action["path"])
 
-            self.advance_unit_turn_state(unit)
+            self.advance_unit_turn_state(unit, action)
+
+            if unit.tile.city != None:
+                self._apply_unit_def_bonus(unit)
+            else:
+                unit.def_bonus = DefenseBonus.NoBonus
+
+            message["tiles_uncovered"] = n_tiles_uncovered
 
 
         elif action["type"] == ActionTypes.Attack:
@@ -73,19 +82,25 @@ class Game(object):
                 
                 if o_unit_tile.city != None:
                     o_unit_tile.city.unit = unit
+                    self._apply_unit_def_bonus(unit)
+                else:
+                    unit.def_bonus = DefenseBonus.NoBonus
                 if unit_tile.city != None:
-                    unit_tile.city.unit = None # because unit leaves city
+                    unit_tile.city.unit = None # because unit leaves city      
 
                 self.apply_unit_vision(unit, attack_path)
 
                 del opponent.units_under_control[action["o_unit_index"]] ## remove defender pointer from opponent
                 o_unit.city.current_n_units -= 1
 
-                self.advance_unit_turn_state(unit)
+                self.advance_unit_turn_state(unit, action)
                 
                 self.game_board.create_board_graph_from_board_state(self.all_tile_ids)
                 player.construct_partial_graph_2players(self.game_board)
-                return 1
+
+                message["killed_unit"] = 1
+                
+                return message ## return here, because due to the calculation, unit_result_hp could also be 0
 
             if unit_result_hp <= 0: ## attacker vanishes due to defender
                 unit_tile.unit = None ## Delete unit pointer from tile
@@ -98,12 +113,17 @@ class Game(object):
                 
                 self.game_board.create_board_graph_from_board_state(self.all_tile_ids)
                 player.construct_partial_graph_2players(self.game_board)
-                return 1
+
+                message["killed_unit"] = 0
+                
+                return message
             
             unit.current_hp = unit_result_hp
             o_unit.current_hp = o_unit_result_hp
 
-            self.advance_unit_turn_state(unit)
+            self.advance_unit_turn_state(unit, action)
+
+            message["killed_unit"] = 0
 
 
         elif action["type"] == ActionTypes.CreateUnit:
@@ -128,8 +148,12 @@ class Game(object):
             city_tile.unit = unit ## on city TILE
             city.unit = unit # on city object... THIS NEEDS FIXING IN GENERAL
             city.current_n_units += 1
+
+            unit.def_bonus = DefenseBonus.Shield
             
             player.units_under_control.append(unit)
+
+            message["unit_type"] = action["unit_type"]
 
         
         elif action["type"] == ActionTypes.CaptureCity:
@@ -137,17 +161,27 @@ class Game(object):
             unit_tile = unit.tile
             former_unit_city = unit.city
             city = unit_tile.city
+            city_tile_id = city.tile_id
+            former_player_id = city.player_id
 
             ## capture city:
             city.capture(player.player_id) # also sets current_n_units of city to 1
 
+            if former_player_id != None: #meaning the city belonged to someone
+                opponent_city_tile_ids = [city.tile_id for city in opponent.cities_under_control]
+                del opponent.cities_under_control[opponent_city_tile_ids.index(city_tile_id)] ## removes the correct city
+
+            player.cities_under_control.append(city)
+
             former_unit_city.current_n_units -= 1
 
             unit.turn_state = UnitState.idle
+
+            unit.def_bonus = DefenseBonus.Shield
             
 
-
         elif action["type"] == ActionTypes.EndTurn:
+            self.turn += self.player_go_id % 2 # 0 1 0 1 0 1 0 1 ...
             self.player_go_id = (self.player_go_id + 1) % 2
 
             for unit in self.players[self.player_go_id].units_under_control:
@@ -158,6 +192,8 @@ class Game(object):
         ## Create a new board_graph AND players partial graph:
         self.game_board.create_board_graph_from_board_state(self.all_tile_ids)
         player.construct_partial_graph_2players(self.game_board)
+
+        return message
 
 
 
@@ -180,6 +216,13 @@ class Game(object):
             return 1 
         return 0
 
+
+    def _apply_unit_def_bonus(self, unit):
+        if unit.tile.city.player_id == self.player_go_id: # players unit on his own city
+            unit.def_bonus = DefenseBonus.Shield
+        else:
+            unit.def_bonus = DefenseBonus.NoBonus # in normal map generation this is not even possible to reach here
+            
     
     def calc_movement_target_and_shortest_path(self, unit, target_tile=None, greedy_search=False):
         """Given the unit.mvpts and unit.tile.id, calculate all valid target ids and the shortest (valid) path to them.
@@ -194,17 +237,16 @@ class Game(object):
 
         cant_step_on = partial_graph[:,0] == 0 # True if its not a field tile
         hidden_nodes = (partial_graph[:,0:3] == 0).all(axis=-1) # True if tile is not uncovered yet
-        occupied = (partial_graph[:, 10:25] == 1).any(axis=-1) # True if any unit on tile TODO: Currently also blocks own units to jump over, this is WRONG!
+        occupied = (partial_graph[:, 10:25] != 0.0).any(axis=-1) # True if any unit on tile TODO: Currently also blocks own units to jump over, this is WRONG!
         ## TODO: Enemy zone of control: Remove all nodes, where enemy units are adjacent
 
         invalid_mask = cant_step_on | hidden_nodes | occupied
         nodes_to_remove = [self.game_board.int_to_tup[index] for index in np.argwhere(invalid_mask).flatten()]
         unit_location_node = self.game_board.int_to_tup[unit.tile.id]
-        try:
-            nodes_to_remove.remove(unit_location_node)
-        except:
-            pass
-        
+
+        if unit_location_node in nodes_to_remove:
+            nodes_to_remove.remove(unit_location_node) # this shit still throws errors, bc unit location node is not part of it
+  
         G.remove_nodes_from(nodes_to_remove)
 
         if greedy_search:
@@ -220,7 +262,7 @@ class Game(object):
 
     def move_unit(self, unit, target_tile_id):
 
-        ## update source_tile:
+        ## update source_tile: move away from city
         if unit.tile.city != None:
             unit.tile.city.unit = None
         
@@ -237,10 +279,17 @@ class Game(object):
 
 
     def apply_unit_vision(self, unit, path):
+
+        delta_uncovered_tiles = 0
+        player_uncovered_tiles = self.players[unit.player_id].uncovered_tile_ids
+        delta_uncovered_tiles -= len(player_uncovered_tiles)
         
         for tile_id in path:
             visioned_tile_ids = self.tiles_in_range(tile_id, distance=unit.vision_range)
-            self.players[unit.player_id].uncovered_tile_ids.update(visioned_tile_ids)
+            player_uncovered_tiles.update(visioned_tile_ids)
+            
+        delta_uncovered_tiles += len(player_uncovered_tiles)
+        return delta_uncovered_tiles
 
 
     def attack_retaliate_calc(self, unit, o_unit, splash=False):
@@ -259,45 +308,49 @@ class Game(object):
         return attackResult, defenseResult
 
 
-    def advance_unit_turn_state(self, unit):
+    def advance_unit_turn_state(self, unit, action):
         """
         This function includes all the logic about unit turn_states. This necessitates for the surrounding of the unit.
         idle: the unit cannot do any action this turn anymore
         ready: the unit has not done any action this turn
         escaping: the unit cannot attack anymore, but can move
         can_hit: the unit can attack, but cannot move.
+
+        TODO: This has to be reconsidered; There are too many situations that depend on factors outside of unit. OR include the action
+        and make it a little bit more ordered.
         """
         player = self.player_go_id # currently either 0 or 1
         opponent = (player + 1) % 2 ## 1 + 1 % 2 = 0, 0 + 1 % 2 = 1 WORKS ONLY FOR 2 PLAYERS
         surr_units = [
                     self.game_board.board[id].unit.player_id for id in self.tiles_in_range(unit.tile.id, unit.attack_range) \
-                    if self.game_board.board[id].unit != None
+                    if self.game_board.board[id].unit != None # no else statement? Does it default to None?
                     ]
         current_state = unit.turn_state
+        action_type = action["type"] # one of the enums
 
         if unit.unit_type == UnitType.Warrior:
-
-            if current_state == UnitState.ready:
+            # some action has happened; e.g. warrior was moved, warrior attacked, now change turn_state on the unit:
+            if action_type == ActionTypes.MoveUnit: # only possible from ready state
                 if opponent in surr_units:
-                    unit.turn_state = UnitState.can_hit
+                    unit.turn_state = UnitState.can_hit 
                 else:
                     unit.turn_state = UnitState.idle
-
-            elif current_state == UnitState.can_hit:
+            # action_type == Attack: 
+            elif action_type == ActionTypes.Attack:
                 unit.turn_state = UnitState.idle
 
         elif unit.unit_type == UnitType.Rider:
 
-            if current_state == UnitState.ready:
-                if opponent in surr_units:
-                    unit.turn_state = UnitState.can_hit
-                else:
-                    unit.turn_state = UnitState.escaping
-
-            elif current_state == UnitState.escaping:
-                unit.turn_state = UnitState.idle
-
-            elif current_state == UnitState.can_hit:
+            if action_type == ActionTypes.MoveUnit:
+                if current_state == UnitState.ready:
+                    if opponent in surr_units:
+                        unit.turn_state = UnitState.can_hit # same here as above
+                    else:
+                        unit.turn_state = UnitState.idle
+                elif current_state == UnitState.escaping: # an escaping rider can only move, so we will be in this if
+                    unit.turn_state = UnitState.idle
+            # action_type == Attack
+            elif action_type == ActionTypes.Attack:
                 unit.turn_state = UnitState.escaping
 
 

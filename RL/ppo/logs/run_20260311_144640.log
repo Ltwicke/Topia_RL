@@ -1,0 +1,551 @@
+2026-03-11 14:46:40  Run tag : run_20260311_144640
+2026-03-11 14:46:40  Log dir : C:\Users\laure\1own_projects\1polytopia_score\RL\ppo\logs
+2026-03-11 14:46:40  No pretrained checkpoint specified — training from scratch.
+2026-03-11 14:46:40  
+2026-03-11 14:46:40  ======================================================================
+2026-03-11 14:46:40    POLYTOPIA RL — PPO TRAINING  (hierarchical policy, optimised)
+2026-03-11 14:46:40  ======================================================================
+2026-03-11 14:46:40    Device             : cuda
+2026-03-11 14:46:40    Board size         : random square [10×10 … 16×16]
+2026-03-11 14:46:40    Batch size         : 8,192  (8 proc × 4 envs × 256 steps)
+2026-03-11 14:46:40    Minibatch size     : 512  |  Minibatches: 16  |  Epochs: 2  |  Updates: 500
+2026-03-11 14:46:40    Encoder            : 4 layers × 64d  (4 heads)
+2026-03-11 14:46:40    Selection heads    : 2 layers × 64d  (4 heads)
+2026-03-11 14:46:40    MLP                : 3 hidden layers × 128d
+2026-03-11 14:46:40    Conv kernels       : (5, 3)  × 1 stacked layers
+2026-03-11 14:46:40    Context bias       : 4
+2026-03-11 14:46:40    AMP                : True
+2026-03-11 14:46:40    Recompute returns  : False
+2026-03-11 14:46:40    Start update       : 0
+2026-03-11 14:46:40    Pretrained ckpt    : (none)
+2026-03-11 14:46:40  
+2026-03-11 14:46:40  
+2026-03-11 14:46:41  
+[update 0000] weights dispatched in 0.097s
+2026-03-11 14:46:41  [update 0000] waiting for 8 workers …
+2026-03-11 14:47:41  [update 0000] all workers done in 60.41s
+2026-03-11 14:47:41  [update 0000] GAE computed in 0.108s
+2026-03-11 14:47:41  [update 0000] VRAM before PPO  alloc=4 MB  reserved=6 MB
+2026-03-11 14:56:05  [update 0000] PPO update done in 503.86s
+2026-03-11 14:56:05  [update 0000] VRAM after  PPO  alloc=34 MB  reserved=210 MB
+2026-03-11 14:56:05    [ckpt] saved → checkpoints_hierarchical\policy_update_00000.pt  (keeping last 3)
+2026-03-11 14:56:05  
+2026-03-11 14:56:05  ╔══ update 0000 ══════════════════════════════════════════════
+2026-03-11 14:56:05  ║  Wall time     : 564.9s  (dist 0.10s | collect 60.41s | GAE 0.108s | PPO 503.86s)
+2026-03-11 14:56:05  ║  Games finished:      8  (conquest 8, timeout 0)
+2026-03-11 14:56:05  ║  Win rate      : 1.000
+2026-03-11 14:56:05  ║  Avg ep length : 1024.0 steps
+2026-03-11 14:56:05  ║  Avg reward/ep : 281.513
+2026-03-11 14:56:05  ║  p_loss        : 0.0073
+2026-03-11 14:56:05  ║  v_loss        : 1.0275
+2026-03-11 14:56:05  ║  entropy       : 2.4888
+2026-03-11 14:56:05  ║  VRAM          : 34 MB alloc  / 210 MB reserved
+2026-03-11 14:56:05  ╚════════════════════════════════════════════════════════════
+2026-03-11 14:56:05  
+2026-03-11 14:56:05  
+[update 0001] weights dispatched in 0.057s
+2026-03-11 14:56:05  [update 0001] waiting for 8 workers …
+2026-03-11 14:57:33  [update 0001] all workers done in 87.65s
+2026-03-11 14:57:33  [update 0001] GAE computed in 0.108s
+2026-03-11 14:57:33  [update 0001] VRAM before PPO  alloc=34 MB  reserved=210 MB
+2026-03-11 15:10:11  [update 0001] PPO update done in 757.98s
+2026-03-11 15:10:12  [update 0001] VRAM after  PPO  alloc=34 MB  reserved=272 MB
+2026-03-11 15:10:12    [ckpt] saved → checkpoints_hierarchical\policy_update_00001.pt  (keeping last 3)
+2026-03-11 15:10:12  
+2026-03-11 15:10:12  ╔══ update 0001 ══════════════════════════════════════════════
+2026-03-11 15:10:12  ║  Wall time     : 846.4s  (dist 0.06s | collect 87.65s | GAE 0.108s | PPO 757.98s)
+2026-03-11 15:10:12  ║  Games finished:     16  (conquest 3, timeout 13)
+2026-03-11 15:10:12  ║  Win rate      : 0.188
+2026-03-11 15:10:12  ║  Avg ep length : 512.0 steps
+2026-03-11 15:10:12  ║  Avg reward/ep : 111.725
+2026-03-11 15:10:12  ║  p_loss        : 0.0058
+2026-03-11 15:10:12  ║  v_loss        : 0.4560
+2026-03-11 15:10:12  ║  entropy       : 3.2078
+2026-03-11 15:10:12  ║  VRAM          : 34 MB alloc  / 272 MB reserved
+2026-03-11 15:10:12  ╚════════════════════════════════════════════════════════════
+2026-03-11 15:10:12  
+2026-03-11 15:10:12  
+[update 0002] weights dispatched in 0.081s
+2026-03-11 15:10:12  [update 0002] waiting for 8 workers …
+2026-03-11 15:11:31  [update 0002] all workers done in 78.66s
+2026-03-11 15:11:31  [update 0002] GAE computed in 0.115s
+2026-03-11 15:11:31  [update 0002] VRAM before PPO  alloc=34 MB  reserved=272 MB
+2026-03-11 15:22:50  [update 0002] PPO update done in 679.02s
+2026-03-11 15:22:50  [update 0002] VRAM after  PPO  alloc=34 MB  reserved=252 MB
+2026-03-11 15:22:50    [ckpt] saved → checkpoints_hierarchical\policy_update_00002.pt  (keeping last 3)
+2026-03-11 15:22:50  
+2026-03-11 15:22:50  ╔══ update 0002 ══════════════════════════════════════════════
+2026-03-11 15:22:50  ║  Wall time     : 758.5s  (dist 0.08s | collect 78.66s | GAE 0.115s | PPO 679.02s)
+2026-03-11 15:22:50  ║  Games finished:     16  (conquest 6, timeout 10)
+2026-03-11 15:22:50  ║  Win rate      : 0.375
+2026-03-11 15:22:50  ║  Avg ep length : 512.0 steps
+2026-03-11 15:22:50  ║  Avg reward/ep : 259.844
+2026-03-11 15:22:50  ║  p_loss        : 0.0066
+2026-03-11 15:22:50  ║  v_loss        : 0.8505
+2026-03-11 15:22:50  ║  entropy       : 2.7278
+2026-03-11 15:22:50  ║  VRAM          : 34 MB alloc  / 252 MB reserved
+2026-03-11 15:22:50  ╚════════════════════════════════════════════════════════════
+2026-03-11 15:22:50  
+2026-03-11 15:22:50  
+[update 0003] weights dispatched in 0.071s
+2026-03-11 15:22:50  [update 0003] waiting for 8 workers …
+2026-03-11 15:24:23  [update 0003] all workers done in 92.82s
+2026-03-11 15:24:23  [update 0003] GAE computed in 0.115s
+2026-03-11 15:24:23  [update 0003] VRAM before PPO  alloc=34 MB  reserved=252 MB
+2026-03-11 15:38:29  [update 0003] PPO update done in 845.23s
+2026-03-11 15:38:29  [update 0003] VRAM after  PPO  alloc=34 MB  reserved=284 MB
+2026-03-11 15:38:29    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00000.pt
+2026-03-11 15:38:29    [ckpt] saved → checkpoints_hierarchical\policy_update_00003.pt  (keeping last 3)
+2026-03-11 15:38:29  
+2026-03-11 15:38:29  ╔══ update 0003 ══════════════════════════════════════════════
+2026-03-11 15:38:29  ║  Wall time     : 939.1s  (dist 0.07s | collect 92.82s | GAE 0.115s | PPO 845.23s)
+2026-03-11 15:38:29  ║  Games finished:      6  (conquest 3, timeout 3)
+2026-03-11 15:38:29  ║  Win rate      : 0.500
+2026-03-11 15:38:29  ║  Avg ep length : 1365.3 steps
+2026-03-11 15:38:29  ║  Avg reward/ep : 508.217
+2026-03-11 15:38:29  ║  p_loss        : 0.0012
+2026-03-11 15:38:29  ║  v_loss        : 0.5620
+2026-03-11 15:38:29  ║  entropy       : 3.0784
+2026-03-11 15:38:29  ║  VRAM          : 34 MB alloc  / 284 MB reserved
+2026-03-11 15:38:29  ╚════════════════════════════════════════════════════════════
+2026-03-11 15:38:29  
+2026-03-11 15:38:30  
+[update 0004] weights dispatched in 0.075s
+2026-03-11 15:38:30  [update 0004] waiting for 8 workers …
+2026-03-11 15:40:31  [update 0004] all workers done in 121.51s
+2026-03-11 15:40:31  [update 0004] GAE computed in 0.121s
+2026-03-11 15:40:31  [update 0004] VRAM before PPO  alloc=34 MB  reserved=284 MB
+2026-03-11 15:58:10  [update 0004] PPO update done in 1058.87s
+2026-03-11 15:58:11  [update 0004] VRAM after  PPO  alloc=34 MB  reserved=266 MB
+2026-03-11 15:58:11    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00001.pt
+2026-03-11 15:58:11    [ckpt] saved → checkpoints_hierarchical\policy_update_00004.pt  (keeping last 3)
+2026-03-11 15:58:11  
+2026-03-11 15:58:11  ╔══ update 0004 ══════════════════════════════════════════════
+2026-03-11 15:58:11  ║  Wall time     : 1181.8s  (dist 0.07s | collect 121.51s | GAE 0.121s | PPO 1058.87s)
+2026-03-11 15:58:11  ║  Games finished:      3  (conquest 1, timeout 2)
+2026-03-11 15:58:11  ║  Win rate      : 0.333
+2026-03-11 15:58:11  ║  Avg ep length : 2730.7 steps
+2026-03-11 15:58:11  ║  Avg reward/ep : 660.533
+2026-03-11 15:58:11  ║  p_loss        : 0.0037
+2026-03-11 15:58:11  ║  v_loss        : 0.1911
+2026-03-11 15:58:11  ║  entropy       : 3.1695
+2026-03-11 15:58:11  ║  VRAM          : 34 MB alloc  / 266 MB reserved
+2026-03-11 15:58:11  ╚════════════════════════════════════════════════════════════
+2026-03-11 15:58:11  
+2026-03-11 15:58:11  
+[update 0005] weights dispatched in 0.057s
+2026-03-11 15:58:11  [update 0005] waiting for 8 workers …
+2026-03-11 16:00:36  [update 0005] all workers done in 144.51s
+2026-03-11 16:00:36  [update 0005] GAE computed in 0.113s
+2026-03-11 16:00:36  [update 0005] VRAM before PPO  alloc=34 MB  reserved=266 MB
+2026-03-11 16:22:50  [update 0005] PPO update done in 1333.87s
+2026-03-11 16:22:51  [update 0005] VRAM after  PPO  alloc=34 MB  reserved=268 MB
+2026-03-11 16:22:51    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00002.pt
+2026-03-11 16:22:51    [ckpt] saved → checkpoints_hierarchical\policy_update_00005.pt  (keeping last 3)
+2026-03-11 16:22:51  
+2026-03-11 16:22:51  ╔══ update 0005 ══════════════════════════════════════════════
+2026-03-11 16:22:51  ║  Wall time     : 1480.0s  (dist 0.06s | collect 144.51s | GAE 0.113s | PPO 1333.87s)
+2026-03-11 16:22:51  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-11 16:22:51  ║  Win rate      : 1.000
+2026-03-11 16:22:51  ║  Avg ep length : 8192.0 steps
+2026-03-11 16:22:51  ║  Avg reward/ep : 1721.500
+2026-03-11 16:22:51  ║  p_loss        : 0.0017
+2026-03-11 16:22:51  ║  v_loss        : 0.3769
+2026-03-11 16:22:51  ║  entropy       : 3.3584
+2026-03-11 16:22:51  ║  VRAM          : 34 MB alloc  / 268 MB reserved
+2026-03-11 16:22:51  ╚════════════════════════════════════════════════════════════
+2026-03-11 16:22:51  
+2026-03-11 16:22:51  
+[update 0006] weights dispatched in 0.077s
+2026-03-11 16:22:51  [update 0006] waiting for 8 workers …
+2026-03-11 16:25:29  [update 0006] all workers done in 157.43s
+2026-03-11 16:25:29  [update 0006] GAE computed in 0.116s
+2026-03-11 16:25:29  [update 0006] VRAM before PPO  alloc=34 MB  reserved=268 MB
+2026-03-11 16:52:10  [update 0006] PPO update done in 1601.38s
+2026-03-11 16:52:12  [update 0006] VRAM after  PPO  alloc=34 MB  reserved=286 MB
+2026-03-11 16:52:12    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00003.pt
+2026-03-11 16:52:12    [ckpt] saved → checkpoints_hierarchical\policy_update_00006.pt  (keeping last 3)
+2026-03-11 16:52:12  
+2026-03-11 16:52:12  ╔══ update 0006 ══════════════════════════════════════════════
+2026-03-11 16:52:12  ║  Wall time     : 1760.5s  (dist 0.08s | collect 157.43s | GAE 0.116s | PPO 1601.38s)
+2026-03-11 16:52:12  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-11 16:52:12  ║  Win rate      : 0.000
+2026-03-11 16:52:12  ║  Avg ep length : 8192.0 steps
+2026-03-11 16:52:12  ║  Avg reward/ep : 1002.100
+2026-03-11 16:52:12  ║  p_loss        : 0.0039
+2026-03-11 16:52:12  ║  v_loss        : 0.0242
+2026-03-11 16:52:12  ║  entropy       : 3.4447
+2026-03-11 16:52:12  ║  VRAM          : 34 MB alloc  / 286 MB reserved
+2026-03-11 16:52:12  ╚════════════════════════════════════════════════════════════
+2026-03-11 16:52:12  
+2026-03-11 16:52:12  
+[update 0007] weights dispatched in 0.050s
+2026-03-11 16:52:12  [update 0007] waiting for 8 workers …
+2026-03-11 16:54:54  [update 0007] all workers done in 162.53s
+2026-03-11 16:54:54  [update 0007] GAE computed in 0.117s
+2026-03-11 16:54:54  [update 0007] VRAM before PPO  alloc=34 MB  reserved=286 MB
+2026-03-11 17:20:25  [update 0007] PPO update done in 1530.54s
+2026-03-11 17:20:27  [update 0007] VRAM after  PPO  alloc=34 MB  reserved=272 MB
+2026-03-11 17:20:27    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00004.pt
+2026-03-11 17:20:27    [ckpt] saved → checkpoints_hierarchical\policy_update_00007.pt  (keeping last 3)
+2026-03-11 17:20:27  
+2026-03-11 17:20:27  ╔══ update 0007 ══════════════════════════════════════════════
+2026-03-11 17:20:27  ║  Wall time     : 1694.8s  (dist 0.05s | collect 162.53s | GAE 0.117s | PPO 1530.54s)
+2026-03-11 17:20:27  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-11 17:20:27  ║  Win rate      : 1.000
+2026-03-11 17:20:27  ║  Avg ep length : 8192.0 steps
+2026-03-11 17:20:27  ║  Avg reward/ep : 1351.800
+2026-03-11 17:20:27  ║  p_loss        : 0.0011
+2026-03-11 17:20:27  ║  v_loss        : 0.2620
+2026-03-11 17:20:27  ║  entropy       : 3.4252
+2026-03-11 17:20:27  ║  VRAM          : 34 MB alloc  / 272 MB reserved
+2026-03-11 17:20:27  ╚════════════════════════════════════════════════════════════
+2026-03-11 17:20:27  
+2026-03-11 17:20:27  
+[update 0008] weights dispatched in 0.049s
+2026-03-11 17:20:27  [update 0008] waiting for 8 workers …
+2026-03-11 17:23:14  [update 0008] all workers done in 167.01s
+2026-03-11 17:23:14  [update 0008] GAE computed in 0.122s
+2026-03-11 17:23:14  [update 0008] VRAM before PPO  alloc=34 MB  reserved=272 MB
+2026-03-11 17:51:28  [update 0008] PPO update done in 1694.54s
+2026-03-11 17:51:30  [update 0008] VRAM after  PPO  alloc=34 MB  reserved=292 MB
+2026-03-11 17:51:30    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00005.pt
+2026-03-11 17:51:30    [ckpt] saved → checkpoints_hierarchical\policy_update_00008.pt  (keeping last 3)
+2026-03-11 17:51:30  
+2026-03-11 17:51:30  ╔══ update 0008 ══════════════════════════════════════════════
+2026-03-11 17:51:30  ║  Wall time     : 1863.4s  (dist 0.05s | collect 167.01s | GAE 0.122s | PPO 1694.54s)
+2026-03-11 17:51:30  ║  Games finished:      3  (conquest 1, timeout 2)
+2026-03-11 17:51:30  ║  Win rate      : 0.333
+2026-03-11 17:51:30  ║  Avg ep length : 2730.7 steps
+2026-03-11 17:51:30  ║  Avg reward/ep : 434.833
+2026-03-11 17:51:30  ║  p_loss        : 0.0009
+2026-03-11 17:51:30  ║  v_loss        : 0.2831
+2026-03-11 17:51:30  ║  entropy       : 3.4350
+2026-03-11 17:51:30  ║  VRAM          : 34 MB alloc  / 292 MB reserved
+2026-03-11 17:51:30  ╚════════════════════════════════════════════════════════════
+2026-03-11 17:51:30  
+2026-03-11 17:51:30  
+[update 0009] weights dispatched in 0.049s
+2026-03-11 17:51:30  [update 0009] waiting for 8 workers …
+2026-03-11 17:54:15  [update 0009] all workers done in 164.90s
+2026-03-11 17:54:15  [update 0009] GAE computed in 0.114s
+2026-03-11 17:54:15  [update 0009] VRAM before PPO  alloc=34 MB  reserved=292 MB
+2026-03-11 18:20:15  [update 0009] PPO update done in 1560.34s
+2026-03-11 18:20:17  [update 0009] VRAM after  PPO  alloc=34 MB  reserved=300 MB
+2026-03-11 18:20:17    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00006.pt
+2026-03-11 18:20:17    [ckpt] saved → checkpoints_hierarchical\policy_update_00009.pt  (keeping last 3)
+2026-03-11 18:20:17  
+2026-03-11 18:20:17  ╔══ update 0009 ══════════════════════════════════════════════
+2026-03-11 18:20:17  ║  Wall time     : 1727.0s  (dist 0.05s | collect 164.90s | GAE 0.114s | PPO 1560.34s)
+2026-03-11 18:20:17  ║  Games finished:      3  (conquest 2, timeout 1)
+2026-03-11 18:20:17  ║  Win rate      : 0.667
+2026-03-11 18:20:17  ║  Avg ep length : 2730.7 steps
+2026-03-11 18:20:17  ║  Avg reward/ep : 564.600
+2026-03-11 18:20:17  ║  p_loss        : 0.0008
+2026-03-11 18:20:17  ║  v_loss        : 0.5667
+2026-03-11 18:20:17  ║  entropy       : 3.3029
+2026-03-11 18:20:17  ║  VRAM          : 34 MB alloc  / 300 MB reserved
+2026-03-11 18:20:17  ╚════════════════════════════════════════════════════════════
+2026-03-11 18:20:17  
+2026-03-11 18:20:17  
+[update 0010] weights dispatched in 0.043s
+2026-03-11 18:20:17  [update 0010] waiting for 8 workers …
+2026-03-11 18:23:06  [update 0010] all workers done in 169.24s
+2026-03-11 18:23:06  [update 0010] GAE computed in 0.115s
+2026-03-11 18:23:06  [update 0010] VRAM before PPO  alloc=34 MB  reserved=300 MB
+2026-03-11 18:47:41  [update 0010] PPO update done in 1474.46s
+2026-03-11 18:47:42  [update 0010] VRAM after  PPO  alloc=34 MB  reserved=304 MB
+2026-03-11 18:47:42    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00007.pt
+2026-03-11 18:47:42    [ckpt] saved → checkpoints_hierarchical\policy_update_00010.pt  (keeping last 3)
+2026-03-11 18:47:42  
+2026-03-11 18:47:42  ╔══ update 0010 ══════════════════════════════════════════════
+2026-03-11 18:47:42  ║  Wall time     : 1645.4s  (dist 0.04s | collect 169.24s | GAE 0.115s | PPO 1474.46s)
+2026-03-11 18:47:42  ║  Games finished:      1  (conquest 0, timeout 1)
+2026-03-11 18:47:42  ║  Win rate      : 0.000
+2026-03-11 18:47:42  ║  Avg ep length : 8192.0 steps
+2026-03-11 18:47:42  ║  Avg reward/ep : 1080.500
+2026-03-11 18:47:42  ║  p_loss        : 0.0046
+2026-03-11 18:47:42  ║  v_loss        : 0.0261
+2026-03-11 18:47:42  ║  entropy       : 3.2553
+2026-03-11 18:47:42  ║  VRAM          : 34 MB alloc  / 304 MB reserved
+2026-03-11 18:47:43  ╚════════════════════════════════════════════════════════════
+2026-03-11 18:47:43  
+2026-03-11 18:47:43  
+[update 0011] weights dispatched in 0.074s
+2026-03-11 18:47:43  [update 0011] waiting for 8 workers …
+2026-03-11 18:50:19  [update 0011] all workers done in 156.02s
+2026-03-11 18:50:19  [update 0011] GAE computed in 0.119s
+2026-03-11 18:50:19  [update 0011] VRAM before PPO  alloc=34 MB  reserved=304 MB
+2026-03-11 19:12:47  [update 0011] PPO update done in 1348.48s
+2026-03-11 19:12:49  [update 0011] VRAM after  PPO  alloc=34 MB  reserved=282 MB
+2026-03-11 19:12:49    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00008.pt
+2026-03-11 19:12:49    [ckpt] saved → checkpoints_hierarchical\policy_update_00011.pt  (keeping last 3)
+2026-03-11 19:12:49  
+2026-03-11 19:12:49  ╔══ update 0011 ══════════════════════════════════════════════
+2026-03-11 19:12:49  ║  Wall time     : 1506.3s  (dist 0.07s | collect 156.02s | GAE 0.119s | PPO 1348.48s)
+2026-03-11 19:12:49  ║  Games finished:      3  (conquest 0, timeout 3)
+2026-03-11 19:12:49  ║  Win rate      : 0.000
+2026-03-11 19:12:49  ║  Avg ep length : 2730.7 steps
+2026-03-11 19:12:49  ║  Avg reward/ep : 386.233
+2026-03-11 19:12:49  ║  p_loss        : 0.0020
+2026-03-11 19:12:49  ║  v_loss        : 0.0288
+2026-03-11 19:12:49  ║  entropy       : 3.2074
+2026-03-11 19:12:49  ║  VRAM          : 34 MB alloc  / 282 MB reserved
+2026-03-11 19:12:49  ╚════════════════════════════════════════════════════════════
+2026-03-11 19:12:49  
+2026-03-11 19:12:49  
+[update 0012] weights dispatched in 0.044s
+2026-03-11 19:12:49  [update 0012] waiting for 8 workers …
+2026-03-11 19:15:28  [update 0012] all workers done in 159.34s
+2026-03-11 19:15:28  [update 0012] GAE computed in 0.116s
+2026-03-11 19:15:28  [update 0012] VRAM before PPO  alloc=34 MB  reserved=282 MB
+2026-03-11 19:40:14  [update 0012] PPO update done in 1485.84s
+2026-03-11 19:40:16  [update 0012] VRAM after  PPO  alloc=34 MB  reserved=304 MB
+2026-03-11 19:40:16    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00009.pt
+2026-03-11 19:40:16    [ckpt] saved → checkpoints_hierarchical\policy_update_00012.pt  (keeping last 3)
+2026-03-11 19:40:16  
+2026-03-11 19:40:16  ╔══ update 0012 ══════════════════════════════════════════════
+2026-03-11 19:40:16  ║  Wall time     : 1646.9s  (dist 0.04s | collect 159.34s | GAE 0.116s | PPO 1485.84s)
+2026-03-11 19:40:16  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-11 19:40:16  ║  Win rate      : 0.000
+2026-03-11 19:40:16  ║  Avg ep length : 8192.0 steps
+2026-03-11 19:40:16  ║  Avg reward/ep : 1053.900
+2026-03-11 19:40:16  ║  p_loss        : 0.0018
+2026-03-11 19:40:16  ║  v_loss        : 0.0296
+2026-03-11 19:40:16  ║  entropy       : 3.2704
+2026-03-11 19:40:16  ║  VRAM          : 34 MB alloc  / 304 MB reserved
+2026-03-11 19:40:16  ╚════════════════════════════════════════════════════════════
+2026-03-11 19:40:16  
+2026-03-11 19:40:16  
+[update 0013] weights dispatched in 0.056s
+2026-03-11 19:40:16  [update 0013] waiting for 8 workers …
+2026-03-11 19:43:04  [update 0013] all workers done in 167.91s
+2026-03-11 19:43:04  [update 0013] GAE computed in 0.116s
+2026-03-11 19:43:04  [update 0013] VRAM before PPO  alloc=34 MB  reserved=304 MB
+2026-03-11 20:08:17  [update 0013] PPO update done in 1512.77s
+2026-03-11 20:08:18  [update 0013] VRAM after  PPO  alloc=34 MB  reserved=268 MB
+2026-03-11 20:08:18    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00010.pt
+2026-03-11 20:08:18    [ckpt] saved → checkpoints_hierarchical\policy_update_00013.pt  (keeping last 3)
+2026-03-11 20:08:18  
+2026-03-11 20:08:18  ╔══ update 0013 ══════════════════════════════════════════════
+2026-03-11 20:08:18  ║  Wall time     : 1682.6s  (dist 0.06s | collect 167.91s | GAE 0.116s | PPO 1512.77s)
+2026-03-11 20:08:18  ║  Games finished:      2  (conquest 1, timeout 1)
+2026-03-11 20:08:18  ║  Win rate      : 0.500
+2026-03-11 20:08:18  ║  Avg ep length : 4096.0 steps
+2026-03-11 20:08:18  ║  Avg reward/ep : 675.650
+2026-03-11 20:08:18  ║  p_loss        : 0.0011
+2026-03-11 20:08:18  ║  v_loss        : 0.7140
+2026-03-11 20:08:18  ║  entropy       : 3.3147
+2026-03-11 20:08:18  ║  VRAM          : 34 MB alloc  / 268 MB reserved
+2026-03-11 20:08:18  ╚════════════════════════════════════════════════════════════
+2026-03-11 20:08:18  
+2026-03-11 20:08:18  
+[update 0014] weights dispatched in 0.077s
+2026-03-11 20:08:18  [update 0014] waiting for 8 workers …
+2026-03-11 20:11:03  [update 0014] all workers done in 164.25s
+2026-03-11 20:11:03  [update 0014] GAE computed in 0.119s
+2026-03-11 20:11:03  [update 0014] VRAM before PPO  alloc=34 MB  reserved=268 MB
+2026-03-11 20:37:04  [update 0014] PPO update done in 1561.13s
+2026-03-11 20:37:06  [update 0014] VRAM after  PPO  alloc=34 MB  reserved=286 MB
+2026-03-11 20:37:06    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00011.pt
+2026-03-11 20:37:06    [ckpt] saved → checkpoints_hierarchical\policy_update_00014.pt  (keeping last 3)
+2026-03-11 20:37:06  
+2026-03-11 20:37:06  ╔══ update 0014 ══════════════════════════════════════════════
+2026-03-11 20:37:06  ║  Wall time     : 1727.3s  (dist 0.08s | collect 164.25s | GAE 0.119s | PPO 1561.13s)
+2026-03-11 20:37:06  ║  Games finished:      4  (conquest 1, timeout 3)
+2026-03-11 20:37:06  ║  Win rate      : 0.250
+2026-03-11 20:37:06  ║  Avg ep length : 2048.0 steps
+2026-03-11 20:37:06  ║  Avg reward/ep : 351.675
+2026-03-11 20:37:06  ║  p_loss        : 0.0010
+2026-03-11 20:37:06  ║  v_loss        : 0.4049
+2026-03-11 20:37:06  ║  entropy       : 3.2158
+2026-03-11 20:37:06  ║  VRAM          : 34 MB alloc  / 286 MB reserved
+2026-03-11 20:37:06  ╚════════════════════════════════════════════════════════════
+2026-03-11 20:37:06  
+2026-03-11 20:37:06  
+[update 0015] weights dispatched in 0.053s
+2026-03-11 20:37:06  [update 0015] waiting for 8 workers …
+2026-03-11 20:39:48  [update 0015] all workers done in 162.64s
+2026-03-11 20:39:48  [update 0015] GAE computed in 0.117s
+2026-03-11 20:39:48  [update 0015] VRAM before PPO  alloc=34 MB  reserved=286 MB
+2026-03-11 21:03:27  [update 0015] PPO update done in 1419.00s
+2026-03-11 21:03:29  [update 0015] VRAM after  PPO  alloc=34 MB  reserved=298 MB
+2026-03-11 21:03:29    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00012.pt
+2026-03-11 21:03:29    [ckpt] saved → checkpoints_hierarchical\policy_update_00015.pt  (keeping last 3)
+2026-03-11 21:03:29  
+2026-03-11 21:03:29  ╔══ update 0015 ══════════════════════════════════════════════
+2026-03-11 21:03:29  ║  Wall time     : 1583.4s  (dist 0.05s | collect 162.64s | GAE 0.117s | PPO 1419.00s)
+2026-03-11 21:03:29  ║  Games finished:      2  (conquest 0, timeout 2)
+2026-03-11 21:03:29  ║  Win rate      : 0.000
+2026-03-11 21:03:29  ║  Avg ep length : 4096.0 steps
+2026-03-11 21:03:29  ║  Avg reward/ep : 674.950
+2026-03-11 21:03:29  ║  p_loss        : 0.0028
+2026-03-11 21:03:29  ║  v_loss        : 0.0333
+2026-03-11 21:03:29  ║  entropy       : 2.9688
+2026-03-11 21:03:29  ║  VRAM          : 34 MB alloc  / 298 MB reserved
+2026-03-11 21:03:29  ╚════════════════════════════════════════════════════════════
+2026-03-11 21:03:29  
+2026-03-11 21:03:29  
+[update 0016] weights dispatched in 0.041s
+2026-03-11 21:03:29  [update 0016] waiting for 8 workers …
+2026-03-11 21:06:21  [update 0016] all workers done in 172.30s
+2026-03-11 21:06:21  [update 0016] GAE computed in 0.114s
+2026-03-11 21:06:21  [update 0016] VRAM before PPO  alloc=34 MB  reserved=298 MB
+2026-03-11 21:31:49  [update 0016] PPO update done in 1527.94s
+2026-03-11 21:31:51  [update 0016] VRAM after  PPO  alloc=34 MB  reserved=294 MB
+2026-03-11 21:31:51    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00013.pt
+2026-03-11 21:31:51    [ckpt] saved → checkpoints_hierarchical\policy_update_00016.pt  (keeping last 3)
+2026-03-11 21:31:51  
+2026-03-11 21:31:51  ╔══ update 0016 ══════════════════════════════════════════════
+2026-03-11 21:31:51  ║  Wall time     : 1702.2s  (dist 0.04s | collect 172.30s | GAE 0.114s | PPO 1527.94s)
+2026-03-11 21:31:51  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-11 21:31:51  ║  Win rate      : 1.000
+2026-03-11 21:31:51  ║  Avg ep length : 8192.0 steps
+2026-03-11 21:31:51  ║  Avg reward/ep : 1489.300
+2026-03-11 21:31:51  ║  p_loss        : -0.0001
+2026-03-11 21:31:51  ║  v_loss        : 0.4380
+2026-03-11 21:31:51  ║  entropy       : 3.0743
+2026-03-11 21:31:51  ║  VRAM          : 34 MB alloc  / 294 MB reserved
+2026-03-11 21:31:51  ╚════════════════════════════════════════════════════════════
+2026-03-11 21:31:51  
+2026-03-11 21:31:51  
+[update 0017] weights dispatched in 0.072s
+2026-03-11 21:31:51  [update 0017] waiting for 8 workers …
+2026-03-11 21:34:41  [update 0017] all workers done in 169.56s
+2026-03-11 21:34:41  [update 0017] GAE computed in 0.113s
+2026-03-11 21:34:41  [update 0017] VRAM before PPO  alloc=34 MB  reserved=294 MB
+2026-03-11 22:00:48  [update 0017] PPO update done in 1566.66s
+2026-03-11 22:00:49  [update 0017] VRAM after  PPO  alloc=34 MB  reserved=270 MB
+2026-03-11 22:00:49    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00014.pt
+2026-03-11 22:00:49    [ckpt] saved → checkpoints_hierarchical\policy_update_00017.pt  (keeping last 3)
+2026-03-11 22:00:49  
+2026-03-11 22:00:49  ╔══ update 0017 ══════════════════════════════════════════════
+2026-03-11 22:00:49  ║  Wall time     : 1738.2s  (dist 0.07s | collect 169.56s | GAE 0.113s | PPO 1566.66s)
+2026-03-11 22:00:49  ║  Games finished:      2  (conquest 1, timeout 1)
+2026-03-11 22:00:49  ║  Win rate      : 0.500
+2026-03-11 22:00:49  ║  Avg ep length : 4096.0 steps
+2026-03-11 22:00:49  ║  Avg reward/ep : 754.900
+2026-03-11 22:00:49  ║  p_loss        : 0.0004
+2026-03-11 22:00:49  ║  v_loss        : 0.4666
+2026-03-11 22:00:49  ║  entropy       : 3.0918
+2026-03-11 22:00:49  ║  VRAM          : 34 MB alloc  / 270 MB reserved
+2026-03-11 22:00:49  ╚════════════════════════════════════════════════════════════
+2026-03-11 22:00:49  
+2026-03-11 22:00:49  
+[update 0018] weights dispatched in 0.057s
+2026-03-11 22:00:49  [update 0018] waiting for 8 workers …
+2026-03-11 22:03:29  [update 0018] all workers done in 159.92s
+2026-03-11 22:03:29  [update 0018] GAE computed in 0.123s
+2026-03-11 22:03:29  [update 0018] VRAM before PPO  alloc=34 MB  reserved=270 MB
+2026-03-11 22:29:33  [update 0018] PPO update done in 1563.37s
+2026-03-11 22:29:35  [update 0018] VRAM after  PPO  alloc=34 MB  reserved=284 MB
+2026-03-11 22:29:35    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00015.pt
+2026-03-11 22:29:35    [ckpt] saved → checkpoints_hierarchical\policy_update_00018.pt  (keeping last 3)
+2026-03-11 22:29:35  
+2026-03-11 22:29:35  ╔══ update 0018 ══════════════════════════════════════════════
+2026-03-11 22:29:35  ║  Wall time     : 1725.2s  (dist 0.06s | collect 159.92s | GAE 0.123s | PPO 1563.37s)
+2026-03-11 22:29:35  ║  Games finished:      7  (conquest 5, timeout 2)
+2026-03-11 22:29:35  ║  Win rate      : 0.714
+2026-03-11 22:29:35  ║  Avg ep length : 1170.3 steps
+2026-03-11 22:29:35  ║  Avg reward/ep : 421.229
+2026-03-11 22:29:35  ║  p_loss        : 0.0000
+2026-03-11 22:29:35  ║  v_loss        : 2.3328
+2026-03-11 22:29:35  ║  entropy       : 3.0353
+2026-03-11 22:29:35  ║  VRAM          : 34 MB alloc  / 284 MB reserved
+2026-03-11 22:29:35  ╚════════════════════════════════════════════════════════════
+2026-03-11 22:29:35  
+2026-03-11 22:29:35  
+[update 0019] weights dispatched in 0.077s
+2026-03-11 22:29:35  [update 0019] waiting for 8 workers …
+2026-03-11 22:32:20  [update 0019] all workers done in 165.28s
+2026-03-11 22:32:20  [update 0019] GAE computed in 0.118s
+2026-03-11 22:32:20  [update 0019] VRAM before PPO  alloc=34 MB  reserved=284 MB
+2026-03-11 22:59:55  [update 0019] PPO update done in 1655.39s
+2026-03-11 22:59:57  [update 0019] VRAM after  PPO  alloc=34 MB  reserved=292 MB
+2026-03-11 22:59:57    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00016.pt
+2026-03-11 22:59:57    [ckpt] saved → checkpoints_hierarchical\policy_update_00019.pt  (keeping last 3)
+2026-03-11 22:59:57  
+2026-03-11 22:59:57  ╔══ update 0019 ══════════════════════════════════════════════
+2026-03-11 22:59:57  ║  Wall time     : 1822.7s  (dist 0.08s | collect 165.28s | GAE 0.118s | PPO 1655.39s)
+2026-03-11 22:59:57  ║  Games finished:      4  (conquest 2, timeout 2)
+2026-03-11 22:59:57  ║  Win rate      : 0.500
+2026-03-11 22:59:57  ║  Avg ep length : 2048.0 steps
+2026-03-11 22:59:57  ║  Avg reward/ep : 523.225
+2026-03-11 22:59:57  ║  p_loss        : 0.0004
+2026-03-11 22:59:57  ║  v_loss        : 0.8189
+2026-03-11 22:59:57  ║  entropy       : 3.1071
+2026-03-11 22:59:57  ║  VRAM          : 34 MB alloc  / 292 MB reserved
+2026-03-11 22:59:57  ╚════════════════════════════════════════════════════════════
+2026-03-11 22:59:57  
+2026-03-11 22:59:57  
+[update 0020] weights dispatched in 0.056s
+2026-03-11 22:59:57  [update 0020] waiting for 8 workers …
+2026-03-11 23:02:27  [update 0020] all workers done in 149.25s
+2026-03-11 23:02:27  [update 0020] GAE computed in 0.122s
+2026-03-11 23:02:27  [update 0020] VRAM before PPO  alloc=34 MB  reserved=292 MB
+2026-03-11 23:28:48  [update 0020] PPO update done in 1581.17s
+2026-03-11 23:28:50  [update 0020] VRAM after  PPO  alloc=34 MB  reserved=298 MB
+2026-03-11 23:28:50    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00017.pt
+2026-03-11 23:28:50    [ckpt] saved → checkpoints_hierarchical\policy_update_00020.pt  (keeping last 3)
+2026-03-11 23:28:50  
+2026-03-11 23:28:50  ╔══ update 0020 ══════════════════════════════════════════════
+2026-03-11 23:28:50  ║  Wall time     : 1732.5s  (dist 0.06s | collect 149.25s | GAE 0.122s | PPO 1581.17s)
+2026-03-11 23:28:50  ║  Games finished:      4  (conquest 2, timeout 2)
+2026-03-11 23:28:50  ║  Win rate      : 0.500
+2026-03-11 23:28:50  ║  Avg ep length : 2048.0 steps
+2026-03-11 23:28:50  ║  Avg reward/ep : 539.525
+2026-03-11 23:28:50  ║  p_loss        : 0.0009
+2026-03-11 23:28:50  ║  v_loss        : 0.8324
+2026-03-11 23:28:50  ║  entropy       : 3.0415
+2026-03-11 23:28:50  ║  VRAM          : 34 MB alloc  / 298 MB reserved
+2026-03-11 23:28:50  ╚════════════════════════════════════════════════════════════
+2026-03-11 23:28:50  
+2026-03-11 23:28:50  
+[update 0021] weights dispatched in 0.076s
+2026-03-11 23:28:50  [update 0021] waiting for 8 workers …
+2026-03-11 23:31:32  [update 0021] all workers done in 161.64s
+2026-03-11 23:31:32  [update 0021] GAE computed in 0.111s
+2026-03-11 23:31:32  [update 0021] VRAM before PPO  alloc=34 MB  reserved=298 MB
+2026-03-11 23:56:47  [update 0021] PPO update done in 1514.94s
+2026-03-11 23:56:48  [update 0021] VRAM after  PPO  alloc=34 MB  reserved=304 MB
+2026-03-11 23:56:48    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00018.pt
+2026-03-11 23:56:48    [ckpt] saved → checkpoints_hierarchical\policy_update_00021.pt  (keeping last 3)
+2026-03-11 23:56:48  
+2026-03-11 23:56:48  ╔══ update 0021 ══════════════════════════════════════════════
+2026-03-11 23:56:48  ║  Wall time     : 1678.6s  (dist 0.08s | collect 161.64s | GAE 0.111s | PPO 1514.94s)
+2026-03-11 23:56:48  ║  Games finished:      8  (conquest 7, timeout 1)
+2026-03-11 23:56:48  ║  Win rate      : 0.875
+2026-03-11 23:56:48  ║  Avg ep length : 1024.0 steps
+2026-03-11 23:56:48  ║  Avg reward/ep : 470.562
+2026-03-11 23:56:48  ║  p_loss        : 0.0004
+2026-03-11 23:56:48  ║  v_loss        : 2.5884
+2026-03-11 23:56:48  ║  entropy       : 3.0179
+2026-03-11 23:56:48  ║  VRAM          : 34 MB alloc  / 304 MB reserved
+2026-03-11 23:56:48  ╚════════════════════════════════════════════════════════════
+2026-03-11 23:56:48  
+2026-03-11 23:56:48  
+[update 0022] weights dispatched in 0.052s
+2026-03-11 23:56:48  [update 0022] waiting for 8 workers …
+2026-03-11 23:59:40  [update 0022] all workers done in 171.38s
+2026-03-11 23:59:40  [update 0022] GAE computed in 0.114s
+2026-03-11 23:59:40  [update 0022] VRAM before PPO  alloc=34 MB  reserved=304 MB
+2026-03-12 00:28:15  [update 0022] PPO update done in 1714.74s
+2026-03-12 00:28:16  [update 0022] VRAM after  PPO  alloc=34 MB  reserved=292 MB
+2026-03-12 00:28:17    [ckpt] removed old checkpoint: checkpoints_hierarchical\policy_update_00019.pt
+2026-03-12 00:28:17    [ckpt] saved → checkpoints_hierarchical\policy_update_00022.pt  (keeping last 3)
+2026-03-12 00:28:17  
+2026-03-12 00:28:17  ╔══ update 0022 ══════════════════════════════════════════════
+2026-03-12 00:28:17  ║  Wall time     : 1888.2s  (dist 0.05s | collect 171.38s | GAE 0.114s | PPO 1714.74s)
+2026-03-12 00:28:17  ║  Games finished:      1  (conquest 0, timeout 1)
+2026-03-12 00:28:17  ║  Win rate      : 0.000
+2026-03-12 00:28:17  ║  Avg ep length : 8192.0 steps
+2026-03-12 00:28:17  ║  Avg reward/ep : 1426.600
+2026-03-12 00:28:17  ║  p_loss        : 0.0033
+2026-03-12 00:28:17  ║  v_loss        : 0.0362
+2026-03-12 00:28:17  ║  entropy       : 3.0459
+2026-03-12 00:28:17  ║  VRAM          : 34 MB alloc  / 292 MB reserved
+2026-03-12 00:28:17  ╚════════════════════════════════════════════════════════════
+2026-03-12 00:28:17  
+2026-03-12 00:28:17  
+[update 0023] weights dispatched in 0.057s
+2026-03-12 00:28:17  [update 0023] waiting for 8 workers …

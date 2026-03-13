@@ -49,7 +49,9 @@ class Player(object):
         self.construct_partial_graph_2players(board)
 
         ## collect starting unit:
-        self.units_under_control.append(board.board[self.capital_id].unit)
+        unit = board.board[self.capital_id].unit
+        unit.set_ready() # only at the start of the game!
+        self.units_under_control.append(unit)
         self.cities_under_control.append(board.board[self.capital_id].city)
 
         ## stars per turn based on capital:
