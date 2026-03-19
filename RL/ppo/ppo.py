@@ -281,6 +281,83 @@ class PPOTrainer:
 
         return stats
 
+    def update_only_win_reward(
+        self,
+        processed_batch: dict,
+        batch_processor: "BatchProcessor",
+    ) -> dict:
+        """
+        Run cfg.n_epochs of PPO updates.
+ 
+        For each epoch, batch_processor.mb_generator_fixed_size() is called to
+        draw a fresh random permutation of all batch samples.  The minibatch
+        count per epoch is cfg.batch_size // cfg.minibatch_size (drop_last).
+ 
+        Parameters
+        ──────────
+        processed_batch : dict         — output of BatchProcessor.process()
+        batch_processor : BatchProcessor — used to generate minibatches
+ 
+        Returns
+        ───────
+        stats : dict
+            p_loss  float — mean clipped surrogate loss (all epochs, all mb)
+            v_loss  float — mean value loss
+            entropy float — mean entropy
+        """
+        cfg = self.cfg
+ 
+        pl_log: list = []
+        vl_log: list = []
+        el_log: list = []
+ 
+        # Number of complete minibatches per epoch (drop_last=True)
+        n_train_samples = len(processed_batch["flat_snaps"])          
+        n_mb_per_epoch  = n_train_samples // cfg.minibatch_size       # dynamic
+        total_mb        = cfg.n_epochs * n_mb_per_epoch
+ 
+        pbar = tqdm(
+            total=total_mb,
+            desc="  PPO epochs × minibatches",
+            leave=False,
+            unit="mb",
+        )
+ 
+        self.policy.train()
+ 
+        for epoch in range(cfg.n_epochs):
+            # Fresh permutation each epoch — all B samples, no sub-sampling
+            for minibatch in batch_processor.mb_generator_fixed_size(processed_batch):
+                p_item, v_item, ent_item = self._step(minibatch)
+ 
+                pl_log.append(p_item)
+                vl_log.append(v_item)
+                el_log.append(ent_item)
+ 
+                pbar.set_postfix(
+                    epoch  = epoch + 1,
+                    p_loss = f"{p_item:.4f}",
+                    v_loss = f"{v_item:.4f}",
+                )
+                pbar.update(1)
+ 
+        pbar.close()
+ 
+        # ── Compute stats before releasing the log lists ──────────────────────
+        stats = {
+            "p_loss":  float(np.mean(pl_log)),
+            "v_loss":  float(np.mean(vl_log)),
+            "entropy": float(np.mean(el_log)),
+        }
+ 
+        # ── Post-update memory cleanup ────────────────────────────────────────
+        del pl_log, vl_log, el_log
+        gc.collect()
+        if self.device.type == "cuda":
+            torch.cuda.empty_cache()
+ 
+        return stats
+
 
 
 

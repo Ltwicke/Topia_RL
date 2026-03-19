@@ -214,6 +214,130 @@ class BatchProcessor:
 
     # ── Main processing step ──────────────────────────────────────────────────
 
+    def process_only_win_reward(self, raw_batch: dict) -> Tuple[dict, float]:
+        """
+        Run per-player GAE, filter to winning-env trajectories only,
+        normalise returns, and flatten all arrays.
+
+        Only the T steps belonging to env slots that contain at least one
+        conquest are retained for training.  Steps from timeout-only envs
+        carry zero reward and zero advantage and are discarded, ensuring
+        every minibatch contains meaningful gradient signal.
+
+        The RunningMeanStd is updated from the FILTERED returns only, so
+        the running statistics reflect the win-reward scale rather than
+        being diluted by the mass of zero-return steps.
+
+        Parameters
+        ──────────
+        raw_batch : dict — output of EnvManager.collect()
+
+        Returns
+        ───────
+        processed_batch : dict
+            ── Training tensors (numpy, moved to device inside PPOTrainer) ──
+            flat_snaps         list[dict]        n_train snapshots
+            flat_acts          list[list]        n_train action lists
+            flat_masks         list[list]        n_train mask lists
+            log_probs_np       np.ndarray (n_train,)  old log π(a|s)  float32
+            adv_np             np.ndarray (n_train,)  per-player advantages float32
+            ret_norm_np        np.ndarray (n_train,)  normalised returns   float32
+
+            ── Logging stats ─────────────────────────────────────────────────
+            n_finished         int    episodes that ended (done flag fired)
+            n_won              int    episodes that ended by conquest
+            n_winning_envs     int    env slots with ≥1 conquest
+            n_training_samples int    total steps retained for training
+            total_reward       float  sum of all rewards in the batch
+            avg_ep_len         float  average steps per completed episode
+
+        t_gae : float — seconds spent on GAE computation
+        """
+        cfg = self.cfg
+        T   = cfg.n_steps
+        N   = cfg.n_envs_total
+        t0  = time.time()
+
+        adv, ret = compute_gae_per_player(
+            raw_batch["rewards"],
+            raw_batch["values"],
+            raw_batch["dones"],
+            raw_batch["last_values"],
+            raw_batch["player_ids"],
+            gamma   = cfg.gamma,
+            gae_lam = cfg.gae_lambda,
+        )
+
+        t_gae = time.time() - t0
+
+        # ── Identify winning env slots ────────────────────────────────────────────
+        # won_flags shape: (T, N).  An env slot is "winning" if it produced at
+        # least one conquest at any timestep within the rollout.
+        winning_envs: np.ndarray = np.where(
+            raw_batch["won_flags"].any(axis=0)
+        )[0]   # (W,)  indices into the N env axis
+
+        # ── Build flat keep-indices (time-major ordering) ─────────────────────────
+        # Flat index for position (t, e) in a (T, N) array stored row-major:
+        #   flat = t * N + e
+        # We iterate t in the outer loop to preserve time-major ordering, which
+        # matches the original flattening convention used throughout the pipeline.
+        keep_idx: List[int] = [
+            t * N + e
+            for t in range(T)
+            for e in winning_envs
+        ]
+
+        # ── Flatten full arrays then apply the filter ─────────────────────────────
+        adv_flat = adv.reshape(-1).astype(np.float32)            # (T*N,)
+        ret_flat = ret.reshape(-1).astype(np.float32)            # (T*N,)
+        lp_flat  = raw_batch["log_probs"].reshape(-1).astype(np.float32)  # (T*N,)
+
+        adv_np = adv_flat[keep_idx]   # (n_train,)
+        ret_np = ret_flat[keep_idx]   # (n_train,)
+        lp_np  = lp_flat[keep_idx]    # (n_train,)
+
+        # Update running stats from filtered returns only, then normalise
+        self.ret_normalizer.update(ret_np)
+        ret_norm_np = self.ret_normalizer.normalize(ret_np)
+
+        # ── Flatten list-of-lists then apply the filter ───────────────────────────
+        flat_snaps_all = [s for step in raw_batch["obs_snaps"] for s in step]
+        flat_acts_all  = [a for step in raw_batch["actions"]   for a in step]
+        flat_masks_all = [m for step in raw_batch["masks"]      for m in step]
+
+        flat_snaps = [flat_snaps_all[i] for i in keep_idx]
+        flat_acts  = [flat_acts_all[i]  for i in keep_idx]
+        flat_masks = [flat_masks_all[i] for i in keep_idx]
+
+        del flat_snaps_all, flat_acts_all, flat_masks_all
+
+        # ── Logging helpers ───────────────────────────────────────────────────────
+        n_finished        = int(raw_batch["dones"].sum())
+        n_won             = int(raw_batch["won_flags"].sum())
+        n_winning_envs    = int(winning_envs.size)
+        n_training_samples = len(keep_idx)
+        total_reward      = float(raw_batch["rewards"].sum())
+        avg_ep_len        = cfg.batch_size / max(n_finished, 1)
+
+        processed_batch = {
+            # Training data (filtered to winning envs only)
+            "flat_snaps":          flat_snaps,
+            "flat_acts":           flat_acts,
+            "flat_masks":          flat_masks,
+            "log_probs_np":        lp_np,
+            "adv_np":              adv_np,
+            "ret_norm_np":         ret_norm_np,
+            # Logging
+            "n_finished":          n_finished,
+            "n_won":               n_won,
+            "n_winning_envs":      n_winning_envs,
+            "n_training_samples":  n_training_samples,
+            "total_reward":        total_reward,
+            "avg_ep_len":          avg_ep_len,
+        }
+        return processed_batch, t_gae
+
     def process(self, raw_batch: dict) -> Tuple[dict, float]:
         """
         Run per-player GAE, normalise returns, and flatten all arrays.
@@ -384,6 +508,75 @@ class BatchProcessor:
                 "ret_norm": ret_norm[idx],   # (mb,) CPU tensor
             }
 
+    def mb_generator_fixed_size(
+        self,
+        processed_batch: dict,
+    ) -> Generator[dict, None, None]:
+        """
+        Yield fixed-size minibatches for one PPO epoch.
+ 
+        Algorithm
+        ─────────
+        1. Whiten advantages over ALL B samples (zero mean, unit variance).
+        2. Draw a uniformly random permutation of all B indices.
+        3. Pass through PyTorch's BatchSampler (drop_last=True) to produce
+           minibatches of exactly cfg.minibatch_size samples.
+ 
+        Calling this method again (next epoch) re-draws step 2, giving each
+        epoch a different random ordering of the same data.
+ 
+        Parameters
+        ──────────
+        processed_batch : dict — output of process()
+ 
+        Yields
+        ──────
+        minibatch : dict
+            snaps    list[dict]           minibatch_size snapshots
+            acts     list[list]           minibatch_size actions
+            masks    list[list]           minibatch_size masks
+            log_old  torch.Tensor (mb,)   float32  — old log-probs (CPU)
+            adv      torch.Tensor (mb,)   float32  — whitened advantages (CPU)
+            ret_norm torch.Tensor (mb,)   float32  — normalised returns (CPU)
+ 
+        All tensors are on CPU; PPOTrainer moves them to the target device
+        inside _step() for maximum memory efficiency.
+        """
+        cfg = self.cfg
+        B   = len(processed_batch["flat_snaps"])       # T × N_total — always the full rollout size
+        mb  = cfg.minibatch_size   # direct field
+ 
+        # ── Convert numpy → CPU tensors once per epoch call ──────────────────
+        log_old  = torch.from_numpy(processed_batch["log_probs_np"])  # (B,)
+        adv_full = torch.from_numpy(processed_batch["adv_np"])        # (B,)
+        ret_norm = torch.from_numpy(processed_batch["ret_norm_np"])   # (B,)
+ 
+        # ── Whiten advantages over the full batch ─────────────────────────────
+        adv_full = (adv_full - adv_full.mean()) / (adv_full.std() + 1e-8)
+ 
+        flat_snaps = processed_batch["flat_snaps"]
+        flat_acts  = processed_batch["flat_acts"]
+        flat_masks = processed_batch["flat_masks"]
+ 
+        # ── Build minibatch sampler over all B indices ─────────────────────────
+        # SubsetRandomSampler shuffles all B indices; BatchSampler cuts into
+        # fixed-size minibatches (drop_last=True discards the tail remainder).
+        sampler = BatchSampler(
+            SubsetRandomSampler(torch.randperm(B).tolist()),
+            batch_size=mb,
+            drop_last=True,
+        )
+ 
+        for idx_list in sampler:
+            idx = torch.tensor(idx_list, dtype=torch.long)
+            yield {
+                "snaps":    [flat_snaps[i] for i in idx_list],
+                "acts":     [flat_acts[i]  for i in idx_list],
+                "masks":    [flat_masks[i] for i in idx_list],
+                "log_old":  log_old[idx],    # (mb,) CPU tensor
+                "adv":      adv_full[idx],   # (mb,) CPU tensor
+                "ret_norm": ret_norm[idx],   # (mb,) CPU tensor
+            }
 
 
 

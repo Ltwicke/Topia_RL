@@ -1,0 +1,2691 @@
+2026-03-13 19:10:58  Run tag : run_20260313_191058
+2026-03-13 19:10:58  Log dir : C:\Users\laure\1own_projects\1polytopia_score\RL\logs
+2026-03-13 19:10:58  Loading pretrained weights: .\checkpoints_training\policy_update_00053.pt
+2026-03-13 19:10:58  Checkpoint loaded.
+2026-03-13 19:10:58  
+2026-03-13 19:10:58  ========================================================================
+2026-03-13 19:10:58    POLYTOPIA RL — PPO  (per-player MDP streams)
+2026-03-13 19:10:58  ========================================================================
+2026-03-13 19:10:58    Device            : cuda
+2026-03-13 19:10:58    Board size        : random square [10×10 … 16×16]
+2026-03-13 19:10:58    Workers × envs    : 16 × 4  =  64 parallel envs
+2026-03-13 19:10:58    Rollout steps     : 256
+2026-03-13 19:10:58    Full batch        : 16,384 samples (256 steps × 64 envs)
+2026-03-13 19:10:58    Train fraction    : 0.10  →  1,638 samples / epoch  (6 minibatches × 256)
+2026-03-13 19:10:58    PPO epochs        : 2  |  Updates: 500
+2026-03-13 19:10:58    clip_eps / vf / ent: 0.2 / 0.5 / 0.01
+2026-03-13 19:10:58    γ / λ             : 0.98 / 0.95
+2026-03-13 19:10:58    LR                : 0.0003
+2026-03-13 19:10:58    AMP               : True
+2026-03-13 19:10:58    Encoder           : 4 layers × 64d (4 heads)
+2026-03-13 19:10:58    Selection heads   : 2 layers × 64d (4 heads)
+2026-03-13 19:10:58    MLP               : 3 layers × 128d
+2026-03-13 19:10:58    Conv kernels      : (5, 3) × 1 layers
+2026-03-13 19:10:58    Context bias      : 4
+2026-03-13 19:10:58    Start update      : 54
+2026-03-13 19:10:58    Pretrained        : .\checkpoints_training\policy_update_00053.pt
+2026-03-13 19:10:58  
+2026-03-13 19:10:58    GAE mode          : per-player MDP (cross-turn credit assignment)
+2026-03-13 19:10:58  
+2026-03-13 19:10:58  
+2026-03-13 19:10:58  Spawned 16 worker processes.
+2026-03-13 19:10:58  
+[update 0054] weights dispatched in 0.269s
+2026-03-13 19:10:58  [update 0054] waiting for 16 workers …
+2026-03-13 19:13:08  [update 0054] all workers done in 129.73s
+2026-03-13 19:13:08  [update 0054] per-player GAE in 0.0120s
+2026-03-13 19:14:59  [update 0054] PPO update done in 111.06s
+2026-03-13 19:14:59    [ckpt] saved → checkpoints_training\policy_update_00054.pt  (keeping last 3)
+2026-03-13 19:14:59  
+2026-03-13 19:14:59  ╔══ update 0054 ════════════════════════════════════════════
+2026-03-13 19:14:59  ║  Wall time     : 241.6s  (dist 0.27s | collect 129.73s | GAE 0.0120s | PPO 111.06s)
+2026-03-13 19:14:59  ║  Games finished:     13  (conquest 13, timeout 0)
+2026-03-13 19:14:59  ║  Win rate      : 1.000
+2026-03-13 19:14:59  ║  Avg ep length : 1260.3 steps
+2026-03-13 19:14:59  ║  Avg reward/ep : -222.485
+2026-03-13 19:14:59  ║  p_loss        : -0.0032
+2026-03-13 19:14:59  ║  v_loss        : 5.0652
+2026-03-13 19:14:59  ║  entropy       : 1.7518
+2026-03-13 19:14:59  ╚════════════════════════════════════════════════════════════
+2026-03-13 19:14:59  
+2026-03-13 19:14:59  
+[update 0055] weights dispatched in 0.056s
+2026-03-13 19:14:59  [update 0055] waiting for 16 workers …
+2026-03-13 19:18:15  [update 0055] all workers done in 195.06s
+2026-03-13 19:18:15  [update 0055] per-player GAE in 0.0111s
+2026-03-13 19:20:49  [update 0055] PPO update done in 154.53s
+2026-03-13 19:20:50    [ckpt] saved → checkpoints_training\policy_update_00055.pt  (keeping last 3)
+2026-03-13 19:20:50  
+2026-03-13 19:20:50  ╔══ update 0055 ════════════════════════════════════════════
+2026-03-13 19:20:50  ║  Wall time     : 350.4s  (dist 0.06s | collect 195.06s | GAE 0.0111s | PPO 154.53s)
+2026-03-13 19:20:50  ║  Games finished:      6  (conquest 6, timeout 0)
+2026-03-13 19:20:50  ║  Win rate      : 1.000
+2026-03-13 19:20:50  ║  Avg ep length : 2730.7 steps
+2026-03-13 19:20:50  ║  Avg reward/ep : -272.017
+2026-03-13 19:20:50  ║  p_loss        : -0.0252
+2026-03-13 19:20:50  ║  v_loss        : 0.5481
+2026-03-13 19:20:50  ║  entropy       : 2.2236
+2026-03-13 19:20:50  ╚════════════════════════════════════════════════════════════
+2026-03-13 19:20:50  
+2026-03-13 19:20:50  
+[update 0056] weights dispatched in 0.069s
+2026-03-13 19:20:50  [update 0056] waiting for 16 workers …
+2026-03-13 19:24:39  [update 0056] all workers done in 228.81s
+2026-03-13 19:24:39  [update 0056] per-player GAE in 0.0112s
+2026-03-13 19:27:37  [update 0056] PPO update done in 178.61s
+2026-03-13 19:27:38    [ckpt] saved → checkpoints_training\policy_update_00056.pt  (keeping last 3)
+2026-03-13 19:27:38  
+2026-03-13 19:27:38  ╔══ update 0056 ════════════════════════════════════════════
+2026-03-13 19:27:38  ║  Wall time     : 408.3s  (dist 0.07s | collect 228.81s | GAE 0.0112s | PPO 178.61s)
+2026-03-13 19:27:38  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-13 19:27:38  ║  Win rate      : 1.000
+2026-03-13 19:27:38  ║  Avg ep length : 5461.3 steps
+2026-03-13 19:27:38  ║  Avg reward/ep : -660.500
+2026-03-13 19:27:38  ║  p_loss        : -0.0012
+2026-03-13 19:27:38  ║  v_loss        : 0.5854
+2026-03-13 19:27:38  ║  entropy       : 2.4478
+2026-03-13 19:27:38  ╚════════════════════════════════════════════════════════════
+2026-03-13 19:27:38  
+2026-03-13 19:27:38  
+[update 0057] weights dispatched in 0.125s
+2026-03-13 19:27:38  [update 0057] waiting for 16 workers …
+2026-03-13 19:31:38  [update 0057] all workers done in 239.82s
+2026-03-13 19:31:38  [update 0057] per-player GAE in 0.0112s
+2026-03-13 19:34:32  [update 0057] PPO update done in 174.19s
+2026-03-13 19:34:33    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00054.pt
+2026-03-13 19:34:33    [ckpt] saved → checkpoints_training\policy_update_00057.pt  (keeping last 3)
+2026-03-13 19:34:33  
+2026-03-13 19:34:33  ╔══ update 0057 ════════════════════════════════════════════
+2026-03-13 19:34:33  ║  Wall time     : 415.0s  (dist 0.12s | collect 239.82s | GAE 0.0112s | PPO 174.19s)
+2026-03-13 19:34:33  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-13 19:34:33  ║  Win rate      : 1.000
+2026-03-13 19:34:33  ║  Avg ep length : 5461.3 steps
+2026-03-13 19:34:33  ║  Avg reward/ep : -417.300
+2026-03-13 19:34:33  ║  p_loss        : -0.0071
+2026-03-13 19:34:33  ║  v_loss        : 0.3343
+2026-03-13 19:34:33  ║  entropy       : 2.4444
+2026-03-13 19:34:33  ╚════════════════════════════════════════════════════════════
+2026-03-13 19:34:33  
+2026-03-13 19:34:33  
+[update 0058] weights dispatched in 0.079s
+2026-03-13 19:34:33  [update 0058] waiting for 16 workers …
+2026-03-13 19:38:35  [update 0058] all workers done in 242.09s
+2026-03-13 19:38:35  [update 0058] per-player GAE in 0.0123s
+2026-03-13 19:41:33  [update 0058] PPO update done in 177.53s
+2026-03-13 19:41:34    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00055.pt
+2026-03-13 19:41:34    [ckpt] saved → checkpoints_training\policy_update_00058.pt  (keeping last 3)
+2026-03-13 19:41:34  
+2026-03-13 19:41:34  ╔══ update 0058 ════════════════════════════════════════════
+2026-03-13 19:41:34  ║  Wall time     : 420.6s  (dist 0.08s | collect 242.09s | GAE 0.0123s | PPO 177.53s)
+2026-03-13 19:41:34  ║  Games finished:      4  (conquest 4, timeout 0)
+2026-03-13 19:41:34  ║  Win rate      : 1.000
+2026-03-13 19:41:34  ║  Avg ep length : 4096.0 steps
+2026-03-13 19:41:34  ║  Avg reward/ep : -237.975
+2026-03-13 19:41:34  ║  p_loss        : -0.0064
+2026-03-13 19:41:34  ║  v_loss        : 0.4342
+2026-03-13 19:41:34  ║  entropy       : 2.4747
+2026-03-13 19:41:34  ╚════════════════════════════════════════════════════════════
+2026-03-13 19:41:34  
+2026-03-13 19:41:34  
+[update 0059] weights dispatched in 0.132s
+2026-03-13 19:41:34  [update 0059] waiting for 16 workers …
+2026-03-13 19:45:36  [update 0059] all workers done in 242.41s
+2026-03-13 19:45:36  [update 0059] per-player GAE in 0.0109s
+2026-03-13 19:48:33  [update 0059] PPO update done in 177.01s
+2026-03-13 19:48:34    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00056.pt
+2026-03-13 19:48:34    [ckpt] saved → checkpoints_training\policy_update_00059.pt  (keeping last 3)
+2026-03-13 19:48:34  
+2026-03-13 19:48:34  ╔══ update 0059 ════════════════════════════════════════════
+2026-03-13 19:48:34  ║  Wall time     : 420.4s  (dist 0.13s | collect 242.41s | GAE 0.0109s | PPO 177.01s)
+2026-03-13 19:48:34  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-13 19:48:34  ║  Win rate      : 1.000
+2026-03-13 19:48:34  ║  Avg ep length : 8192.0 steps
+2026-03-13 19:48:34  ║  Avg reward/ep : -452.350
+2026-03-13 19:48:34  ║  p_loss        : 0.0113
+2026-03-13 19:48:34  ║  v_loss        : 0.3528
+2026-03-13 19:48:34  ║  entropy       : 2.5710
+2026-03-13 19:48:34  ╚════════════════════════════════════════════════════════════
+2026-03-13 19:48:34  
+2026-03-13 19:48:34  
+[update 0060] weights dispatched in 0.064s
+2026-03-13 19:48:34  [update 0060] waiting for 16 workers …
+2026-03-13 19:52:22  [update 0060] all workers done in 228.11s
+2026-03-13 19:52:22  [update 0060] per-player GAE in 0.0112s
+2026-03-13 19:55:16  [update 0060] PPO update done in 173.95s
+2026-03-13 19:55:17    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00057.pt
+2026-03-13 19:55:17    [ckpt] saved → checkpoints_training\policy_update_00060.pt  (keeping last 3)
+2026-03-13 19:55:17  
+2026-03-13 19:55:17  ╔══ update 0060 ════════════════════════════════════════════
+2026-03-13 19:55:17  ║  Wall time     : 403.0s  (dist 0.06s | collect 228.11s | GAE 0.0112s | PPO 173.95s)
+2026-03-13 19:55:17  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-13 19:55:17  ║  Win rate      : 1.000
+2026-03-13 19:55:17  ║  Avg ep length : 5461.3 steps
+2026-03-13 19:55:17  ║  Avg reward/ep : -286.733
+2026-03-13 19:55:17  ║  p_loss        : -0.0022
+2026-03-13 19:55:17  ║  v_loss        : 0.4506
+2026-03-13 19:55:17  ║  entropy       : 2.5659
+2026-03-13 19:55:17  ╚════════════════════════════════════════════════════════════
+2026-03-13 19:55:17  
+2026-03-13 19:55:17  
+[update 0061] weights dispatched in 0.128s
+2026-03-13 19:55:17  [update 0061] waiting for 16 workers …
+2026-03-13 19:59:12  [update 0061] all workers done in 235.03s
+2026-03-13 19:59:12  [update 0061] per-player GAE in 0.0123s
+2026-03-13 20:02:07  [update 0061] PPO update done in 174.94s
+2026-03-13 20:02:08    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00058.pt
+2026-03-13 20:02:08    [ckpt] saved → checkpoints_training\policy_update_00061.pt  (keeping last 3)
+2026-03-13 20:02:08  
+2026-03-13 20:02:08  ╔══ update 0061 ════════════════════════════════════════════
+2026-03-13 20:02:08  ║  Wall time     : 411.0s  (dist 0.13s | collect 235.03s | GAE 0.0123s | PPO 174.94s)
+2026-03-13 20:02:08  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-13 20:02:08  ║  Win rate      : 1.000
+2026-03-13 20:02:08  ║  Avg ep length : 8192.0 steps
+2026-03-13 20:02:08  ║  Avg reward/ep : -413.000
+2026-03-13 20:02:08  ║  p_loss        : 0.0157
+2026-03-13 20:02:08  ║  v_loss        : 0.2866
+2026-03-13 20:02:08  ║  entropy       : 2.6668
+2026-03-13 20:02:08  ╚════════════════════════════════════════════════════════════
+2026-03-13 20:02:08  
+2026-03-13 20:02:08  
+[update 0062] weights dispatched in 0.131s
+2026-03-13 20:02:08  [update 0062] waiting for 16 workers …
+2026-03-13 20:06:11  [update 0062] all workers done in 243.22s
+2026-03-13 20:06:11  [update 0062] per-player GAE in 0.0125s
+2026-03-13 20:09:07  [update 0062] PPO update done in 175.39s
+2026-03-13 20:09:08    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00059.pt
+2026-03-13 20:09:08    [ckpt] saved → checkpoints_training\policy_update_00062.pt  (keeping last 3)
+2026-03-13 20:09:08  
+2026-03-13 20:09:08  ╔══ update 0062 ════════════════════════════════════════════
+2026-03-13 20:09:08  ║  Wall time     : 419.6s  (dist 0.13s | collect 243.22s | GAE 0.0125s | PPO 175.39s)
+2026-03-13 20:09:08  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 20:09:08  ║  Win rate      : 1.000
+2026-03-13 20:09:08  ║  Avg ep length : 16384.0 steps
+2026-03-13 20:09:08  ║  Avg reward/ep : -928.300
+2026-03-13 20:09:08  ║  p_loss        : 0.0014
+2026-03-13 20:09:08  ║  v_loss        : 0.2591
+2026-03-13 20:09:08  ║  entropy       : 2.6917
+2026-03-13 20:09:08  ╚════════════════════════════════════════════════════════════
+2026-03-13 20:09:08  
+2026-03-13 20:09:08  
+[update 0063] weights dispatched in 0.123s
+2026-03-13 20:09:08  [update 0063] waiting for 16 workers …
+2026-03-13 20:13:16  [update 0063] all workers done in 248.59s
+2026-03-13 20:13:16  [update 0063] per-player GAE in 0.0111s
+2026-03-13 20:16:22  [update 0063] PPO update done in 185.22s
+2026-03-13 20:16:22    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00060.pt
+2026-03-13 20:16:22    [ckpt] saved → checkpoints_training\policy_update_00063.pt  (keeping last 3)
+2026-03-13 20:16:22  
+2026-03-13 20:16:22  ╔══ update 0063 ════════════════════════════════════════════
+2026-03-13 20:16:22  ║  Wall time     : 434.8s  (dist 0.12s | collect 248.59s | GAE 0.0111s | PPO 185.22s)
+2026-03-13 20:16:22  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 20:16:22  ║  Win rate      : 1.000
+2026-03-13 20:16:22  ║  Avg ep length : 16384.0 steps
+2026-03-13 20:16:22  ║  Avg reward/ep : -737.500
+2026-03-13 20:16:22  ║  p_loss        : -0.0097
+2026-03-13 20:16:22  ║  v_loss        : 0.2576
+2026-03-13 20:16:22  ║  entropy       : 2.7016
+2026-03-13 20:16:22  ╚════════════════════════════════════════════════════════════
+2026-03-13 20:16:22  
+2026-03-13 20:16:23  
+[update 0064] weights dispatched in 0.114s
+2026-03-13 20:16:23  [update 0064] waiting for 16 workers …
+2026-03-13 20:20:39  [update 0064] all workers done in 256.26s
+2026-03-13 20:20:39  [update 0064] per-player GAE in 0.0121s
+2026-03-13 20:23:45  [update 0064] PPO update done in 186.19s
+2026-03-13 20:23:46    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00061.pt
+2026-03-13 20:23:46    [ckpt] saved → checkpoints_training\policy_update_00064.pt  (keeping last 3)
+2026-03-13 20:23:46  
+2026-03-13 20:23:46  ╔══ update 0064 ════════════════════════════════════════════
+2026-03-13 20:23:46  ║  Wall time     : 443.5s  (dist 0.11s | collect 256.26s | GAE 0.0121s | PPO 186.19s)
+2026-03-13 20:23:46  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-13 20:23:46  ║  Win rate      : 1.000
+2026-03-13 20:23:46  ║  Avg ep length : 8192.0 steps
+2026-03-13 20:23:46  ║  Avg reward/ep : -321.400
+2026-03-13 20:23:46  ║  p_loss        : 0.0031
+2026-03-13 20:23:46  ║  v_loss        : 0.4364
+2026-03-13 20:23:46  ║  entropy       : 2.7128
+2026-03-13 20:23:46  ╚════════════════════════════════════════════════════════════
+2026-03-13 20:23:46  
+2026-03-13 20:23:46  
+[update 0065] weights dispatched in 0.073s
+2026-03-13 20:23:46  [update 0065] waiting for 16 workers …
+2026-03-13 20:27:56  [update 0065] all workers done in 250.16s
+2026-03-13 20:27:56  [update 0065] per-player GAE in 0.0124s
+2026-03-13 20:30:52  [update 0065] PPO update done in 175.84s
+2026-03-13 20:30:53    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00062.pt
+2026-03-13 20:30:53    [ckpt] saved → checkpoints_training\policy_update_00065.pt  (keeping last 3)
+2026-03-13 20:30:53  
+2026-03-13 20:30:53  ╔══ update 0065 ════════════════════════════════════════════
+2026-03-13 20:30:53  ║  Wall time     : 427.0s  (dist 0.07s | collect 250.16s | GAE 0.0124s | PPO 175.84s)
+2026-03-13 20:30:53  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-13 20:30:53  ║  Win rate      : 1.000
+2026-03-13 20:30:53  ║  Avg ep length : 8192.0 steps
+2026-03-13 20:30:53  ║  Avg reward/ep : -294.950
+2026-03-13 20:30:53  ║  p_loss        : -0.0338
+2026-03-13 20:30:53  ║  v_loss        : 0.4023
+2026-03-13 20:30:53  ║  entropy       : 2.7640
+2026-03-13 20:30:53  ╚════════════════════════════════════════════════════════════
+2026-03-13 20:30:53  
+2026-03-13 20:30:53  
+[update 0066] weights dispatched in 0.114s
+2026-03-13 20:30:53  [update 0066] waiting for 16 workers …
+2026-03-13 20:35:01  [update 0066] all workers done in 248.15s
+2026-03-13 20:35:01  [update 0066] per-player GAE in 0.0115s
+2026-03-13 20:37:59  [update 0066] PPO update done in 177.65s
+2026-03-13 20:38:00    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00063.pt
+2026-03-13 20:38:00    [ckpt] saved → checkpoints_training\policy_update_00066.pt  (keeping last 3)
+2026-03-13 20:38:00  
+2026-03-13 20:38:00  ╔══ update 0066 ════════════════════════════════════════════
+2026-03-13 20:38:00  ║  Wall time     : 426.8s  (dist 0.11s | collect 248.15s | GAE 0.0115s | PPO 177.65s)
+2026-03-13 20:38:00  ║  Games finished:      8  (conquest 8, timeout 0)
+2026-03-13 20:38:00  ║  Win rate      : 1.000
+2026-03-13 20:38:00  ║  Avg ep length : 2048.0 steps
+2026-03-13 20:38:00  ║  Avg reward/ep : -32.037
+2026-03-13 20:38:00  ║  p_loss        : -0.0135
+2026-03-13 20:38:00  ║  v_loss        : 0.8157
+2026-03-13 20:38:00  ║  entropy       : 2.7765
+2026-03-13 20:38:00  ╚════════════════════════════════════════════════════════════
+2026-03-13 20:38:00  
+2026-03-13 20:38:00  
+[update 0067] weights dispatched in 0.066s
+2026-03-13 20:38:00  [update 0067] waiting for 16 workers …
+2026-03-13 20:41:37  [update 0067] all workers done in 217.52s
+2026-03-13 20:41:37  [update 0067] per-player GAE in 0.0119s
+2026-03-13 20:44:30  [update 0067] PPO update done in 172.62s
+2026-03-13 20:44:31    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00064.pt
+2026-03-13 20:44:31    [ckpt] saved → checkpoints_training\policy_update_00067.pt  (keeping last 3)
+2026-03-13 20:44:31  
+2026-03-13 20:44:31  ╔══ update 0067 ════════════════════════════════════════════
+2026-03-13 20:44:31  ║  Wall time     : 391.1s  (dist 0.07s | collect 217.52s | GAE 0.0119s | PPO 172.62s)
+2026-03-13 20:44:31  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-13 20:44:31  ║  Win rate      : 0.000
+2026-03-13 20:44:31  ║  Avg ep length : 16384.0 steps
+2026-03-13 20:44:31  ║  Avg reward/ep : -575.200
+2026-03-13 20:44:31  ║  p_loss        : 0.0119
+2026-03-13 20:44:31  ║  v_loss        : 0.1927
+2026-03-13 20:44:31  ║  entropy       : 2.7368
+2026-03-13 20:44:31  ╚════════════════════════════════════════════════════════════
+2026-03-13 20:44:31  
+2026-03-13 20:44:31  
+[update 0068] weights dispatched in 0.111s
+2026-03-13 20:44:31  [update 0068] waiting for 16 workers …
+2026-03-13 20:48:36  [update 0068] all workers done in 244.48s
+2026-03-13 20:48:36  [update 0068] per-player GAE in 0.0111s
+2026-03-13 20:51:28  [update 0068] PPO update done in 172.74s
+2026-03-13 20:51:29    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00065.pt
+2026-03-13 20:51:29    [ckpt] saved → checkpoints_training\policy_update_00068.pt  (keeping last 3)
+2026-03-13 20:51:29  
+2026-03-13 20:51:29  ╔══ update 0068 ════════════════════════════════════════════
+2026-03-13 20:51:29  ║  Wall time     : 418.3s  (dist 0.11s | collect 244.48s | GAE 0.0111s | PPO 172.74s)
+2026-03-13 20:51:29  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 20:51:29  ║  Win rate      : 1.000
+2026-03-13 20:51:29  ║  Avg ep length : 16384.0 steps
+2026-03-13 20:51:29  ║  Avg reward/ep : -657.400
+2026-03-13 20:51:29  ║  p_loss        : -0.0048
+2026-03-13 20:51:29  ║  v_loss        : 0.2667
+2026-03-13 20:51:29  ║  entropy       : 2.7584
+2026-03-13 20:51:29  ╚════════════════════════════════════════════════════════════
+2026-03-13 20:51:29  
+2026-03-13 20:51:29  
+[update 0069] weights dispatched in 0.127s
+2026-03-13 20:51:29  [update 0069] waiting for 16 workers …
+2026-03-13 20:55:35  [update 0069] all workers done in 246.11s
+2026-03-13 20:55:35  [update 0069] per-player GAE in 0.0116s
+2026-03-13 20:58:30  [update 0069] PPO update done in 173.96s
+2026-03-13 20:58:30    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00066.pt
+2026-03-13 20:58:30    [ckpt] saved → checkpoints_training\policy_update_00069.pt  (keeping last 3)
+2026-03-13 20:58:30  
+2026-03-13 20:58:30  ╔══ update 0069 ════════════════════════════════════════════
+2026-03-13 20:58:30  ║  Wall time     : 421.1s  (dist 0.13s | collect 246.11s | GAE 0.0116s | PPO 173.96s)
+2026-03-13 20:58:30  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 20:58:30  ║  Win rate      : 1.000
+2026-03-13 20:58:30  ║  Avg ep length : 16384.0 steps
+2026-03-13 20:58:30  ║  Avg reward/ep : -645.600
+2026-03-13 20:58:30  ║  p_loss        : 0.0158
+2026-03-13 20:58:30  ║  v_loss        : 0.4556
+2026-03-13 20:58:30  ║  entropy       : 2.7614
+2026-03-13 20:58:30  ╚════════════════════════════════════════════════════════════
+2026-03-13 20:58:30  
+2026-03-13 20:58:30  
+[update 0070] weights dispatched in 0.065s
+2026-03-13 20:58:30  [update 0070] waiting for 16 workers …
+2026-03-13 21:02:46  [update 0070] all workers done in 255.11s
+2026-03-13 21:02:46  [update 0070] per-player GAE in 0.0123s
+2026-03-13 21:05:43  [update 0070] PPO update done in 177.77s
+2026-03-13 21:05:44    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00067.pt
+2026-03-13 21:05:44    [ckpt] saved → checkpoints_training\policy_update_00070.pt  (keeping last 3)
+2026-03-13 21:05:44  
+2026-03-13 21:05:44  ╔══ update 0070 ════════════════════════════════════════════
+2026-03-13 21:05:44  ║  Wall time     : 433.9s  (dist 0.06s | collect 255.11s | GAE 0.0123s | PPO 177.77s)
+2026-03-13 21:05:44  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-13 21:05:44  ║  Win rate      : 0.000
+2026-03-13 21:05:44  ║  Avg ep length : 16384.0 steps
+2026-03-13 21:05:44  ║  Avg reward/ep : -763.300
+2026-03-13 21:05:44  ║  p_loss        : -0.0288
+2026-03-13 21:05:44  ║  v_loss        : 0.1742
+2026-03-13 21:05:44  ║  entropy       : 2.8601
+2026-03-13 21:05:44  ╚════════════════════════════════════════════════════════════
+2026-03-13 21:05:44  
+2026-03-13 21:05:44  
+[update 0071] weights dispatched in 0.119s
+2026-03-13 21:05:44  [update 0071] waiting for 16 workers …
+2026-03-13 21:10:01  [update 0071] all workers done in 256.50s
+2026-03-13 21:10:01  [update 0071] per-player GAE in 0.0132s
+2026-03-13 21:13:02  [update 0071] PPO update done in 180.99s
+2026-03-13 21:13:03    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00068.pt
+2026-03-13 21:13:03    [ckpt] saved → checkpoints_training\policy_update_00071.pt  (keeping last 3)
+2026-03-13 21:13:03  
+2026-03-13 21:13:03  ╔══ update 0071 ════════════════════════════════════════════
+2026-03-13 21:13:03  ║  Wall time     : 438.5s  (dist 0.12s | collect 256.50s | GAE 0.0132s | PPO 180.99s)
+2026-03-13 21:13:03  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 21:13:03  ║  Win rate      : 1.000
+2026-03-13 21:13:03  ║  Avg ep length : 16384.0 steps
+2026-03-13 21:13:03  ║  Avg reward/ep : -851.800
+2026-03-13 21:13:03  ║  p_loss        : 0.0022
+2026-03-13 21:13:03  ║  v_loss        : 0.3375
+2026-03-13 21:13:03  ║  entropy       : 2.9026
+2026-03-13 21:13:03  ╚════════════════════════════════════════════════════════════
+2026-03-13 21:13:03  
+2026-03-13 21:13:03  
+[update 0072] weights dispatched in 0.125s
+2026-03-13 21:13:03  [update 0072] waiting for 16 workers …
+2026-03-13 21:17:21  [update 0072] all workers done in 257.68s
+2026-03-13 21:17:21  [update 0072] per-player GAE in 0.0131s
+2026-03-13 21:20:25  [update 0072] PPO update done in 184.74s
+2026-03-13 21:20:26    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00069.pt
+2026-03-13 21:20:26    [ckpt] saved → checkpoints_training\policy_update_00072.pt  (keeping last 3)
+2026-03-13 21:20:26  
+2026-03-13 21:20:26  ╔══ update 0072 ════════════════════════════════════════════
+2026-03-13 21:20:26  ║  Wall time     : 443.4s  (dist 0.13s | collect 257.68s | GAE 0.0131s | PPO 184.74s)
+2026-03-13 21:20:26  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-13 21:20:26  ║  Win rate      : 1.000
+2026-03-13 21:20:26  ║  Avg ep length : 8192.0 steps
+2026-03-13 21:20:26  ║  Avg reward/ep : -266.800
+2026-03-13 21:20:26  ║  p_loss        : -0.0095
+2026-03-13 21:20:26  ║  v_loss        : 0.3913
+2026-03-13 21:20:26  ║  entropy       : 2.8463
+2026-03-13 21:20:26  ╚════════════════════════════════════════════════════════════
+2026-03-13 21:20:26  
+2026-03-13 21:20:26  
+[update 0073] weights dispatched in 0.124s
+2026-03-13 21:20:26  [update 0073] waiting for 16 workers …
+2026-03-13 21:24:41  [update 0073] all workers done in 255.21s
+2026-03-13 21:24:42  [update 0073] per-player GAE in 0.0123s
+2026-03-13 21:27:44  [update 0073] PPO update done in 182.76s
+2026-03-13 21:27:45    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00070.pt
+2026-03-13 21:27:45    [ckpt] saved → checkpoints_training\policy_update_00073.pt  (keeping last 3)
+2026-03-13 21:27:45  
+2026-03-13 21:27:45  ╔══ update 0073 ════════════════════════════════════════════
+2026-03-13 21:27:45  ║  Wall time     : 439.0s  (dist 0.12s | collect 255.21s | GAE 0.0123s | PPO 182.76s)
+2026-03-13 21:27:45  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 21:27:45  ║  Win rate      : 1.000
+2026-03-13 21:27:45  ║  Avg ep length : 16384.0 steps
+2026-03-13 21:27:45  ║  Avg reward/ep : -603.400
+2026-03-13 21:27:45  ║  p_loss        : -0.0085
+2026-03-13 21:27:45  ║  v_loss        : 0.3246
+2026-03-13 21:27:45  ║  entropy       : 2.8334
+2026-03-13 21:27:45  ╚════════════════════════════════════════════════════════════
+2026-03-13 21:27:45  
+2026-03-13 21:27:45  
+[update 0074] weights dispatched in 0.129s
+2026-03-13 21:27:45  [update 0074] waiting for 16 workers …
+2026-03-13 21:32:02  [update 0074] all workers done in 256.49s
+2026-03-13 21:32:02  [update 0074] per-player GAE in 0.0115s
+2026-03-13 21:35:06  [update 0074] PPO update done in 184.30s
+2026-03-13 21:35:07    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00071.pt
+2026-03-13 21:35:07    [ckpt] saved → checkpoints_training\policy_update_00074.pt  (keeping last 3)
+2026-03-13 21:35:07  
+2026-03-13 21:35:07  ╔══ update 0074 ════════════════════════════════════════════
+2026-03-13 21:35:07  ║  Wall time     : 441.9s  (dist 0.13s | collect 256.49s | GAE 0.0115s | PPO 184.30s)
+2026-03-13 21:35:07  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 21:35:07  ║  Win rate      : 1.000
+2026-03-13 21:35:07  ║  Avg ep length : 16384.0 steps
+2026-03-13 21:35:07  ║  Avg reward/ep : -539.500
+2026-03-13 21:35:07  ║  p_loss        : 0.0050
+2026-03-13 21:35:07  ║  v_loss        : 0.1685
+2026-03-13 21:35:07  ║  entropy       : 2.8040
+2026-03-13 21:35:07  ╚════════════════════════════════════════════════════════════
+2026-03-13 21:35:07  
+2026-03-13 21:35:07  
+[update 0075] weights dispatched in 0.126s
+2026-03-13 21:35:07  [update 0075] waiting for 16 workers …
+2026-03-13 21:39:24  [update 0075] all workers done in 256.70s
+2026-03-13 21:39:24  [update 0075] per-player GAE in 0.0126s
+2026-03-13 21:42:18  [update 0075] PPO update done in 174.15s
+2026-03-13 21:42:19    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00072.pt
+2026-03-13 21:42:19    [ckpt] saved → checkpoints_training\policy_update_00075.pt  (keeping last 3)
+2026-03-13 21:42:19  
+2026-03-13 21:42:19  ╔══ update 0075 ════════════════════════════════════════════
+2026-03-13 21:42:19  ║  Wall time     : 431.9s  (dist 0.13s | collect 256.70s | GAE 0.0126s | PPO 174.15s)
+2026-03-13 21:42:19  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-13 21:42:19  ║  Win rate      : 1.000
+2026-03-13 21:42:19  ║  Avg ep length : 8192.0 steps
+2026-03-13 21:42:19  ║  Avg reward/ep : -339.750
+2026-03-13 21:42:19  ║  p_loss        : -0.0030
+2026-03-13 21:42:19  ║  v_loss        : 0.2813
+2026-03-13 21:42:19  ║  entropy       : 2.8002
+2026-03-13 21:42:19  ╚════════════════════════════════════════════════════════════
+2026-03-13 21:42:19  
+2026-03-13 21:42:19  
+[update 0076] weights dispatched in 0.063s
+2026-03-13 21:42:19  [update 0076] waiting for 16 workers …
+2026-03-13 21:46:47  [update 0076] all workers done in 267.92s
+2026-03-13 21:46:47  [update 0076] per-player GAE in 0.0108s
+2026-03-13 21:49:43  [update 0076] PPO update done in 175.56s
+2026-03-13 21:49:43    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00073.pt
+2026-03-13 21:49:43    [ckpt] saved → checkpoints_training\policy_update_00076.pt  (keeping last 3)
+2026-03-13 21:49:43  
+2026-03-13 21:49:43  ╔══ update 0076 ════════════════════════════════════════════
+2026-03-13 21:49:43  ║  Wall time     : 444.5s  (dist 0.06s | collect 267.92s | GAE 0.0108s | PPO 175.56s)
+2026-03-13 21:49:43  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-13 21:49:43  ║  Win rate      : 0.000
+2026-03-13 21:49:43  ║  Avg ep length : 16384.0 steps
+2026-03-13 21:49:43  ║  Avg reward/ep : -912.800
+2026-03-13 21:49:43  ║  p_loss        : -0.0241
+2026-03-13 21:49:43  ║  v_loss        : 0.1879
+2026-03-13 21:49:43  ║  entropy       : 2.8431
+2026-03-13 21:49:43  ╚════════════════════════════════════════════════════════════
+2026-03-13 21:49:43  
+2026-03-13 21:49:43  
+[update 0077] weights dispatched in 0.065s
+2026-03-13 21:49:43  [update 0077] waiting for 16 workers …
+2026-03-13 21:53:54  [update 0077] all workers done in 250.96s
+2026-03-13 21:53:54  [update 0077] per-player GAE in 0.0112s
+2026-03-13 21:56:52  [update 0077] PPO update done in 177.16s
+2026-03-13 21:56:52    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00074.pt
+2026-03-13 21:56:52    [ckpt] saved → checkpoints_training\policy_update_00077.pt  (keeping last 3)
+2026-03-13 21:56:52  
+2026-03-13 21:56:52  ╔══ update 0077 ════════════════════════════════════════════
+2026-03-13 21:56:52  ║  Wall time     : 429.1s  (dist 0.06s | collect 250.96s | GAE 0.0112s | PPO 177.16s)
+2026-03-13 21:56:52  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-13 21:56:52  ║  Win rate      : 1.000
+2026-03-13 21:56:52  ║  Avg ep length : 8192.0 steps
+2026-03-13 21:56:52  ║  Avg reward/ep : -469.500
+2026-03-13 21:56:52  ║  p_loss        : -0.0066
+2026-03-13 21:56:52  ║  v_loss        : 0.3233
+2026-03-13 21:56:52  ║  entropy       : 2.8556
+2026-03-13 21:56:52  ╚════════════════════════════════════════════════════════════
+2026-03-13 21:56:52  
+2026-03-13 21:56:53  
+[update 0078] weights dispatched in 0.127s
+2026-03-13 21:56:53  [update 0078] waiting for 16 workers …
+2026-03-13 22:01:11  [update 0078] all workers done in 258.12s
+2026-03-13 22:01:11  [update 0078] per-player GAE in 0.0109s
+2026-03-13 22:04:11  [update 0078] PPO update done in 180.19s
+2026-03-13 22:04:12    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00075.pt
+2026-03-13 22:04:12    [ckpt] saved → checkpoints_training\policy_update_00078.pt  (keeping last 3)
+2026-03-13 22:04:12  
+2026-03-13 22:04:12  ╔══ update 0078 ════════════════════════════════════════════
+2026-03-13 22:04:12  ║  Wall time     : 439.4s  (dist 0.13s | collect 258.12s | GAE 0.0109s | PPO 180.19s)
+2026-03-13 22:04:12  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 22:04:12  ║  Win rate      : 1.000
+2026-03-13 22:04:12  ║  Avg ep length : 16384.0 steps
+2026-03-13 22:04:12  ║  Avg reward/ep : -867.100
+2026-03-13 22:04:12  ║  p_loss        : 0.0252
+2026-03-13 22:04:12  ║  v_loss        : 0.4010
+2026-03-13 22:04:12  ║  entropy       : 2.8151
+2026-03-13 22:04:12  ╚════════════════════════════════════════════════════════════
+2026-03-13 22:04:12  
+2026-03-13 22:04:12  
+[update 0079] weights dispatched in 0.120s
+2026-03-13 22:04:12  [update 0079] waiting for 16 workers …
+2026-03-13 22:08:29  [update 0079] all workers done in 257.11s
+2026-03-13 22:08:29  [update 0079] per-player GAE in 0.0123s
+2026-03-13 22:11:29  [update 0079] PPO update done in 179.57s
+2026-03-13 22:11:30    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00076.pt
+2026-03-13 22:11:30    [ckpt] saved → checkpoints_training\policy_update_00079.pt  (keeping last 3)
+2026-03-13 22:11:30  
+2026-03-13 22:11:30  ╔══ update 0079 ════════════════════════════════════════════
+2026-03-13 22:11:30  ║  Wall time     : 437.7s  (dist 0.12s | collect 257.11s | GAE 0.0123s | PPO 179.57s)
+2026-03-13 22:11:30  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 22:11:30  ║  Win rate      : 1.000
+2026-03-13 22:11:30  ║  Avg ep length : 16384.0 steps
+2026-03-13 22:11:30  ║  Avg reward/ep : -852.800
+2026-03-13 22:11:30  ║  p_loss        : -0.0256
+2026-03-13 22:11:30  ║  v_loss        : 0.2723
+2026-03-13 22:11:30  ║  entropy       : 2.7477
+2026-03-13 22:11:30  ╚════════════════════════════════════════════════════════════
+2026-03-13 22:11:30  
+2026-03-13 22:11:30  
+[update 0080] weights dispatched in 0.072s
+2026-03-13 22:11:30  [update 0080] waiting for 16 workers …
+2026-03-13 22:15:37  [update 0080] all workers done in 246.85s
+2026-03-13 22:15:37  [update 0080] per-player GAE in 0.0119s
+2026-03-13 22:18:35  [update 0080] PPO update done in 177.99s
+2026-03-13 22:18:35    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00077.pt
+2026-03-13 22:18:35    [ckpt] saved → checkpoints_training\policy_update_00080.pt  (keeping last 3)
+2026-03-13 22:18:35  
+2026-03-13 22:18:35  ╔══ update 0080 ════════════════════════════════════════════
+2026-03-13 22:18:35  ║  Wall time     : 425.8s  (dist 0.07s | collect 246.85s | GAE 0.0119s | PPO 177.99s)
+2026-03-13 22:18:35  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 22:18:35  ║  Win rate      : 1.000
+2026-03-13 22:18:35  ║  Avg ep length : 16384.0 steps
+2026-03-13 22:18:35  ║  Avg reward/ep : -877.300
+2026-03-13 22:18:35  ║  p_loss        : -0.0027
+2026-03-13 22:18:35  ║  v_loss        : 0.1681
+2026-03-13 22:18:35  ║  entropy       : 2.8445
+2026-03-13 22:18:35  ╚════════════════════════════════════════════════════════════
+2026-03-13 22:18:35  
+2026-03-13 22:18:35  
+[update 0081] weights dispatched in 0.066s
+2026-03-13 22:18:35  [update 0081] waiting for 16 workers …
+2026-03-13 22:23:00  [update 0081] all workers done in 264.97s
+2026-03-13 22:23:00  [update 0081] per-player GAE in 0.0109s
+2026-03-13 22:26:00  [update 0081] PPO update done in 179.63s
+2026-03-13 22:26:01    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00078.pt
+2026-03-13 22:26:01    [ckpt] saved → checkpoints_training\policy_update_00081.pt  (keeping last 3)
+2026-03-13 22:26:01  
+2026-03-13 22:26:01  ╔══ update 0081 ════════════════════════════════════════════
+2026-03-13 22:26:01  ║  Wall time     : 445.6s  (dist 0.07s | collect 264.97s | GAE 0.0109s | PPO 179.63s)
+2026-03-13 22:26:01  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-13 22:26:01  ║  Win rate      : 1.000
+2026-03-13 22:26:01  ║  Avg ep length : 8192.0 steps
+2026-03-13 22:26:01  ║  Avg reward/ep : -440.500
+2026-03-13 22:26:01  ║  p_loss        : -0.0049
+2026-03-13 22:26:01  ║  v_loss        : 0.4065
+2026-03-13 22:26:01  ║  entropy       : 2.8091
+2026-03-13 22:26:01  ╚════════════════════════════════════════════════════════════
+2026-03-13 22:26:01  
+2026-03-13 22:26:01  
+[update 0082] weights dispatched in 0.130s
+2026-03-13 22:26:01  [update 0082] waiting for 16 workers …
+2026-03-13 22:30:38  [update 0082] all workers done in 277.16s
+2026-03-13 22:30:38  [update 0082] per-player GAE in 0.0106s
+2026-03-13 22:33:40  [update 0082] PPO update done in 181.48s
+2026-03-13 22:33:41    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00079.pt
+2026-03-13 22:33:41    [ckpt] saved → checkpoints_training\policy_update_00082.pt  (keeping last 3)
+2026-03-13 22:33:41  
+2026-03-13 22:33:41  ╔══ update 0082 ════════════════════════════════════════════
+2026-03-13 22:33:41  ║  Wall time     : 459.7s  (dist 0.13s | collect 277.16s | GAE 0.0106s | PPO 181.48s)
+2026-03-13 22:33:41  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-13 22:33:41  ║  Win rate      : 1.000
+2026-03-13 22:33:41  ║  Avg ep length : 5461.3 steps
+2026-03-13 22:33:41  ║  Avg reward/ep : -255.700
+2026-03-13 22:33:41  ║  p_loss        : 0.0072
+2026-03-13 22:33:41  ║  v_loss        : 0.7717
+2026-03-13 22:33:41  ║  entropy       : 2.7862
+2026-03-13 22:33:41  ╚════════════════════════════════════════════════════════════
+2026-03-13 22:33:41  
+2026-03-13 22:33:41  
+[update 0083] weights dispatched in 0.059s
+2026-03-13 22:33:41  [update 0083] waiting for 16 workers …
+2026-03-13 22:38:14  [update 0083] all workers done in 273.30s
+2026-03-13 22:38:14  [update 0083] per-player GAE in 0.0115s
+2026-03-13 22:41:10  [update 0083] PPO update done in 176.20s
+2026-03-13 22:41:11    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00080.pt
+2026-03-13 22:41:11    [ckpt] saved → checkpoints_training\policy_update_00083.pt  (keeping last 3)
+2026-03-13 22:41:11  
+2026-03-13 22:41:11  ╔══ update 0083 ════════════════════════════════════════════
+2026-03-13 22:41:11  ║  Wall time     : 450.5s  (dist 0.06s | collect 273.30s | GAE 0.0115s | PPO 176.20s)
+2026-03-13 22:41:11  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-13 22:41:11  ║  Win rate      : 1.000
+2026-03-13 22:41:11  ║  Avg ep length : 8192.0 steps
+2026-03-13 22:41:11  ║  Avg reward/ep : -366.750
+2026-03-13 22:41:11  ║  p_loss        : 0.0114
+2026-03-13 22:41:11  ║  v_loss        : 0.6775
+2026-03-13 22:41:11  ║  entropy       : 2.8611
+2026-03-13 22:41:11  ╚════════════════════════════════════════════════════════════
+2026-03-13 22:41:11  
+2026-03-13 22:41:11  
+[update 0084] weights dispatched in 0.069s
+2026-03-13 22:41:11  [update 0084] waiting for 16 workers …
+2026-03-13 22:45:52  [update 0084] all workers done in 281.14s
+2026-03-13 22:45:52  [update 0084] per-player GAE in 0.0109s
+2026-03-13 22:48:48  [update 0084] PPO update done in 175.86s
+2026-03-13 22:48:49    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00081.pt
+2026-03-13 22:48:49    [ckpt] saved → checkpoints_training\policy_update_00084.pt  (keeping last 3)
+2026-03-13 22:48:49  
+2026-03-13 22:48:49  ╔══ update 0084 ════════════════════════════════════════════
+2026-03-13 22:48:49  ║  Wall time     : 458.0s  (dist 0.07s | collect 281.14s | GAE 0.0109s | PPO 175.86s)
+2026-03-13 22:48:49  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-13 22:48:49  ║  Win rate      : 1.000
+2026-03-13 22:48:49  ║  Avg ep length : 8192.0 steps
+2026-03-13 22:48:49  ║  Avg reward/ep : -295.850
+2026-03-13 22:48:49  ║  p_loss        : -0.0092
+2026-03-13 22:48:49  ║  v_loss        : 0.3338
+2026-03-13 22:48:49  ║  entropy       : 2.7716
+2026-03-13 22:48:49  ╚════════════════════════════════════════════════════════════
+2026-03-13 22:48:49  
+2026-03-13 22:48:49  
+[update 0085] weights dispatched in 0.122s
+2026-03-13 22:48:49  [update 0085] waiting for 16 workers …
+2026-03-13 22:53:28  [update 0085] all workers done in 278.25s
+2026-03-13 22:53:28  [update 0085] per-player GAE in 0.0118s
+2026-03-13 22:56:28  [update 0085] PPO update done in 180.59s
+2026-03-13 22:56:29    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00082.pt
+2026-03-13 22:56:29    [ckpt] saved → checkpoints_training\policy_update_00085.pt  (keeping last 3)
+2026-03-13 22:56:29  
+2026-03-13 22:56:29  ╔══ update 0085 ════════════════════════════════════════════
+2026-03-13 22:56:29  ║  Wall time     : 459.9s  (dist 0.12s | collect 278.25s | GAE 0.0118s | PPO 180.59s)
+2026-03-13 22:56:29  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-13 22:56:29  ║  Win rate      : 0.000
+2026-03-13 22:56:29  ║  Avg ep length : 16384.0 steps
+2026-03-13 22:56:29  ║  Avg reward/ep : -841.900
+2026-03-13 22:56:29  ║  p_loss        : 0.0038
+2026-03-13 22:56:29  ║  v_loss        : 0.1561
+2026-03-13 22:56:29  ║  entropy       : 2.8118
+2026-03-13 22:56:29  ╚════════════════════════════════════════════════════════════
+2026-03-13 22:56:29  
+2026-03-13 22:56:29  
+[update 0086] weights dispatched in 0.112s
+2026-03-13 22:56:29  [update 0086] waiting for 16 workers …
+2026-03-13 23:01:15  [update 0086] all workers done in 286.20s
+2026-03-13 23:01:15  [update 0086] per-player GAE in 0.0113s
+2026-03-13 23:04:23  [update 0086] PPO update done in 187.16s
+2026-03-13 23:04:23    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00083.pt
+2026-03-13 23:04:23    [ckpt] saved → checkpoints_training\policy_update_00086.pt  (keeping last 3)
+2026-03-13 23:04:23  
+2026-03-13 23:04:23  ╔══ update 0086 ════════════════════════════════════════════
+2026-03-13 23:04:23  ║  Wall time     : 474.4s  (dist 0.11s | collect 286.20s | GAE 0.0113s | PPO 187.16s)
+2026-03-13 23:04:23  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-13 23:04:23  ║  Win rate      : 0.000
+2026-03-13 23:04:23  ║  Avg ep length : 16384.0 steps
+2026-03-13 23:04:23  ║  Avg reward/ep : -759.400
+2026-03-13 23:04:23  ║  p_loss        : -0.0026
+2026-03-13 23:04:23  ║  v_loss        : 0.1361
+2026-03-13 23:04:23  ║  entropy       : 2.8234
+2026-03-13 23:04:23  ╚════════════════════════════════════════════════════════════
+2026-03-13 23:04:23  
+2026-03-13 23:04:24  
+[update 0087] weights dispatched in 0.123s
+2026-03-13 23:04:24  [update 0087] waiting for 16 workers …
+2026-03-13 23:08:58  [update 0087] all workers done in 273.98s
+2026-03-13 23:08:58  [update 0087] per-player GAE in 0.0111s
+2026-03-13 23:11:55  [update 0087] PPO update done in 176.91s
+2026-03-13 23:11:55    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00084.pt
+2026-03-13 23:11:55    [ckpt] saved → checkpoints_training\policy_update_00087.pt  (keeping last 3)
+2026-03-13 23:11:55  
+2026-03-13 23:11:55  ╔══ update 0087 ════════════════════════════════════════════
+2026-03-13 23:11:55  ║  Wall time     : 452.0s  (dist 0.12s | collect 273.98s | GAE 0.0111s | PPO 176.91s)
+2026-03-13 23:11:55  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 23:11:55  ║  Win rate      : 1.000
+2026-03-13 23:11:55  ║  Avg ep length : 16384.0 steps
+2026-03-13 23:11:55  ║  Avg reward/ep : -801.000
+2026-03-13 23:11:55  ║  p_loss        : -0.0240
+2026-03-13 23:11:55  ║  v_loss        : 0.1789
+2026-03-13 23:11:55  ║  entropy       : 2.8042
+2026-03-13 23:11:55  ╚════════════════════════════════════════════════════════════
+2026-03-13 23:11:55  
+2026-03-13 23:11:56  
+[update 0088] weights dispatched in 0.126s
+2026-03-13 23:11:56  [update 0088] waiting for 16 workers …
+2026-03-13 23:16:35  [update 0088] all workers done in 279.43s
+2026-03-13 23:16:35  [update 0088] per-player GAE in 0.0115s
+2026-03-13 23:19:40  [update 0088] PPO update done in 185.10s
+2026-03-13 23:19:41    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00085.pt
+2026-03-13 23:19:41    [ckpt] saved → checkpoints_training\policy_update_00088.pt  (keeping last 3)
+2026-03-13 23:19:41  
+2026-03-13 23:19:41  ╔══ update 0088 ════════════════════════════════════════════
+2026-03-13 23:19:41  ║  Wall time     : 465.6s  (dist 0.13s | collect 279.43s | GAE 0.0115s | PPO 185.10s)
+2026-03-13 23:19:41  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-13 23:19:41  ║  Win rate      : 1.000
+2026-03-13 23:19:41  ║  Avg ep length : 8192.0 steps
+2026-03-13 23:19:41  ║  Avg reward/ep : -319.700
+2026-03-13 23:19:41  ║  p_loss        : 0.0166
+2026-03-13 23:19:41  ║  v_loss        : 0.5053
+2026-03-13 23:19:41  ║  entropy       : 2.8855
+2026-03-13 23:19:41  ╚════════════════════════════════════════════════════════════
+2026-03-13 23:19:41  
+2026-03-13 23:19:41  
+[update 0089] weights dispatched in 0.115s
+2026-03-13 23:19:41  [update 0089] waiting for 16 workers …
+2026-03-13 23:24:10  [update 0089] all workers done in 269.00s
+2026-03-13 23:24:10  [update 0089] per-player GAE in 0.0117s
+2026-03-13 23:27:08  [update 0089] PPO update done in 177.67s
+2026-03-13 23:27:09    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00086.pt
+2026-03-13 23:27:09    [ckpt] saved → checkpoints_training\policy_update_00089.pt  (keeping last 3)
+2026-03-13 23:27:09  
+2026-03-13 23:27:09  ╔══ update 0089 ════════════════════════════════════════════
+2026-03-13 23:27:09  ║  Wall time     : 447.7s  (dist 0.11s | collect 269.00s | GAE 0.0117s | PPO 177.67s)
+2026-03-13 23:27:09  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 23:27:09  ║  Win rate      : 1.000
+2026-03-13 23:27:09  ║  Avg ep length : 16384.0 steps
+2026-03-13 23:27:09  ║  Avg reward/ep : -779.200
+2026-03-13 23:27:09  ║  p_loss        : 0.0115
+2026-03-13 23:27:09  ║  v_loss        : 0.2522
+2026-03-13 23:27:09  ║  entropy       : 2.8352
+2026-03-13 23:27:09  ╚════════════════════════════════════════════════════════════
+2026-03-13 23:27:09  
+2026-03-13 23:27:09  
+[update 0090] weights dispatched in 0.067s
+2026-03-13 23:27:09  [update 0090] waiting for 16 workers …
+2026-03-13 23:31:47  [update 0090] all workers done in 278.40s
+2026-03-13 23:31:47  [update 0090] per-player GAE in 0.0108s
+2026-03-13 23:34:49  [update 0090] PPO update done in 181.14s
+2026-03-13 23:34:49    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00087.pt
+2026-03-13 23:34:49    [ckpt] saved → checkpoints_training\policy_update_00090.pt  (keeping last 3)
+2026-03-13 23:34:49  
+2026-03-13 23:34:49  ╔══ update 0090 ════════════════════════════════════════════
+2026-03-13 23:34:49  ║  Wall time     : 460.6s  (dist 0.07s | collect 278.40s | GAE 0.0108s | PPO 181.14s)
+2026-03-13 23:34:49  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 23:34:49  ║  Win rate      : 1.000
+2026-03-13 23:34:49  ║  Avg ep length : 16384.0 steps
+2026-03-13 23:34:49  ║  Avg reward/ep : -749.900
+2026-03-13 23:34:49  ║  p_loss        : 0.0222
+2026-03-13 23:34:49  ║  v_loss        : 0.4714
+2026-03-13 23:34:49  ║  entropy       : 2.8403
+2026-03-13 23:34:49  ╚════════════════════════════════════════════════════════════
+2026-03-13 23:34:49  
+2026-03-13 23:34:49  
+[update 0091] weights dispatched in 0.125s
+2026-03-13 23:34:49  [update 0091] waiting for 16 workers …
+2026-03-13 23:39:17  [update 0091] all workers done in 267.47s
+2026-03-13 23:39:17  [update 0091] per-player GAE in 0.0109s
+2026-03-13 23:42:14  [update 0091] PPO update done in 176.68s
+2026-03-13 23:42:15    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00088.pt
+2026-03-13 23:42:15    [ckpt] saved → checkpoints_training\policy_update_00091.pt  (keeping last 3)
+2026-03-13 23:42:15  
+2026-03-13 23:42:15  ╔══ update 0091 ════════════════════════════════════════════
+2026-03-13 23:42:15  ║  Wall time     : 445.2s  (dist 0.13s | collect 267.47s | GAE 0.0109s | PPO 176.68s)
+2026-03-13 23:42:15  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 23:42:15  ║  Win rate      : 1.000
+2026-03-13 23:42:15  ║  Avg ep length : 16384.0 steps
+2026-03-13 23:42:15  ║  Avg reward/ep : -605.200
+2026-03-13 23:42:15  ║  p_loss        : 0.0139
+2026-03-13 23:42:15  ║  v_loss        : 0.4205
+2026-03-13 23:42:15  ║  entropy       : 2.8182
+2026-03-13 23:42:15  ╚════════════════════════════════════════════════════════════
+2026-03-13 23:42:15  
+2026-03-13 23:42:15  
+[update 0092] weights dispatched in 0.125s
+2026-03-13 23:42:15  [update 0092] waiting for 16 workers …
+2026-03-13 23:46:47  [update 0092] all workers done in 272.50s
+2026-03-13 23:46:47  [update 0092] per-player GAE in 0.0107s
+2026-03-13 23:49:46  [update 0092] PPO update done in 178.97s
+2026-03-13 23:49:47    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00089.pt
+2026-03-13 23:49:47    [ckpt] saved → checkpoints_training\policy_update_00092.pt  (keeping last 3)
+2026-03-13 23:49:47  
+2026-03-13 23:49:47  ╔══ update 0092 ════════════════════════════════════════════
+2026-03-13 23:49:47  ║  Wall time     : 452.6s  (dist 0.13s | collect 272.50s | GAE 0.0107s | PPO 178.97s)
+2026-03-13 23:49:47  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-13 23:49:47  ║  Win rate      : 1.000
+2026-03-13 23:49:47  ║  Avg ep length : 16384.0 steps
+2026-03-13 23:49:47  ║  Avg reward/ep : -628.400
+2026-03-13 23:49:47  ║  p_loss        : 0.0247
+2026-03-13 23:49:47  ║  v_loss        : 0.2987
+2026-03-13 23:49:47  ║  entropy       : 2.8632
+2026-03-13 23:49:47  ╚════════════════════════════════════════════════════════════
+2026-03-13 23:49:47  
+2026-03-13 23:49:47  
+[update 0093] weights dispatched in 0.118s
+2026-03-13 23:49:47  [update 0093] waiting for 16 workers …
+2026-03-13 23:54:23  [update 0093] all workers done in 275.57s
+2026-03-13 23:54:23  [update 0093] per-player GAE in 0.0122s
+2026-03-13 23:57:27  [update 0093] PPO update done in 184.41s
+2026-03-13 23:57:28    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00090.pt
+2026-03-13 23:57:28    [ckpt] saved → checkpoints_training\policy_update_00093.pt  (keeping last 3)
+2026-03-13 23:57:28  
+2026-03-13 23:57:28  ╔══ update 0093 ════════════════════════════════════════════
+2026-03-13 23:57:28  ║  Wall time     : 461.1s  (dist 0.12s | collect 275.57s | GAE 0.0122s | PPO 184.41s)
+2026-03-13 23:57:28  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-13 23:57:28  ║  Win rate      : 0.000
+2026-03-13 23:57:28  ║  Avg ep length : 16384.0 steps
+2026-03-13 23:57:28  ║  Avg reward/ep : -705.800
+2026-03-13 23:57:28  ║  p_loss        : 0.0142
+2026-03-13 23:57:28  ║  v_loss        : 0.1859
+2026-03-13 23:57:28  ║  entropy       : 2.8173
+2026-03-13 23:57:28  ╚════════════════════════════════════════════════════════════
+2026-03-13 23:57:28  
+2026-03-13 23:57:28  
+[update 0094] weights dispatched in 0.124s
+2026-03-13 23:57:28  [update 0094] waiting for 16 workers …
+2026-03-14 00:02:12  [update 0094] all workers done in 284.05s
+2026-03-14 00:02:12  [update 0094] per-player GAE in 0.0116s
+2026-03-14 00:05:27  [update 0094] PPO update done in 194.73s
+2026-03-14 00:05:28    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00091.pt
+2026-03-14 00:05:28    [ckpt] saved → checkpoints_training\policy_update_00094.pt  (keeping last 3)
+2026-03-14 00:05:28  
+2026-03-14 00:05:28  ╔══ update 0094 ════════════════════════════════════════════
+2026-03-14 00:05:28  ║  Wall time     : 479.9s  (dist 0.12s | collect 284.05s | GAE 0.0116s | PPO 194.73s)
+2026-03-14 00:05:28  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 00:05:28  ║  Win rate      : 1.000
+2026-03-14 00:05:28  ║  Avg ep length : 16384.0 steps
+2026-03-14 00:05:28  ║  Avg reward/ep : -662.200
+2026-03-14 00:05:28  ║  p_loss        : 0.0021
+2026-03-14 00:05:28  ║  v_loss        : 0.3327
+2026-03-14 00:05:28  ║  entropy       : 2.8932
+2026-03-14 00:05:28  ╚════════════════════════════════════════════════════════════
+2026-03-14 00:05:28  
+2026-03-14 00:05:28  
+[update 0095] weights dispatched in 0.061s
+2026-03-14 00:05:28  [update 0095] waiting for 16 workers …
+2026-03-14 00:10:05  [update 0095] all workers done in 276.91s
+2026-03-14 00:10:05  [update 0095] per-player GAE in 0.0111s
+2026-03-14 00:13:03  [update 0095] PPO update done in 177.29s
+2026-03-14 00:13:03    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00092.pt
+2026-03-14 00:13:03    [ckpt] saved → checkpoints_training\policy_update_00095.pt  (keeping last 3)
+2026-03-14 00:13:03  
+2026-03-14 00:13:03  ╔══ update 0095 ════════════════════════════════════════════
+2026-03-14 00:13:03  ║  Wall time     : 455.2s  (dist 0.06s | collect 276.91s | GAE 0.0111s | PPO 177.29s)
+2026-03-14 00:13:03  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 00:13:03  ║  Win rate      : 1.000
+2026-03-14 00:13:03  ║  Avg ep length : 16384.0 steps
+2026-03-14 00:13:03  ║  Avg reward/ep : -550.200
+2026-03-14 00:13:03  ║  p_loss        : -0.0167
+2026-03-14 00:13:03  ║  v_loss        : 0.2010
+2026-03-14 00:13:03  ║  entropy       : 2.8304
+2026-03-14 00:13:03  ╚════════════════════════════════════════════════════════════
+2026-03-14 00:13:03  
+2026-03-14 00:13:03  
+[update 0096] weights dispatched in 0.123s
+2026-03-14 00:13:03  [update 0096] waiting for 16 workers …
+2026-03-14 00:17:43  [update 0096] all workers done in 279.04s
+2026-03-14 00:17:43  [update 0096] per-player GAE in 0.0115s
+2026-03-14 00:20:42  [update 0096] PPO update done in 179.02s
+2026-03-14 00:20:43    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00093.pt
+2026-03-14 00:20:43    [ckpt] saved → checkpoints_training\policy_update_00096.pt  (keeping last 3)
+2026-03-14 00:20:43  
+2026-03-14 00:20:43  ╔══ update 0096 ════════════════════════════════════════════
+2026-03-14 00:20:43  ║  Wall time     : 459.2s  (dist 0.12s | collect 279.04s | GAE 0.0115s | PPO 179.02s)
+2026-03-14 00:20:43  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 00:20:43  ║  Win rate      : 0.000
+2026-03-14 00:20:43  ║  Avg ep length : 16384.0 steps
+2026-03-14 00:20:43  ║  Avg reward/ep : -585.800
+2026-03-14 00:20:43  ║  p_loss        : 0.0077
+2026-03-14 00:20:43  ║  v_loss        : 0.1785
+2026-03-14 00:20:43  ║  entropy       : 2.8169
+2026-03-14 00:20:43  ╚════════════════════════════════════════════════════════════
+2026-03-14 00:20:43  
+2026-03-14 00:20:43  
+[update 0097] weights dispatched in 0.120s
+2026-03-14 00:20:43  [update 0097] waiting for 16 workers …
+2026-03-14 00:25:17  [update 0097] all workers done in 274.48s
+2026-03-14 00:25:17  [update 0097] per-player GAE in 0.0115s
+2026-03-14 00:28:22  [update 0097] PPO update done in 184.56s
+2026-03-14 00:28:23    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00094.pt
+2026-03-14 00:28:23    [ckpt] saved → checkpoints_training\policy_update_00097.pt  (keeping last 3)
+2026-03-14 00:28:23  
+2026-03-14 00:28:23  ╔══ update 0097 ════════════════════════════════════════════
+2026-03-14 00:28:23  ║  Wall time     : 460.2s  (dist 0.12s | collect 274.48s | GAE 0.0115s | PPO 184.56s)
+2026-03-14 00:28:23  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 00:28:23  ║  Win rate      : 0.000
+2026-03-14 00:28:23  ║  Avg ep length : 16384.0 steps
+2026-03-14 00:28:23  ║  Avg reward/ep : -560.300
+2026-03-14 00:28:23  ║  p_loss        : 0.0068
+2026-03-14 00:28:23  ║  v_loss        : 0.1723
+2026-03-14 00:28:23  ║  entropy       : 2.8109
+2026-03-14 00:28:23  ╚════════════════════════════════════════════════════════════
+2026-03-14 00:28:23  
+2026-03-14 00:28:23  
+[update 0098] weights dispatched in 0.059s
+2026-03-14 00:28:23  [update 0098] waiting for 16 workers …
+2026-03-14 00:33:04  [update 0098] all workers done in 281.72s
+2026-03-14 00:33:04  [update 0098] per-player GAE in 0.0104s
+2026-03-14 00:36:09  [update 0098] PPO update done in 184.11s
+2026-03-14 00:36:10    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00095.pt
+2026-03-14 00:36:10    [ckpt] saved → checkpoints_training\policy_update_00098.pt  (keeping last 3)
+2026-03-14 00:36:10  
+2026-03-14 00:36:10  ╔══ update 0098 ════════════════════════════════════════════
+2026-03-14 00:36:10  ║  Wall time     : 466.9s  (dist 0.06s | collect 281.72s | GAE 0.0104s | PPO 184.11s)
+2026-03-14 00:36:10  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 00:36:10  ║  Win rate      : 1.000
+2026-03-14 00:36:10  ║  Avg ep length : 8192.0 steps
+2026-03-14 00:36:10  ║  Avg reward/ep : -210.550
+2026-03-14 00:36:10  ║  p_loss        : -0.0021
+2026-03-14 00:36:10  ║  v_loss        : 0.4910
+2026-03-14 00:36:10  ║  entropy       : 2.7796
+2026-03-14 00:36:10  ╚════════════════════════════════════════════════════════════
+2026-03-14 00:36:10  
+2026-03-14 00:36:10  
+[update 0099] weights dispatched in 0.060s
+2026-03-14 00:36:10  [update 0099] waiting for 16 workers …
+2026-03-14 00:40:58  [update 0099] all workers done in 288.59s
+2026-03-14 00:40:58  [update 0099] per-player GAE in 0.0116s
+2026-03-14 00:44:00  [update 0099] PPO update done in 181.37s
+2026-03-14 00:44:01    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00096.pt
+2026-03-14 00:44:01    [ckpt] saved → checkpoints_training\policy_update_00099.pt  (keeping last 3)
+2026-03-14 00:44:01  
+2026-03-14 00:44:01  ╔══ update 0099 ════════════════════════════════════════════
+2026-03-14 00:44:01  ║  Wall time     : 471.0s  (dist 0.06s | collect 288.59s | GAE 0.0116s | PPO 181.37s)
+2026-03-14 00:44:01  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 00:44:01  ║  Win rate      : 1.000
+2026-03-14 00:44:01  ║  Avg ep length : 16384.0 steps
+2026-03-14 00:44:01  ║  Avg reward/ep : -455.400
+2026-03-14 00:44:01  ║  p_loss        : -0.0041
+2026-03-14 00:44:01  ║  v_loss        : 0.2953
+2026-03-14 00:44:01  ║  entropy       : 2.8024
+2026-03-14 00:44:01  ╚════════════════════════════════════════════════════════════
+2026-03-14 00:44:01  
+2026-03-14 00:44:01  
+[update 0100] weights dispatched in 0.063s
+2026-03-14 00:44:01  [update 0100] waiting for 16 workers …
+2026-03-14 00:48:37  [update 0100] all workers done in 276.24s
+2026-03-14 00:48:37  [update 0100] per-player GAE in 0.0115s
+2026-03-14 00:51:46  [update 0100] PPO update done in 188.74s
+2026-03-14 00:51:47    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00097.pt
+2026-03-14 00:51:47    [ckpt] saved → checkpoints_training\policy_update_00100.pt  (keeping last 3)
+2026-03-14 00:51:47  
+2026-03-14 00:51:47  ╔══ update 0100 ════════════════════════════════════════════
+2026-03-14 00:51:47  ║  Wall time     : 466.0s  (dist 0.06s | collect 276.24s | GAE 0.0115s | PPO 188.74s)
+2026-03-14 00:51:47  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 00:51:47  ║  Win rate      : 1.000
+2026-03-14 00:51:47  ║  Avg ep length : 8192.0 steps
+2026-03-14 00:51:47  ║  Avg reward/ep : -151.500
+2026-03-14 00:51:47  ║  p_loss        : 0.0035
+2026-03-14 00:51:47  ║  v_loss        : 0.5320
+2026-03-14 00:51:47  ║  entropy       : 2.8317
+2026-03-14 00:51:47  ╚════════════════════════════════════════════════════════════
+2026-03-14 00:51:47  
+2026-03-14 00:51:47  
+[update 0101] weights dispatched in 0.132s
+2026-03-14 00:51:47  [update 0101] waiting for 16 workers …
+2026-03-14 00:56:22  [update 0101] all workers done in 275.10s
+2026-03-14 00:56:22  [update 0101] per-player GAE in 0.0114s
+2026-03-14 00:59:30  [update 0101] PPO update done in 187.87s
+2026-03-14 00:59:31    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00098.pt
+2026-03-14 00:59:31    [ckpt] saved → checkpoints_training\policy_update_00101.pt  (keeping last 3)
+2026-03-14 00:59:31  
+2026-03-14 00:59:31  ╔══ update 0101 ════════════════════════════════════════════
+2026-03-14 00:59:31  ║  Wall time     : 464.1s  (dist 0.13s | collect 275.10s | GAE 0.0114s | PPO 187.87s)
+2026-03-14 00:59:31  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 00:59:31  ║  Win rate      : 0.000
+2026-03-14 00:59:31  ║  Avg ep length : 16384.0 steps
+2026-03-14 00:59:31  ║  Avg reward/ep : -349.500
+2026-03-14 00:59:31  ║  p_loss        : -0.0138
+2026-03-14 00:59:31  ║  v_loss        : 0.2037
+2026-03-14 00:59:31  ║  entropy       : 2.7181
+2026-03-14 00:59:31  ╚════════════════════════════════════════════════════════════
+2026-03-14 00:59:31  
+2026-03-14 00:59:31  
+[update 0102] weights dispatched in 0.058s
+2026-03-14 00:59:31  [update 0102] waiting for 16 workers …
+2026-03-14 01:04:25  [update 0102] all workers done in 293.93s
+2026-03-14 01:04:25  [update 0102] per-player GAE in 0.0109s
+2026-03-14 01:07:28  [update 0102] PPO update done in 183.01s
+2026-03-14 01:07:29    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00099.pt
+2026-03-14 01:07:29    [ckpt] saved → checkpoints_training\policy_update_00102.pt  (keeping last 3)
+2026-03-14 01:07:29  
+2026-03-14 01:07:29  ╔══ update 0102 ════════════════════════════════════════════
+2026-03-14 01:07:29  ║  Wall time     : 478.0s  (dist 0.06s | collect 293.93s | GAE 0.0109s | PPO 183.01s)
+2026-03-14 01:07:29  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 01:07:29  ║  Win rate      : 1.000
+2026-03-14 01:07:29  ║  Avg ep length : 16384.0 steps
+2026-03-14 01:07:29  ║  Avg reward/ep : -381.900
+2026-03-14 01:07:29  ║  p_loss        : -0.0256
+2026-03-14 01:07:29  ║  v_loss        : 0.1833
+2026-03-14 01:07:29  ║  entropy       : 2.7467
+2026-03-14 01:07:29  ╚════════════════════════════════════════════════════════════
+2026-03-14 01:07:29  
+2026-03-14 01:07:29  
+[update 0103] weights dispatched in 0.114s
+2026-03-14 01:07:29  [update 0103] waiting for 16 workers …
+2026-03-14 01:12:05  [update 0103] all workers done in 275.90s
+2026-03-14 01:12:05  [update 0103] per-player GAE in 0.0106s
+2026-03-14 01:15:12  [update 0103] PPO update done in 187.07s
+2026-03-14 01:15:13    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00100.pt
+2026-03-14 01:15:13    [ckpt] saved → checkpoints_training\policy_update_00103.pt  (keeping last 3)
+2026-03-14 01:15:13  
+2026-03-14 01:15:13  ╔══ update 0103 ════════════════════════════════════════════
+2026-03-14 01:15:13  ║  Wall time     : 464.1s  (dist 0.11s | collect 275.90s | GAE 0.0106s | PPO 187.07s)
+2026-03-14 01:15:13  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 01:15:13  ║  Win rate      : 1.000
+2026-03-14 01:15:13  ║  Avg ep length : 16384.0 steps
+2026-03-14 01:15:13  ║  Avg reward/ep : -520.700
+2026-03-14 01:15:13  ║  p_loss        : -0.0088
+2026-03-14 01:15:13  ║  v_loss        : 0.3723
+2026-03-14 01:15:13  ║  entropy       : 2.8414
+2026-03-14 01:15:13  ╚════════════════════════════════════════════════════════════
+2026-03-14 01:15:13  
+2026-03-14 01:15:13  
+[update 0104] weights dispatched in 0.121s
+2026-03-14 01:15:13  [update 0104] waiting for 16 workers …
+2026-03-14 01:19:43  [update 0104] all workers done in 270.23s
+2026-03-14 01:19:43  [update 0104] per-player GAE in 0.0109s
+2026-03-14 01:22:43  [update 0104] PPO update done in 179.84s
+2026-03-14 01:22:44    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00101.pt
+2026-03-14 01:22:44    [ckpt] saved → checkpoints_training\policy_update_00104.pt  (keeping last 3)
+2026-03-14 01:22:44  
+2026-03-14 01:22:44  ╔══ update 0104 ════════════════════════════════════════════
+2026-03-14 01:22:44  ║  Wall time     : 451.2s  (dist 0.12s | collect 270.23s | GAE 0.0109s | PPO 179.84s)
+2026-03-14 01:22:44  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 01:22:44  ║  Win rate      : 1.000
+2026-03-14 01:22:44  ║  Avg ep length : 8192.0 steps
+2026-03-14 01:22:44  ║  Avg reward/ep : -286.500
+2026-03-14 01:22:44  ║  p_loss        : 0.0175
+2026-03-14 01:22:44  ║  v_loss        : 0.5318
+2026-03-14 01:22:44  ║  entropy       : 2.7670
+2026-03-14 01:22:44  ╚════════════════════════════════════════════════════════════
+2026-03-14 01:22:44  
+2026-03-14 01:22:44  
+[update 0105] weights dispatched in 0.126s
+2026-03-14 01:22:44  [update 0105] waiting for 16 workers …
+2026-03-14 01:27:24  [update 0105] all workers done in 280.13s
+2026-03-14 01:27:24  [update 0105] per-player GAE in 0.0108s
+2026-03-14 01:30:31  [update 0105] PPO update done in 186.83s
+2026-03-14 01:30:32    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00102.pt
+2026-03-14 01:30:32    [ckpt] saved → checkpoints_training\policy_update_00105.pt  (keeping last 3)
+2026-03-14 01:30:32  
+2026-03-14 01:30:32  ╔══ update 0105 ════════════════════════════════════════════
+2026-03-14 01:30:32  ║  Wall time     : 468.1s  (dist 0.13s | collect 280.13s | GAE 0.0108s | PPO 186.83s)
+2026-03-14 01:30:32  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 01:30:32  ║  Win rate      : 1.000
+2026-03-14 01:30:32  ║  Avg ep length : 16384.0 steps
+2026-03-14 01:30:32  ║  Avg reward/ep : -466.100
+2026-03-14 01:30:32  ║  p_loss        : 0.0282
+2026-03-14 01:30:32  ║  v_loss        : 0.3676
+2026-03-14 01:30:32  ║  entropy       : 2.7899
+2026-03-14 01:30:32  ╚════════════════════════════════════════════════════════════
+2026-03-14 01:30:32  
+2026-03-14 01:30:32  
+[update 0106] weights dispatched in 0.126s
+2026-03-14 01:30:32  [update 0106] waiting for 16 workers …
+2026-03-14 01:35:28  [update 0106] all workers done in 296.03s
+2026-03-14 01:35:28  [update 0106] per-player GAE in 0.0104s
+2026-03-14 01:38:31  [update 0106] PPO update done in 182.61s
+2026-03-14 01:38:32    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00103.pt
+2026-03-14 01:38:32    [ckpt] saved → checkpoints_training\policy_update_00106.pt  (keeping last 3)
+2026-03-14 01:38:32  
+2026-03-14 01:38:32  ╔══ update 0106 ════════════════════════════════════════════
+2026-03-14 01:38:32  ║  Wall time     : 479.8s  (dist 0.13s | collect 296.03s | GAE 0.0104s | PPO 182.61s)
+2026-03-14 01:38:32  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 01:38:32  ║  Win rate      : 1.000
+2026-03-14 01:38:32  ║  Avg ep length : 8192.0 steps
+2026-03-14 01:38:32  ║  Avg reward/ep : -151.200
+2026-03-14 01:38:32  ║  p_loss        : 0.0000
+2026-03-14 01:38:32  ║  v_loss        : 0.5770
+2026-03-14 01:38:32  ║  entropy       : 2.7635
+2026-03-14 01:38:32  ╚════════════════════════════════════════════════════════════
+2026-03-14 01:38:32  
+2026-03-14 01:38:32  
+[update 0107] weights dispatched in 0.061s
+2026-03-14 01:38:32  [update 0107] waiting for 16 workers …
+2026-03-14 01:43:23  [update 0107] all workers done in 291.72s
+2026-03-14 01:43:24  [update 0107] per-player GAE in 0.0114s
+2026-03-14 01:46:30  [update 0107] PPO update done in 186.81s
+2026-03-14 01:46:31    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00104.pt
+2026-03-14 01:46:31    [ckpt] saved → checkpoints_training\policy_update_00107.pt  (keeping last 3)
+2026-03-14 01:46:31  
+2026-03-14 01:46:31  ╔══ update 0107 ════════════════════════════════════════════
+2026-03-14 01:46:31  ║  Wall time     : 479.6s  (dist 0.06s | collect 291.72s | GAE 0.0114s | PPO 186.81s)
+2026-03-14 01:46:31  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-14 01:46:31  ║  Win rate      : 1.000
+2026-03-14 01:46:31  ║  Avg ep length : 5461.3 steps
+2026-03-14 01:46:31  ║  Avg reward/ep : -63.633
+2026-03-14 01:46:31  ║  p_loss        : 0.0021
+2026-03-14 01:46:31  ║  v_loss        : 0.8051
+2026-03-14 01:46:31  ║  entropy       : 2.7207
+2026-03-14 01:46:31  ╚════════════════════════════════════════════════════════════
+2026-03-14 01:46:31  
+2026-03-14 01:46:31  
+[update 0108] weights dispatched in 0.129s
+2026-03-14 01:46:31  [update 0108] waiting for 16 workers …
+2026-03-14 01:51:26  [update 0108] all workers done in 294.89s
+2026-03-14 01:51:26  [update 0108] per-player GAE in 0.0120s
+2026-03-14 01:54:32  [update 0108] PPO update done in 185.19s
+2026-03-14 01:54:32    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00105.pt
+2026-03-14 01:54:32    [ckpt] saved → checkpoints_training\policy_update_00108.pt  (keeping last 3)
+2026-03-14 01:54:32  
+2026-03-14 01:54:32  ╔══ update 0108 ════════════════════════════════════════════
+2026-03-14 01:54:32  ║  Wall time     : 481.2s  (dist 0.13s | collect 294.89s | GAE 0.0120s | PPO 185.19s)
+2026-03-14 01:54:32  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 01:54:32  ║  Win rate      : 1.000
+2026-03-14 01:54:32  ║  Avg ep length : 8192.0 steps
+2026-03-14 01:54:32  ║  Avg reward/ep : -153.550
+2026-03-14 01:54:32  ║  p_loss        : -0.0161
+2026-03-14 01:54:32  ║  v_loss        : 0.4192
+2026-03-14 01:54:32  ║  entropy       : 2.8437
+2026-03-14 01:54:32  ╚════════════════════════════════════════════════════════════
+2026-03-14 01:54:32  
+2026-03-14 01:54:33  
+[update 0109] weights dispatched in 0.123s
+2026-03-14 01:54:33  [update 0109] waiting for 16 workers …
+2026-03-14 01:59:35  [update 0109] all workers done in 302.48s
+2026-03-14 01:59:35  [update 0109] per-player GAE in 0.0108s
+2026-03-14 02:02:39  [update 0109] PPO update done in 183.75s
+2026-03-14 02:02:40    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00106.pt
+2026-03-14 02:02:40    [ckpt] saved → checkpoints_training\policy_update_00109.pt  (keeping last 3)
+2026-03-14 02:02:40  
+2026-03-14 02:02:40  ╔══ update 0109 ════════════════════════════════════════════
+2026-03-14 02:02:40  ║  Wall time     : 487.3s  (dist 0.12s | collect 302.48s | GAE 0.0108s | PPO 183.75s)
+2026-03-14 02:02:40  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 02:02:40  ║  Win rate      : 1.000
+2026-03-14 02:02:40  ║  Avg ep length : 16384.0 steps
+2026-03-14 02:02:40  ║  Avg reward/ep : -380.200
+2026-03-14 02:02:40  ║  p_loss        : -0.0121
+2026-03-14 02:02:40  ║  v_loss        : 0.1777
+2026-03-14 02:02:40  ║  entropy       : 2.8654
+2026-03-14 02:02:40  ╚════════════════════════════════════════════════════════════
+2026-03-14 02:02:40  
+2026-03-14 02:02:40  
+[update 0110] weights dispatched in 0.124s
+2026-03-14 02:02:40  [update 0110] waiting for 16 workers …
+2026-03-14 02:07:30  [update 0110] all workers done in 289.77s
+2026-03-14 02:07:30  [update 0110] per-player GAE in 0.0122s
+2026-03-14 02:10:34  [update 0110] PPO update done in 184.50s
+2026-03-14 02:10:35    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00107.pt
+2026-03-14 02:10:35    [ckpt] saved → checkpoints_training\policy_update_00110.pt  (keeping last 3)
+2026-03-14 02:10:35  
+2026-03-14 02:10:35  ╔══ update 0110 ════════════════════════════════════════════
+2026-03-14 02:10:35  ║  Wall time     : 475.4s  (dist 0.12s | collect 289.77s | GAE 0.0122s | PPO 184.50s)
+2026-03-14 02:10:35  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 02:10:35  ║  Win rate      : 1.000
+2026-03-14 02:10:35  ║  Avg ep length : 16384.0 steps
+2026-03-14 02:10:35  ║  Avg reward/ep : -318.700
+2026-03-14 02:10:35  ║  p_loss        : 0.0022
+2026-03-14 02:10:35  ║  v_loss        : 0.3178
+2026-03-14 02:10:35  ║  entropy       : 2.8263
+2026-03-14 02:10:35  ╚════════════════════════════════════════════════════════════
+2026-03-14 02:10:35  
+2026-03-14 02:10:35  
+[update 0111] weights dispatched in 0.069s
+2026-03-14 02:10:35  [update 0111] waiting for 16 workers …
+2026-03-14 02:15:22  [update 0111] all workers done in 286.81s
+2026-03-14 02:15:22  [update 0111] per-player GAE in 0.0122s
+2026-03-14 02:18:25  [update 0111] PPO update done in 182.74s
+2026-03-14 02:18:26    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00108.pt
+2026-03-14 02:18:26    [ckpt] saved → checkpoints_training\policy_update_00111.pt  (keeping last 3)
+2026-03-14 02:18:26  
+2026-03-14 02:18:26  ╔══ update 0111 ════════════════════════════════════════════
+2026-03-14 02:18:26  ║  Wall time     : 470.6s  (dist 0.07s | collect 286.81s | GAE 0.0122s | PPO 182.74s)
+2026-03-14 02:18:26  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 02:18:26  ║  Win rate      : 0.000
+2026-03-14 02:18:26  ║  Avg ep length : 16384.0 steps
+2026-03-14 02:18:26  ║  Avg reward/ep : -428.300
+2026-03-14 02:18:26  ║  p_loss        : -0.0081
+2026-03-14 02:18:26  ║  v_loss        : 0.1912
+2026-03-14 02:18:26  ║  entropy       : 2.8874
+2026-03-14 02:18:26  ╚════════════════════════════════════════════════════════════
+2026-03-14 02:18:26  
+2026-03-14 02:18:26  
+[update 0112] weights dispatched in 0.131s
+2026-03-14 02:18:26  [update 0112] waiting for 16 workers …
+2026-03-14 02:23:30  [update 0112] all workers done in 304.56s
+2026-03-14 02:23:30  [update 0112] per-player GAE in 0.0107s
+2026-03-14 02:26:42  [update 0112] PPO update done in 191.57s
+2026-03-14 02:26:43    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00109.pt
+2026-03-14 02:26:43    [ckpt] saved → checkpoints_training\policy_update_00112.pt  (keeping last 3)
+2026-03-14 02:26:43  
+2026-03-14 02:26:43  ╔══ update 0112 ════════════════════════════════════════════
+2026-03-14 02:26:43  ║  Wall time     : 497.3s  (dist 0.13s | collect 304.56s | GAE 0.0107s | PPO 191.57s)
+2026-03-14 02:26:43  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-14 02:26:43  ║  Win rate      : 1.000
+2026-03-14 02:26:43  ║  Avg ep length : 5461.3 steps
+2026-03-14 02:26:43  ║  Avg reward/ep : -84.400
+2026-03-14 02:26:43  ║  p_loss        : 0.0006
+2026-03-14 02:26:43  ║  v_loss        : 0.5841
+2026-03-14 02:26:43  ║  entropy       : 2.8917
+2026-03-14 02:26:43  ╚════════════════════════════════════════════════════════════
+2026-03-14 02:26:43  
+2026-03-14 02:26:43  
+[update 0113] weights dispatched in 0.059s
+2026-03-14 02:26:43  [update 0113] waiting for 16 workers …
+2026-03-14 02:31:50  [update 0113] all workers done in 307.08s
+2026-03-14 02:31:50  [update 0113] per-player GAE in 0.0110s
+2026-03-14 02:34:58  [update 0113] PPO update done in 187.15s
+2026-03-14 02:34:58    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00110.pt
+2026-03-14 02:34:58    [ckpt] saved → checkpoints_training\policy_update_00113.pt  (keeping last 3)
+2026-03-14 02:34:58  
+2026-03-14 02:34:58  ╔══ update 0113 ════════════════════════════════════════════
+2026-03-14 02:34:58  ║  Wall time     : 495.3s  (dist 0.06s | collect 307.08s | GAE 0.0110s | PPO 187.15s)
+2026-03-14 02:34:58  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 02:34:58  ║  Win rate      : 1.000
+2026-03-14 02:34:58  ║  Avg ep length : 16384.0 steps
+2026-03-14 02:34:58  ║  Avg reward/ep : -227.900
+2026-03-14 02:34:58  ║  p_loss        : 0.0079
+2026-03-14 02:34:58  ║  v_loss        : 0.3306
+2026-03-14 02:34:58  ║  entropy       : 2.7673
+2026-03-14 02:34:58  ╚════════════════════════════════════════════════════════════
+2026-03-14 02:34:58  
+2026-03-14 02:34:58  
+[update 0114] weights dispatched in 0.065s
+2026-03-14 02:34:58  [update 0114] waiting for 16 workers …
+2026-03-14 02:39:55  [update 0114] all workers done in 296.37s
+2026-03-14 02:39:55  [update 0114] per-player GAE in 0.0115s
+2026-03-14 02:42:57  [update 0114] PPO update done in 182.41s
+2026-03-14 02:42:58    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00111.pt
+2026-03-14 02:42:58    [ckpt] saved → checkpoints_training\policy_update_00114.pt  (keeping last 3)
+2026-03-14 02:42:58  
+2026-03-14 02:42:58  ╔══ update 0114 ════════════════════════════════════════════
+2026-03-14 02:42:58  ║  Wall time     : 479.9s  (dist 0.06s | collect 296.37s | GAE 0.0115s | PPO 182.41s)
+2026-03-14 02:42:58  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 02:42:58  ║  Win rate      : 1.000
+2026-03-14 02:42:58  ║  Avg ep length : 16384.0 steps
+2026-03-14 02:42:58  ║  Avg reward/ep : -377.000
+2026-03-14 02:42:58  ║  p_loss        : 0.0104
+2026-03-14 02:42:58  ║  v_loss        : 0.5037
+2026-03-14 02:42:58  ║  entropy       : 2.8007
+2026-03-14 02:42:58  ╚════════════════════════════════════════════════════════════
+2026-03-14 02:42:58  
+2026-03-14 02:42:58  
+[update 0115] weights dispatched in 0.063s
+2026-03-14 02:42:58  [update 0115] waiting for 16 workers …
+2026-03-14 02:47:56  [update 0115] all workers done in 298.16s
+2026-03-14 02:47:56  [update 0115] per-player GAE in 0.0109s
+2026-03-14 02:50:59  [update 0115] PPO update done in 182.68s
+2026-03-14 02:51:00    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00112.pt
+2026-03-14 02:51:00    [ckpt] saved → checkpoints_training\policy_update_00115.pt  (keeping last 3)
+2026-03-14 02:51:00  
+2026-03-14 02:51:00  ╔══ update 0115 ════════════════════════════════════════════
+2026-03-14 02:51:00  ║  Wall time     : 481.9s  (dist 0.06s | collect 298.16s | GAE 0.0109s | PPO 182.68s)
+2026-03-14 02:51:00  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-14 02:51:00  ║  Win rate      : 1.000
+2026-03-14 02:51:00  ║  Avg ep length : 5461.3 steps
+2026-03-14 02:51:00  ║  Avg reward/ep : -66.133
+2026-03-14 02:51:00  ║  p_loss        : 0.0011
+2026-03-14 02:51:00  ║  v_loss        : 0.7984
+2026-03-14 02:51:00  ║  entropy       : 2.7808
+2026-03-14 02:51:00  ╚════════════════════════════════════════════════════════════
+2026-03-14 02:51:00  
+2026-03-14 02:51:00  
+[update 0116] weights dispatched in 0.062s
+2026-03-14 02:51:00  [update 0116] waiting for 16 workers …
+2026-03-14 02:56:03  [update 0116] all workers done in 302.96s
+2026-03-14 02:56:03  [update 0116] per-player GAE in 0.0115s
+2026-03-14 02:59:04  [update 0116] PPO update done in 181.02s
+2026-03-14 02:59:05    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00113.pt
+2026-03-14 02:59:05    [ckpt] saved → checkpoints_training\policy_update_00116.pt  (keeping last 3)
+2026-03-14 02:59:05  
+2026-03-14 02:59:05  ╔══ update 0116 ════════════════════════════════════════════
+2026-03-14 02:59:05  ║  Wall time     : 485.1s  (dist 0.06s | collect 302.96s | GAE 0.0115s | PPO 181.02s)
+2026-03-14 02:59:05  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 02:59:05  ║  Win rate      : 0.000
+2026-03-14 02:59:05  ║  Avg ep length : 16384.0 steps
+2026-03-14 02:59:05  ║  Avg reward/ep : -515.100
+2026-03-14 02:59:05  ║  p_loss        : -0.0035
+2026-03-14 02:59:05  ║  v_loss        : 0.1673
+2026-03-14 02:59:05  ║  entropy       : 2.7940
+2026-03-14 02:59:05  ╚════════════════════════════════════════════════════════════
+2026-03-14 02:59:05  
+2026-03-14 02:59:05  
+[update 0117] weights dispatched in 0.064s
+2026-03-14 02:59:05  [update 0117] waiting for 16 workers …
+2026-03-14 03:03:48  [update 0117] all workers done in 282.80s
+2026-03-14 03:03:48  [update 0117] per-player GAE in 0.0112s
+2026-03-14 03:06:46  [update 0117] PPO update done in 177.39s
+2026-03-14 03:06:46    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00114.pt
+2026-03-14 03:06:46    [ckpt] saved → checkpoints_training\policy_update_00117.pt  (keeping last 3)
+2026-03-14 03:06:46  
+2026-03-14 03:06:46  ╔══ update 0117 ════════════════════════════════════════════
+2026-03-14 03:06:46  ║  Wall time     : 461.2s  (dist 0.06s | collect 282.80s | GAE 0.0112s | PPO 177.39s)
+2026-03-14 03:06:46  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 03:06:46  ║  Win rate      : 1.000
+2026-03-14 03:06:46  ║  Avg ep length : 8192.0 steps
+2026-03-14 03:06:46  ║  Avg reward/ep : -235.150
+2026-03-14 03:06:46  ║  p_loss        : -0.0023
+2026-03-14 03:06:46  ║  v_loss        : 0.3622
+2026-03-14 03:06:46  ║  entropy       : 2.8774
+2026-03-14 03:06:46  ╚════════════════════════════════════════════════════════════
+2026-03-14 03:06:46  
+2026-03-14 03:06:47  
+[update 0118] weights dispatched in 0.075s
+2026-03-14 03:06:47  [update 0118] waiting for 16 workers …
+2026-03-14 03:11:06  [update 0118] all workers done in 259.27s
+2026-03-14 03:11:06  [update 0118] per-player GAE in 0.0111s
+2026-03-14 03:14:09  [update 0118] PPO update done in 182.63s
+2026-03-14 03:14:09    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00115.pt
+2026-03-14 03:14:09    [ckpt] saved → checkpoints_training\policy_update_00118.pt  (keeping last 3)
+2026-03-14 03:14:09  
+2026-03-14 03:14:09  ╔══ update 0118 ════════════════════════════════════════════
+2026-03-14 03:14:09  ║  Wall time     : 443.0s  (dist 0.07s | collect 259.27s | GAE 0.0111s | PPO 182.63s)
+2026-03-14 03:14:09  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 03:14:09  ║  Win rate      : 0.000
+2026-03-14 03:14:09  ║  Avg ep length : 16384.0 steps
+2026-03-14 03:14:09  ║  Avg reward/ep : -598.800
+2026-03-14 03:14:09  ║  p_loss        : -0.0328
+2026-03-14 03:14:09  ║  v_loss        : 0.1366
+2026-03-14 03:14:09  ║  entropy       : 2.8144
+2026-03-14 03:14:09  ╚════════════════════════════════════════════════════════════
+2026-03-14 03:14:09  
+2026-03-14 03:14:10  
+[update 0119] weights dispatched in 0.121s
+2026-03-14 03:14:10  [update 0119] waiting for 16 workers …
+2026-03-14 03:18:44  [update 0119] all workers done in 274.80s
+2026-03-14 03:18:44  [update 0119] per-player GAE in 0.0117s
+2026-03-14 03:21:45  [update 0119] PPO update done in 180.10s
+2026-03-14 03:21:45    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00116.pt
+2026-03-14 03:21:45    [ckpt] saved → checkpoints_training\policy_update_00119.pt  (keeping last 3)
+2026-03-14 03:21:45  
+2026-03-14 03:21:45  ╔══ update 0119 ════════════════════════════════════════════
+2026-03-14 03:21:45  ║  Wall time     : 456.0s  (dist 0.12s | collect 274.80s | GAE 0.0117s | PPO 180.10s)
+2026-03-14 03:21:45  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 03:21:45  ║  Win rate      : 1.000
+2026-03-14 03:21:45  ║  Avg ep length : 16384.0 steps
+2026-03-14 03:21:45  ║  Avg reward/ep : -623.200
+2026-03-14 03:21:45  ║  p_loss        : -0.0227
+2026-03-14 03:21:45  ║  v_loss        : 0.1467
+2026-03-14 03:21:45  ║  entropy       : 2.8095
+2026-03-14 03:21:45  ╚════════════════════════════════════════════════════════════
+2026-03-14 03:21:45  
+2026-03-14 03:21:46  
+[update 0120] weights dispatched in 0.122s
+2026-03-14 03:21:46  [update 0120] waiting for 16 workers …
+2026-03-14 03:26:19  [update 0120] all workers done in 273.93s
+2026-03-14 03:26:19  [update 0120] per-player GAE in 0.0110s
+2026-03-14 03:29:24  [update 0120] PPO update done in 184.57s
+2026-03-14 03:29:25    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00117.pt
+2026-03-14 03:29:25    [ckpt] saved → checkpoints_training\policy_update_00120.pt  (keeping last 3)
+2026-03-14 03:29:25  
+2026-03-14 03:29:25  ╔══ update 0120 ════════════════════════════════════════════
+2026-03-14 03:29:25  ║  Wall time     : 459.6s  (dist 0.12s | collect 273.93s | GAE 0.0110s | PPO 184.57s)
+2026-03-14 03:29:25  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 03:29:25  ║  Win rate      : 1.000
+2026-03-14 03:29:25  ║  Avg ep length : 8192.0 steps
+2026-03-14 03:29:25  ║  Avg reward/ep : -339.800
+2026-03-14 03:29:25  ║  p_loss        : -0.0268
+2026-03-14 03:29:25  ║  v_loss        : 0.3173
+2026-03-14 03:29:25  ║  entropy       : 2.9416
+2026-03-14 03:29:25  ╚════════════════════════════════════════════════════════════
+2026-03-14 03:29:25  
+2026-03-14 03:29:25  
+[update 0121] weights dispatched in 0.073s
+2026-03-14 03:29:25  [update 0121] waiting for 16 workers …
+2026-03-14 03:33:40  [update 0121] all workers done in 254.58s
+2026-03-14 03:33:40  [update 0121] per-player GAE in 0.0110s
+2026-03-14 03:36:39  [update 0121] PPO update done in 178.77s
+2026-03-14 03:36:39    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00118.pt
+2026-03-14 03:36:39    [ckpt] saved → checkpoints_training\policy_update_00121.pt  (keeping last 3)
+2026-03-14 03:36:39  
+2026-03-14 03:36:39  ╔══ update 0121 ════════════════════════════════════════════
+2026-03-14 03:36:39  ║  Wall time     : 434.4s  (dist 0.07s | collect 254.58s | GAE 0.0110s | PPO 178.77s)
+2026-03-14 03:36:39  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 03:36:39  ║  Win rate      : 1.000
+2026-03-14 03:36:39  ║  Avg ep length : 16384.0 steps
+2026-03-14 03:36:39  ║  Avg reward/ep : -678.800
+2026-03-14 03:36:39  ║  p_loss        : 0.0287
+2026-03-14 03:36:39  ║  v_loss        : 0.4800
+2026-03-14 03:36:39  ║  entropy       : 2.8290
+2026-03-14 03:36:39  ╚════════════════════════════════════════════════════════════
+2026-03-14 03:36:39  
+2026-03-14 03:36:40  
+[update 0122] weights dispatched in 0.129s
+2026-03-14 03:36:40  [update 0122] waiting for 16 workers …
+2026-03-14 03:41:14  [update 0122] all workers done in 274.82s
+2026-03-14 03:41:14  [update 0122] per-player GAE in 0.0110s
+2026-03-14 03:44:15  [update 0122] PPO update done in 180.36s
+2026-03-14 03:44:16    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00119.pt
+2026-03-14 03:44:16    [ckpt] saved → checkpoints_training\policy_update_00122.pt  (keeping last 3)
+2026-03-14 03:44:16  
+2026-03-14 03:44:16  ╔══ update 0122 ════════════════════════════════════════════
+2026-03-14 03:44:16  ║  Wall time     : 456.3s  (dist 0.13s | collect 274.82s | GAE 0.0110s | PPO 180.36s)
+2026-03-14 03:44:16  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 03:44:16  ║  Win rate      : 0.000
+2026-03-14 03:44:16  ║  Avg ep length : 16384.0 steps
+2026-03-14 03:44:16  ║  Avg reward/ep : -760.300
+2026-03-14 03:44:16  ║  p_loss        : 0.0213
+2026-03-14 03:44:16  ║  v_loss        : 0.1596
+2026-03-14 03:44:16  ║  entropy       : 2.9412
+2026-03-14 03:44:16  ╚════════════════════════════════════════════════════════════
+2026-03-14 03:44:16  
+2026-03-14 03:44:16  
+[update 0123] weights dispatched in 0.115s
+2026-03-14 03:44:16  [update 0123] waiting for 16 workers …
+2026-03-14 03:48:55  [update 0123] all workers done in 279.10s
+2026-03-14 03:48:55  [update 0123] per-player GAE in 0.0120s
+2026-03-14 03:52:03  [update 0123] PPO update done in 187.50s
+2026-03-14 03:52:03    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00120.pt
+2026-03-14 03:52:03    [ckpt] saved → checkpoints_training\policy_update_00123.pt  (keeping last 3)
+2026-03-14 03:52:03  
+2026-03-14 03:52:03  ╔══ update 0123 ════════════════════════════════════════════
+2026-03-14 03:52:03  ║  Wall time     : 467.7s  (dist 0.12s | collect 279.10s | GAE 0.0120s | PPO 187.50s)
+2026-03-14 03:52:03  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 03:52:03  ║  Win rate      : 0.000
+2026-03-14 03:52:03  ║  Avg ep length : 16384.0 steps
+2026-03-14 03:52:03  ║  Avg reward/ep : -924.200
+2026-03-14 03:52:03  ║  p_loss        : -0.0167
+2026-03-14 03:52:03  ║  v_loss        : 0.1529
+2026-03-14 03:52:03  ║  entropy       : 2.8591
+2026-03-14 03:52:03  ╚════════════════════════════════════════════════════════════
+2026-03-14 03:52:03  
+2026-03-14 03:52:04  
+[update 0124] weights dispatched in 0.068s
+2026-03-14 03:52:04  [update 0124] waiting for 16 workers …
+2026-03-14 03:56:31  [update 0124] all workers done in 267.61s
+2026-03-14 03:56:31  [update 0124] per-player GAE in 0.0120s
+2026-03-14 03:59:31  [update 0124] PPO update done in 179.78s
+2026-03-14 03:59:32    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00121.pt
+2026-03-14 03:59:32    [ckpt] saved → checkpoints_training\policy_update_00124.pt  (keeping last 3)
+2026-03-14 03:59:32  
+2026-03-14 03:59:32  ╔══ update 0124 ════════════════════════════════════════════
+2026-03-14 03:59:32  ║  Wall time     : 448.5s  (dist 0.07s | collect 267.61s | GAE 0.0120s | PPO 179.78s)
+2026-03-14 03:59:32  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 03:59:32  ║  Win rate      : 0.000
+2026-03-14 03:59:32  ║  Avg ep length : 16384.0 steps
+2026-03-14 03:59:32  ║  Avg reward/ep : -746.700
+2026-03-14 03:59:32  ║  p_loss        : -0.0302
+2026-03-14 03:59:32  ║  v_loss        : 0.1205
+2026-03-14 03:59:32  ║  entropy       : 2.7748
+2026-03-14 03:59:32  ╚════════════════════════════════════════════════════════════
+2026-03-14 03:59:32  
+2026-03-14 03:59:32  
+[update 0125] weights dispatched in 0.127s
+2026-03-14 03:59:32  [update 0125] waiting for 16 workers …
+2026-03-14 04:04:12  [update 0125] all workers done in 279.96s
+2026-03-14 04:04:12  [update 0125] per-player GAE in 0.0130s
+2026-03-14 04:07:16  [update 0125] PPO update done in 183.77s
+2026-03-14 04:07:17    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00122.pt
+2026-03-14 04:07:17    [ckpt] saved → checkpoints_training\policy_update_00125.pt  (keeping last 3)
+2026-03-14 04:07:17  
+2026-03-14 04:07:17  ╔══ update 0125 ════════════════════════════════════════════
+2026-03-14 04:07:17  ║  Wall time     : 464.9s  (dist 0.13s | collect 279.96s | GAE 0.0130s | PPO 183.77s)
+2026-03-14 04:07:17  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 04:07:17  ║  Win rate      : 0.000
+2026-03-14 04:07:17  ║  Avg ep length : 16384.0 steps
+2026-03-14 04:07:17  ║  Avg reward/ep : -677.500
+2026-03-14 04:07:17  ║  p_loss        : 0.0055
+2026-03-14 04:07:17  ║  v_loss        : 0.1486
+2026-03-14 04:07:17  ║  entropy       : 2.8930
+2026-03-14 04:07:17  ╚════════════════════════════════════════════════════════════
+2026-03-14 04:07:17  
+2026-03-14 04:07:17  
+[update 0126] weights dispatched in 0.062s
+2026-03-14 04:07:17  [update 0126] waiting for 16 workers …
+2026-03-14 04:11:54  [update 0126] all workers done in 277.52s
+2026-03-14 04:11:54  [update 0126] per-player GAE in 0.0106s
+2026-03-14 04:14:58  [update 0126] PPO update done in 183.74s
+2026-03-14 04:14:59    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00123.pt
+2026-03-14 04:14:59    [ckpt] saved → checkpoints_training\policy_update_00126.pt  (keeping last 3)
+2026-03-14 04:14:59  
+2026-03-14 04:14:59  ╔══ update 0126 ════════════════════════════════════════════
+2026-03-14 04:14:59  ║  Wall time     : 462.3s  (dist 0.06s | collect 277.52s | GAE 0.0106s | PPO 183.74s)
+2026-03-14 04:14:59  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 04:14:59  ║  Win rate      : 1.000
+2026-03-14 04:14:59  ║  Avg ep length : 16384.0 steps
+2026-03-14 04:14:59  ║  Avg reward/ep : -554.900
+2026-03-14 04:14:59  ║  p_loss        : 0.0142
+2026-03-14 04:14:59  ║  v_loss        : 0.3963
+2026-03-14 04:14:59  ║  entropy       : 2.7680
+2026-03-14 04:14:59  ╚════════════════════════════════════════════════════════════
+2026-03-14 04:14:59  
+2026-03-14 04:14:59  
+[update 0127] weights dispatched in 0.069s
+2026-03-14 04:14:59  [update 0127] waiting for 16 workers …
+2026-03-14 04:19:40  [update 0127] all workers done in 281.01s
+2026-03-14 04:19:40  [update 0127] per-player GAE in 0.0123s
+2026-03-14 04:22:34  [update 0127] PPO update done in 173.77s
+2026-03-14 04:22:35    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00124.pt
+2026-03-14 04:22:35    [ckpt] saved → checkpoints_training\policy_update_00127.pt  (keeping last 3)
+2026-03-14 04:22:35  
+2026-03-14 04:22:35  ╔══ update 0127 ════════════════════════════════════════════
+2026-03-14 04:22:35  ║  Wall time     : 455.9s  (dist 0.07s | collect 281.01s | GAE 0.0123s | PPO 173.77s)
+2026-03-14 04:22:35  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 04:22:35  ║  Win rate      : 0.000
+2026-03-14 04:22:35  ║  Avg ep length : 16384.0 steps
+2026-03-14 04:22:35  ║  Avg reward/ep : -609.300
+2026-03-14 04:22:35  ║  p_loss        : -0.0216
+2026-03-14 04:22:35  ║  v_loss        : 0.2025
+2026-03-14 04:22:35  ║  entropy       : 2.7789
+2026-03-14 04:22:35  ╚════════════════════════════════════════════════════════════
+2026-03-14 04:22:35  
+2026-03-14 04:22:35  
+[update 0128] weights dispatched in 0.067s
+2026-03-14 04:22:35  [update 0128] waiting for 16 workers …
+2026-03-14 04:27:20  [update 0128] all workers done in 284.83s
+2026-03-14 04:27:20  [update 0128] per-player GAE in 0.0119s
+2026-03-14 04:30:27  [update 0128] PPO update done in 186.64s
+2026-03-14 04:30:28    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00125.pt
+2026-03-14 04:30:28    [ckpt] saved → checkpoints_training\policy_update_00128.pt  (keeping last 3)
+2026-03-14 04:30:28  
+2026-03-14 04:30:28  ╔══ update 0128 ════════════════════════════════════════════
+2026-03-14 04:30:28  ║  Wall time     : 472.5s  (dist 0.07s | collect 284.83s | GAE 0.0119s | PPO 186.64s)
+2026-03-14 04:30:28  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 04:30:28  ║  Win rate      : 0.000
+2026-03-14 04:30:28  ║  Avg ep length : 16384.0 steps
+2026-03-14 04:30:28  ║  Avg reward/ep : -668.500
+2026-03-14 04:30:28  ║  p_loss        : 0.0025
+2026-03-14 04:30:28  ║  v_loss        : 0.1478
+2026-03-14 04:30:28  ║  entropy       : 2.8509
+2026-03-14 04:30:28  ╚════════════════════════════════════════════════════════════
+2026-03-14 04:30:28  
+2026-03-14 04:30:28  
+[update 0129] weights dispatched in 0.065s
+2026-03-14 04:30:28  [update 0129] waiting for 16 workers …
+2026-03-14 04:35:09  [update 0129] all workers done in 281.20s
+2026-03-14 04:35:09  [update 0129] per-player GAE in 0.0110s
+2026-03-14 04:38:10  [update 0129] PPO update done in 180.60s
+2026-03-14 04:38:10    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00126.pt
+2026-03-14 04:38:10    [ckpt] saved → checkpoints_training\policy_update_00129.pt  (keeping last 3)
+2026-03-14 04:38:10  
+2026-03-14 04:38:10  ╔══ update 0129 ════════════════════════════════════════════
+2026-03-14 04:38:10  ║  Wall time     : 462.9s  (dist 0.06s | collect 281.20s | GAE 0.0110s | PPO 180.60s)
+2026-03-14 04:38:10  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 04:38:10  ║  Win rate      : 1.000
+2026-03-14 04:38:10  ║  Avg ep length : 16384.0 steps
+2026-03-14 04:38:10  ║  Avg reward/ep : -739.900
+2026-03-14 04:38:10  ║  p_loss        : -0.0331
+2026-03-14 04:38:10  ║  v_loss        : 0.2736
+2026-03-14 04:38:10  ║  entropy       : 2.8315
+2026-03-14 04:38:10  ╚════════════════════════════════════════════════════════════
+2026-03-14 04:38:10  
+2026-03-14 04:38:11  
+[update 0130] weights dispatched in 0.129s
+2026-03-14 04:38:11  [update 0130] waiting for 16 workers …
+2026-03-14 04:42:50  [update 0130] all workers done in 279.38s
+2026-03-14 04:42:50  [update 0130] per-player GAE in 0.0111s
+2026-03-14 04:45:45  [update 0130] PPO update done in 174.47s
+2026-03-14 04:45:45    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00127.pt
+2026-03-14 04:45:45    [ckpt] saved → checkpoints_training\policy_update_00130.pt  (keeping last 3)
+2026-03-14 04:45:45  
+2026-03-14 04:45:45  ╔══ update 0130 ════════════════════════════════════════════
+2026-03-14 04:45:45  ║  Wall time     : 455.0s  (dist 0.13s | collect 279.38s | GAE 0.0111s | PPO 174.47s)
+2026-03-14 04:45:45  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-14 04:45:45  ║  Win rate      : 1.000
+2026-03-14 04:45:45  ║  Avg ep length : 5461.3 steps
+2026-03-14 04:45:45  ║  Avg reward/ep : -233.233
+2026-03-14 04:45:45  ║  p_loss        : -0.0050
+2026-03-14 04:45:45  ║  v_loss        : 0.5834
+2026-03-14 04:45:45  ║  entropy       : 2.8850
+2026-03-14 04:45:45  ╚════════════════════════════════════════════════════════════
+2026-03-14 04:45:45  
+2026-03-14 04:45:45  
+[update 0131] weights dispatched in 0.061s
+2026-03-14 04:45:45  [update 0131] waiting for 16 workers …
+2026-03-14 04:50:22  [update 0131] all workers done in 276.93s
+2026-03-14 04:50:22  [update 0131] per-player GAE in 0.0111s
+2026-03-14 04:53:22  [update 0131] PPO update done in 179.66s
+2026-03-14 04:53:23    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00128.pt
+2026-03-14 04:53:23    [ckpt] saved → checkpoints_training\policy_update_00131.pt  (keeping last 3)
+2026-03-14 04:53:23  
+2026-03-14 04:53:23  ╔══ update 0131 ════════════════════════════════════════════
+2026-03-14 04:53:23  ║  Wall time     : 457.7s  (dist 0.06s | collect 276.93s | GAE 0.0111s | PPO 179.66s)
+2026-03-14 04:53:23  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 04:53:23  ║  Win rate      : 0.000
+2026-03-14 04:53:23  ║  Avg ep length : 16384.0 steps
+2026-03-14 04:53:23  ║  Avg reward/ep : -951.900
+2026-03-14 04:53:23  ║  p_loss        : 0.0361
+2026-03-14 04:53:23  ║  v_loss        : 0.1564
+2026-03-14 04:53:23  ║  entropy       : 2.8873
+2026-03-14 04:53:23  ╚════════════════════════════════════════════════════════════
+2026-03-14 04:53:23  
+2026-03-14 04:53:23  
+[update 0132] weights dispatched in 0.116s
+2026-03-14 04:53:23  [update 0132] waiting for 16 workers …
+2026-03-14 04:58:00  [update 0132] all workers done in 276.78s
+2026-03-14 04:58:00  [update 0132] per-player GAE in 0.0106s
+2026-03-14 05:01:07  [update 0132] PPO update done in 186.74s
+2026-03-14 05:01:08    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00129.pt
+2026-03-14 05:01:08    [ckpt] saved → checkpoints_training\policy_update_00132.pt  (keeping last 3)
+2026-03-14 05:01:08  
+2026-03-14 05:01:08  ╔══ update 0132 ════════════════════════════════════════════
+2026-03-14 05:01:08  ║  Wall time     : 464.6s  (dist 0.12s | collect 276.78s | GAE 0.0106s | PPO 186.74s)
+2026-03-14 05:01:08  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 05:01:08  ║  Win rate      : 0.000
+2026-03-14 05:01:08  ║  Avg ep length : 16384.0 steps
+2026-03-14 05:01:08  ║  Avg reward/ep : -882.800
+2026-03-14 05:01:08  ║  p_loss        : 0.0332
+2026-03-14 05:01:08  ║  v_loss        : 0.1304
+2026-03-14 05:01:08  ║  entropy       : 2.8767
+2026-03-14 05:01:08  ╚════════════════════════════════════════════════════════════
+2026-03-14 05:01:08  
+2026-03-14 05:01:08  
+[update 0133] weights dispatched in 0.135s
+2026-03-14 05:01:08  [update 0133] waiting for 16 workers …
+2026-03-14 05:05:44  [update 0133] all workers done in 276.37s
+2026-03-14 05:05:44  [update 0133] per-player GAE in 0.0134s
+2026-03-14 05:08:51  [update 0133] PPO update done in 186.17s
+2026-03-14 05:08:51    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00130.pt
+2026-03-14 05:08:51    [ckpt] saved → checkpoints_training\policy_update_00133.pt  (keeping last 3)
+2026-03-14 05:08:51  
+2026-03-14 05:08:51  ╔══ update 0133 ════════════════════════════════════════════
+2026-03-14 05:08:51  ║  Wall time     : 463.7s  (dist 0.14s | collect 276.37s | GAE 0.0134s | PPO 186.17s)
+2026-03-14 05:08:51  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 05:08:51  ║  Win rate      : 1.000
+2026-03-14 05:08:51  ║  Avg ep length : 16384.0 steps
+2026-03-14 05:08:51  ║  Avg reward/ep : -671.400
+2026-03-14 05:08:51  ║  p_loss        : 0.0030
+2026-03-14 05:08:51  ║  v_loss        : 0.2501
+2026-03-14 05:08:51  ║  entropy       : 2.9388
+2026-03-14 05:08:51  ╚════════════════════════════════════════════════════════════
+2026-03-14 05:08:51  
+2026-03-14 05:08:51  
+[update 0134] weights dispatched in 0.066s
+2026-03-14 05:08:51  [update 0134] waiting for 16 workers …
+2026-03-14 05:13:24  [update 0134] all workers done in 272.72s
+2026-03-14 05:13:24  [update 0134] per-player GAE in 0.0111s
+2026-03-14 05:16:24  [update 0134] PPO update done in 179.39s
+2026-03-14 05:16:25    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00131.pt
+2026-03-14 05:16:25    [ckpt] saved → checkpoints_training\policy_update_00134.pt  (keeping last 3)
+2026-03-14 05:16:25  
+2026-03-14 05:16:25  ╔══ update 0134 ════════════════════════════════════════════
+2026-03-14 05:16:25  ║  Wall time     : 453.2s  (dist 0.07s | collect 272.72s | GAE 0.0111s | PPO 179.39s)
+2026-03-14 05:16:25  ║  Games finished:      1  (conquest 0, timeout 1)
+2026-03-14 05:16:25  ║  Win rate      : 0.000
+2026-03-14 05:16:25  ║  Avg ep length : 16384.0 steps
+2026-03-14 05:16:25  ║  Avg reward/ep : -573.800
+2026-03-14 05:16:25  ║  p_loss        : -0.0074
+2026-03-14 05:16:25  ║  v_loss        : 0.1596
+2026-03-14 05:16:25  ║  entropy       : 2.8470
+2026-03-14 05:16:25  ╚════════════════════════════════════════════════════════════
+2026-03-14 05:16:25  
+2026-03-14 05:16:25  
+[update 0135] weights dispatched in 0.068s
+2026-03-14 05:16:25  [update 0135] waiting for 16 workers …
+2026-03-14 05:21:19  [update 0135] all workers done in 294.46s
+2026-03-14 05:21:19  [update 0135] per-player GAE in 0.0112s
+2026-03-14 05:24:19  [update 0135] PPO update done in 179.81s
+2026-03-14 05:24:20    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00132.pt
+2026-03-14 05:24:20    [ckpt] saved → checkpoints_training\policy_update_00135.pt  (keeping last 3)
+2026-03-14 05:24:20  
+2026-03-14 05:24:20  ╔══ update 0135 ════════════════════════════════════════════
+2026-03-14 05:24:20  ║  Wall time     : 475.4s  (dist 0.07s | collect 294.46s | GAE 0.0112s | PPO 179.81s)
+2026-03-14 05:24:20  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 05:24:20  ║  Win rate      : 0.000
+2026-03-14 05:24:20  ║  Avg ep length : 16384.0 steps
+2026-03-14 05:24:20  ║  Avg reward/ep : -695.400
+2026-03-14 05:24:20  ║  p_loss        : -0.0068
+2026-03-14 05:24:20  ║  v_loss        : 0.1590
+2026-03-14 05:24:20  ║  entropy       : 2.8634
+2026-03-14 05:24:20  ╚════════════════════════════════════════════════════════════
+2026-03-14 05:24:20  
+2026-03-14 05:24:20  
+[update 0136] weights dispatched in 0.067s
+2026-03-14 05:24:20  [update 0136] waiting for 16 workers …
+2026-03-14 05:28:56  [update 0136] all workers done in 276.18s
+2026-03-14 05:28:56  [update 0136] per-player GAE in 0.0125s
+2026-03-14 05:32:07  [update 0136] PPO update done in 190.15s
+2026-03-14 05:32:08    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00133.pt
+2026-03-14 05:32:08    [ckpt] saved → checkpoints_training\policy_update_00136.pt  (keeping last 3)
+2026-03-14 05:32:08  
+2026-03-14 05:32:08  ╔══ update 0136 ════════════════════════════════════════════
+2026-03-14 05:32:08  ║  Wall time     : 467.5s  (dist 0.07s | collect 276.18s | GAE 0.0125s | PPO 190.15s)
+2026-03-14 05:32:08  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 05:32:08  ║  Win rate      : 0.000
+2026-03-14 05:32:08  ║  Avg ep length : 16384.0 steps
+2026-03-14 05:32:08  ║  Avg reward/ep : -646.900
+2026-03-14 05:32:08  ║  p_loss        : -0.0093
+2026-03-14 05:32:08  ║  v_loss        : 0.1242
+2026-03-14 05:32:08  ║  entropy       : 2.9733
+2026-03-14 05:32:08  ╚════════════════════════════════════════════════════════════
+2026-03-14 05:32:08  
+2026-03-14 05:32:08  
+[update 0137] weights dispatched in 0.065s
+2026-03-14 05:32:08  [update 0137] waiting for 16 workers …
+2026-03-14 05:37:08  [update 0137] all workers done in 300.68s
+2026-03-14 05:37:08  [update 0137] per-player GAE in 0.0118s
+2026-03-14 05:40:15  [update 0137] PPO update done in 186.83s
+2026-03-14 05:40:16    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00134.pt
+2026-03-14 05:40:16    [ckpt] saved → checkpoints_training\policy_update_00137.pt  (keeping last 3)
+2026-03-14 05:40:16  
+2026-03-14 05:40:16  ╔══ update 0137 ════════════════════════════════════════════
+2026-03-14 05:40:16  ║  Wall time     : 488.6s  (dist 0.07s | collect 300.68s | GAE 0.0118s | PPO 186.83s)
+2026-03-14 05:40:16  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 05:40:16  ║  Win rate      : 0.000
+2026-03-14 05:40:16  ║  Avg ep length : 16384.0 steps
+2026-03-14 05:40:16  ║  Avg reward/ep : -658.500
+2026-03-14 05:40:16  ║  p_loss        : 0.0170
+2026-03-14 05:40:16  ║  v_loss        : 0.1312
+2026-03-14 05:40:16  ║  entropy       : 2.9567
+2026-03-14 05:40:16  ╚════════════════════════════════════════════════════════════
+2026-03-14 05:40:16  
+2026-03-14 05:40:16  
+[update 0138] weights dispatched in 0.066s
+2026-03-14 05:40:16  [update 0138] waiting for 16 workers …
+2026-03-14 05:44:39  [update 0138] all workers done in 262.35s
+2026-03-14 05:44:39  [update 0138] per-player GAE in 0.0106s
+2026-03-14 05:47:47  [update 0138] PPO update done in 188.09s
+2026-03-14 05:47:48    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00135.pt
+2026-03-14 05:47:48    [ckpt] saved → checkpoints_training\policy_update_00138.pt  (keeping last 3)
+2026-03-14 05:47:48  
+2026-03-14 05:47:48  ╔══ update 0138 ════════════════════════════════════════════
+2026-03-14 05:47:48  ║  Wall time     : 451.6s  (dist 0.07s | collect 262.35s | GAE 0.0106s | PPO 188.09s)
+2026-03-14 05:47:48  ║  Games finished:      1  (conquest 0, timeout 1)
+2026-03-14 05:47:48  ║  Win rate      : 0.000
+2026-03-14 05:47:48  ║  Avg ep length : 16384.0 steps
+2026-03-14 05:47:48  ║  Avg reward/ep : -619.800
+2026-03-14 05:47:48  ║  p_loss        : -0.0020
+2026-03-14 05:47:48  ║  v_loss        : 0.1277
+2026-03-14 05:47:48  ║  entropy       : 2.8934
+2026-03-14 05:47:48  ╚════════════════════════════════════════════════════════════
+2026-03-14 05:47:48  
+2026-03-14 05:47:48  
+[update 0139] weights dispatched in 0.131s
+2026-03-14 05:47:48  [update 0139] waiting for 16 workers …
+2026-03-14 05:52:36  [update 0139] all workers done in 288.39s
+2026-03-14 05:52:36  [update 0139] per-player GAE in 0.0125s
+2026-03-14 05:55:47  [update 0139] PPO update done in 190.84s
+2026-03-14 05:55:48    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00136.pt
+2026-03-14 05:55:48    [ckpt] saved → checkpoints_training\policy_update_00139.pt  (keeping last 3)
+2026-03-14 05:55:48  
+2026-03-14 05:55:48  ╔══ update 0139 ════════════════════════════════════════════
+2026-03-14 05:55:48  ║  Wall time     : 480.5s  (dist 0.13s | collect 288.39s | GAE 0.0125s | PPO 190.84s)
+2026-03-14 05:55:48  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 05:55:48  ║  Win rate      : 0.000
+2026-03-14 05:55:48  ║  Avg ep length : 16384.0 steps
+2026-03-14 05:55:48  ║  Avg reward/ep : -546.400
+2026-03-14 05:55:48  ║  p_loss        : 0.0208
+2026-03-14 05:55:48  ║  v_loss        : 0.1459
+2026-03-14 05:55:48  ║  entropy       : 2.9790
+2026-03-14 05:55:48  ╚════════════════════════════════════════════════════════════
+2026-03-14 05:55:48  
+2026-03-14 05:55:48  
+[update 0140] weights dispatched in 0.064s
+2026-03-14 05:55:48  [update 0140] waiting for 16 workers …
+2026-03-14 06:00:45  [update 0140] all workers done in 296.71s
+2026-03-14 06:00:45  [update 0140] per-player GAE in 0.0109s
+2026-03-14 06:03:56  [update 0140] PPO update done in 191.05s
+2026-03-14 06:03:57    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00137.pt
+2026-03-14 06:03:57    [ckpt] saved → checkpoints_training\policy_update_00140.pt  (keeping last 3)
+2026-03-14 06:03:57  
+2026-03-14 06:03:57  ╔══ update 0140 ════════════════════════════════════════════
+2026-03-14 06:03:57  ║  Wall time     : 488.9s  (dist 0.06s | collect 296.71s | GAE 0.0109s | PPO 191.05s)
+2026-03-14 06:03:57  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 06:03:57  ║  Win rate      : 0.000
+2026-03-14 06:03:57  ║  Avg ep length : 16384.0 steps
+2026-03-14 06:03:57  ║  Avg reward/ep : -607.700
+2026-03-14 06:03:57  ║  p_loss        : 0.0009
+2026-03-14 06:03:57  ║  v_loss        : 0.1369
+2026-03-14 06:03:57  ║  entropy       : 2.9781
+2026-03-14 06:03:57  ╚════════════════════════════════════════════════════════════
+2026-03-14 06:03:57  
+2026-03-14 06:03:57  
+[update 0141] weights dispatched in 0.060s
+2026-03-14 06:03:57  [update 0141] waiting for 16 workers …
+2026-03-14 06:08:59  [update 0141] all workers done in 301.97s
+2026-03-14 06:08:59  [update 0141] per-player GAE in 0.0124s
+2026-03-14 06:12:11  [update 0141] PPO update done in 191.71s
+2026-03-14 06:12:12    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00138.pt
+2026-03-14 06:12:12    [ckpt] saved → checkpoints_training\policy_update_00141.pt  (keeping last 3)
+2026-03-14 06:12:12  
+2026-03-14 06:12:12  ╔══ update 0141 ════════════════════════════════════════════
+2026-03-14 06:12:12  ║  Wall time     : 494.8s  (dist 0.06s | collect 301.97s | GAE 0.0124s | PPO 191.71s)
+2026-03-14 06:12:12  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 06:12:12  ║  Win rate      : 1.000
+2026-03-14 06:12:12  ║  Avg ep length : 16384.0 steps
+2026-03-14 06:12:12  ║  Avg reward/ep : -681.100
+2026-03-14 06:12:12  ║  p_loss        : 0.0169
+2026-03-14 06:12:12  ║  v_loss        : 0.5466
+2026-03-14 06:12:12  ║  entropy       : 3.0470
+2026-03-14 06:12:12  ╚════════════════════════════════════════════════════════════
+2026-03-14 06:12:12  
+2026-03-14 06:12:12  
+[update 0142] weights dispatched in 0.128s
+2026-03-14 06:12:12  [update 0142] waiting for 16 workers …
+2026-03-14 06:17:02  [update 0142] all workers done in 289.95s
+2026-03-14 06:17:02  [update 0142] per-player GAE in 0.0118s
+2026-03-14 06:20:14  [update 0142] PPO update done in 192.10s
+2026-03-14 06:20:15    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00139.pt
+2026-03-14 06:20:15    [ckpt] saved → checkpoints_training\policy_update_00142.pt  (keeping last 3)
+2026-03-14 06:20:15  
+2026-03-14 06:20:15  ╔══ update 0142 ════════════════════════════════════════════
+2026-03-14 06:20:15  ║  Wall time     : 483.3s  (dist 0.13s | collect 289.95s | GAE 0.0118s | PPO 192.10s)
+2026-03-14 06:20:15  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 06:20:15  ║  Win rate      : 1.000
+2026-03-14 06:20:15  ║  Avg ep length : 16384.0 steps
+2026-03-14 06:20:15  ║  Avg reward/ep : -610.300
+2026-03-14 06:20:15  ║  p_loss        : 0.0289
+2026-03-14 06:20:15  ║  v_loss        : 0.3162
+2026-03-14 06:20:15  ║  entropy       : 3.0527
+2026-03-14 06:20:15  ╚════════════════════════════════════════════════════════════
+2026-03-14 06:20:15  
+2026-03-14 06:20:15  
+[update 0143] weights dispatched in 0.141s
+2026-03-14 06:20:15  [update 0143] waiting for 16 workers …
+2026-03-14 06:25:00  [update 0143] all workers done in 284.65s
+2026-03-14 06:25:00  [update 0143] per-player GAE in 0.0121s
+2026-03-14 06:28:13  [update 0143] PPO update done in 192.58s
+2026-03-14 06:28:14    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00140.pt
+2026-03-14 06:28:14    [ckpt] saved → checkpoints_training\policy_update_00143.pt  (keeping last 3)
+2026-03-14 06:28:14  
+2026-03-14 06:28:14  ╔══ update 0143 ════════════════════════════════════════════
+2026-03-14 06:28:14  ║  Wall time     : 478.4s  (dist 0.14s | collect 284.65s | GAE 0.0121s | PPO 192.58s)
+2026-03-14 06:28:14  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 06:28:14  ║  Win rate      : 0.000
+2026-03-14 06:28:14  ║  Avg ep length : 16384.0 steps
+2026-03-14 06:28:14  ║  Avg reward/ep : -501.800
+2026-03-14 06:28:14  ║  p_loss        : -0.0338
+2026-03-14 06:28:14  ║  v_loss        : 0.1539
+2026-03-14 06:28:14  ║  entropy       : 2.9088
+2026-03-14 06:28:14  ╚════════════════════════════════════════════════════════════
+2026-03-14 06:28:14  
+2026-03-14 06:28:14  
+[update 0144] weights dispatched in 0.060s
+2026-03-14 06:28:14  [update 0144] waiting for 16 workers …
+2026-03-14 06:33:02  [update 0144] all workers done in 288.06s
+2026-03-14 06:33:02  [update 0144] per-player GAE in 0.0117s
+2026-03-14 06:36:12  [update 0144] PPO update done in 189.95s
+2026-03-14 06:36:13    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00141.pt
+2026-03-14 06:36:13    [ckpt] saved → checkpoints_training\policy_update_00144.pt  (keeping last 3)
+2026-03-14 06:36:13  
+2026-03-14 06:36:13  ╔══ update 0144 ════════════════════════════════════════════
+2026-03-14 06:36:13  ║  Wall time     : 479.2s  (dist 0.06s | collect 288.06s | GAE 0.0117s | PPO 189.95s)
+2026-03-14 06:36:13  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 06:36:13  ║  Win rate      : 1.000
+2026-03-14 06:36:13  ║  Avg ep length : 16384.0 steps
+2026-03-14 06:36:13  ║  Avg reward/ep : -436.400
+2026-03-14 06:36:13  ║  p_loss        : 0.0031
+2026-03-14 06:36:13  ║  v_loss        : 0.4638
+2026-03-14 06:36:13  ║  entropy       : 2.9578
+2026-03-14 06:36:13  ╚════════════════════════════════════════════════════════════
+2026-03-14 06:36:13  
+2026-03-14 06:36:13  
+[update 0145] weights dispatched in 0.118s
+2026-03-14 06:36:13  [update 0145] waiting for 16 workers …
+2026-03-14 06:40:50  [update 0145] all workers done in 277.20s
+2026-03-14 06:40:50  [update 0145] per-player GAE in 0.0111s
+2026-03-14 06:43:53  [update 0145] PPO update done in 182.87s
+2026-03-14 06:43:54    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00142.pt
+2026-03-14 06:43:54    [ckpt] saved → checkpoints_training\policy_update_00145.pt  (keeping last 3)
+2026-03-14 06:43:54  
+2026-03-14 06:43:54  ╔══ update 0145 ════════════════════════════════════════════
+2026-03-14 06:43:54  ║  Wall time     : 461.2s  (dist 0.12s | collect 277.20s | GAE 0.0111s | PPO 182.87s)
+2026-03-14 06:43:54  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 06:43:54  ║  Win rate      : 1.000
+2026-03-14 06:43:54  ║  Avg ep length : 16384.0 steps
+2026-03-14 06:43:54  ║  Avg reward/ep : -450.300
+2026-03-14 06:43:54  ║  p_loss        : -0.0199
+2026-03-14 06:43:54  ║  v_loss        : 0.3014
+2026-03-14 06:43:54  ║  entropy       : 2.8672
+2026-03-14 06:43:54  ╚════════════════════════════════════════════════════════════
+2026-03-14 06:43:54  
+2026-03-14 06:43:54  
+[update 0146] weights dispatched in 0.133s
+2026-03-14 06:43:54  [update 0146] waiting for 16 workers …
+2026-03-14 06:48:55  [update 0146] all workers done in 300.45s
+2026-03-14 06:48:55  [update 0146] per-player GAE in 0.0106s
+2026-03-14 06:52:08  [update 0146] PPO update done in 192.92s
+2026-03-14 06:52:09    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00143.pt
+2026-03-14 06:52:09    [ckpt] saved → checkpoints_training\policy_update_00146.pt  (keeping last 3)
+2026-03-14 06:52:09  
+2026-03-14 06:52:09  ╔══ update 0146 ════════════════════════════════════════════
+2026-03-14 06:52:09  ║  Wall time     : 494.6s  (dist 0.13s | collect 300.45s | GAE 0.0106s | PPO 192.92s)
+2026-03-14 06:52:09  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 06:52:09  ║  Win rate      : 0.000
+2026-03-14 06:52:09  ║  Avg ep length : 16384.0 steps
+2026-03-14 06:52:09  ║  Avg reward/ep : -446.800
+2026-03-14 06:52:09  ║  p_loss        : 0.0269
+2026-03-14 06:52:09  ║  v_loss        : 0.1723
+2026-03-14 06:52:09  ║  entropy       : 2.9513
+2026-03-14 06:52:09  ╚════════════════════════════════════════════════════════════
+2026-03-14 06:52:09  
+2026-03-14 06:52:09  
+[update 0147] weights dispatched in 0.065s
+2026-03-14 06:52:09  [update 0147] waiting for 16 workers …
+2026-03-14 06:56:50  [update 0147] all workers done in 281.48s
+2026-03-14 06:56:50  [update 0147] per-player GAE in 0.0118s
+2026-03-14 06:59:58  [update 0147] PPO update done in 188.10s
+2026-03-14 06:59:59    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00144.pt
+2026-03-14 06:59:59    [ckpt] saved → checkpoints_training\policy_update_00147.pt  (keeping last 3)
+2026-03-14 06:59:59  
+2026-03-14 06:59:59  ╔══ update 0147 ════════════════════════════════════════════
+2026-03-14 06:59:59  ║  Wall time     : 470.7s  (dist 0.07s | collect 281.48s | GAE 0.0118s | PPO 188.10s)
+2026-03-14 06:59:59  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 06:59:59  ║  Win rate      : 1.000
+2026-03-14 06:59:59  ║  Avg ep length : 16384.0 steps
+2026-03-14 06:59:59  ║  Avg reward/ep : -537.200
+2026-03-14 06:59:59  ║  p_loss        : 0.0243
+2026-03-14 06:59:59  ║  v_loss        : 0.2103
+2026-03-14 06:59:59  ║  entropy       : 2.8934
+2026-03-14 06:59:59  ╚════════════════════════════════════════════════════════════
+2026-03-14 06:59:59  
+2026-03-14 06:59:59  
+[update 0148] weights dispatched in 0.064s
+2026-03-14 06:59:59  [update 0148] waiting for 16 workers …
+2026-03-14 07:04:41  [update 0148] all workers done in 281.16s
+2026-03-14 07:04:41  [update 0148] per-player GAE in 0.0134s
+2026-03-14 07:07:50  [update 0148] PPO update done in 188.75s
+2026-03-14 07:07:50    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00145.pt
+2026-03-14 07:07:50    [ckpt] saved → checkpoints_training\policy_update_00148.pt  (keeping last 3)
+2026-03-14 07:07:50  
+2026-03-14 07:07:50  ╔══ update 0148 ════════════════════════════════════════════
+2026-03-14 07:07:50  ║  Wall time     : 471.0s  (dist 0.06s | collect 281.16s | GAE 0.0134s | PPO 188.75s)
+2026-03-14 07:07:50  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 07:07:50  ║  Win rate      : 0.000
+2026-03-14 07:07:50  ║  Avg ep length : 16384.0 steps
+2026-03-14 07:07:50  ║  Avg reward/ep : -682.900
+2026-03-14 07:07:50  ║  p_loss        : 0.0231
+2026-03-14 07:07:50  ║  v_loss        : 0.1344
+2026-03-14 07:07:50  ║  entropy       : 2.9211
+2026-03-14 07:07:50  ╚════════════════════════════════════════════════════════════
+2026-03-14 07:07:50  
+2026-03-14 07:07:51  
+[update 0149] weights dispatched in 0.121s
+2026-03-14 07:07:51  [update 0149] waiting for 16 workers …
+2026-03-14 07:12:48  [update 0149] all workers done in 297.21s
+2026-03-14 07:12:48  [update 0149] per-player GAE in 0.0114s
+2026-03-14 07:15:53  [update 0149] PPO update done in 184.91s
+2026-03-14 07:15:54    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00146.pt
+2026-03-14 07:15:54    [ckpt] saved → checkpoints_training\policy_update_00149.pt  (keeping last 3)
+2026-03-14 07:15:54  
+2026-03-14 07:15:54  ╔══ update 0149 ════════════════════════════════════════════
+2026-03-14 07:15:54  ║  Wall time     : 483.3s  (dist 0.12s | collect 297.21s | GAE 0.0114s | PPO 184.91s)
+2026-03-14 07:15:54  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 07:15:54  ║  Win rate      : 0.000
+2026-03-14 07:15:54  ║  Avg ep length : 16384.0 steps
+2026-03-14 07:15:54  ║  Avg reward/ep : -545.200
+2026-03-14 07:15:54  ║  p_loss        : 0.0302
+2026-03-14 07:15:54  ║  v_loss        : 0.1122
+2026-03-14 07:15:54  ║  entropy       : 2.9434
+2026-03-14 07:15:54  ╚════════════════════════════════════════════════════════════
+2026-03-14 07:15:54  
+2026-03-14 07:15:54  
+[update 0150] weights dispatched in 0.066s
+2026-03-14 07:15:54  [update 0150] waiting for 16 workers …
+2026-03-14 07:20:43  [update 0150] all workers done in 289.05s
+2026-03-14 07:20:43  [update 0150] per-player GAE in 0.0121s
+2026-03-14 07:23:54  [update 0150] PPO update done in 190.80s
+2026-03-14 07:23:55    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00147.pt
+2026-03-14 07:23:55    [ckpt] saved → checkpoints_training\policy_update_00150.pt  (keeping last 3)
+2026-03-14 07:23:55  
+2026-03-14 07:23:55  ╔══ update 0150 ════════════════════════════════════════════
+2026-03-14 07:23:55  ║  Wall time     : 481.0s  (dist 0.07s | collect 289.05s | GAE 0.0121s | PPO 190.80s)
+2026-03-14 07:23:55  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 07:23:55  ║  Win rate      : 0.000
+2026-03-14 07:23:55  ║  Avg ep length : 16384.0 steps
+2026-03-14 07:23:55  ║  Avg reward/ep : -546.800
+2026-03-14 07:23:55  ║  p_loss        : -0.0003
+2026-03-14 07:23:55  ║  v_loss        : 0.1213
+2026-03-14 07:23:55  ║  entropy       : 2.8654
+2026-03-14 07:23:55  ╚════════════════════════════════════════════════════════════
+2026-03-14 07:23:55  
+2026-03-14 07:23:55  
+[update 0151] weights dispatched in 0.122s
+2026-03-14 07:23:55  [update 0151] waiting for 16 workers …
+2026-03-14 07:28:51  [update 0151] all workers done in 296.33s
+2026-03-14 07:28:51  [update 0151] per-player GAE in 0.0107s
+2026-03-14 07:31:58  [update 0151] PPO update done in 186.27s
+2026-03-14 07:31:59    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00148.pt
+2026-03-14 07:31:59    [ckpt] saved → checkpoints_training\policy_update_00151.pt  (keeping last 3)
+2026-03-14 07:31:59  
+2026-03-14 07:31:59  ╔══ update 0151 ════════════════════════════════════════════
+2026-03-14 07:31:59  ║  Wall time     : 483.8s  (dist 0.12s | collect 296.33s | GAE 0.0107s | PPO 186.27s)
+2026-03-14 07:31:59  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 07:31:59  ║  Win rate      : 0.000
+2026-03-14 07:31:59  ║  Avg ep length : 16384.0 steps
+2026-03-14 07:31:59  ║  Avg reward/ep : -635.300
+2026-03-14 07:31:59  ║  p_loss        : -0.0053
+2026-03-14 07:31:59  ║  v_loss        : 0.1374
+2026-03-14 07:31:59  ║  entropy       : 2.9512
+2026-03-14 07:31:59  ╚════════════════════════════════════════════════════════════
+2026-03-14 07:31:59  
+2026-03-14 07:31:59  
+[update 0152] weights dispatched in 0.127s
+2026-03-14 07:31:59  [update 0152] waiting for 16 workers …
+2026-03-14 07:37:07  [update 0152] all workers done in 308.30s
+2026-03-14 07:37:07  [update 0152] per-player GAE in 0.0133s
+2026-03-14 07:40:18  [update 0152] PPO update done in 190.66s
+2026-03-14 07:40:19    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00149.pt
+2026-03-14 07:40:19    [ckpt] saved → checkpoints_training\policy_update_00152.pt  (keeping last 3)
+2026-03-14 07:40:19  
+2026-03-14 07:40:19  ╔══ update 0152 ════════════════════════════════════════════
+2026-03-14 07:40:19  ║  Wall time     : 500.2s  (dist 0.13s | collect 308.30s | GAE 0.0133s | PPO 190.66s)
+2026-03-14 07:40:19  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 07:40:19  ║  Win rate      : 0.000
+2026-03-14 07:40:19  ║  Avg ep length : 16384.0 steps
+2026-03-14 07:40:19  ║  Avg reward/ep : -593.000
+2026-03-14 07:40:19  ║  p_loss        : -0.0118
+2026-03-14 07:40:19  ║  v_loss        : 0.1326
+2026-03-14 07:40:19  ║  entropy       : 2.9500
+2026-03-14 07:40:19  ╚════════════════════════════════════════════════════════════
+2026-03-14 07:40:19  
+2026-03-14 07:40:19  
+[update 0153] weights dispatched in 0.069s
+2026-03-14 07:40:19  [update 0153] waiting for 16 workers …
+2026-03-14 07:45:12  [update 0153] all workers done in 292.80s
+2026-03-14 07:45:12  [update 0153] per-player GAE in 0.0110s
+2026-03-14 07:48:25  [update 0153] PPO update done in 192.83s
+2026-03-14 07:48:25    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00150.pt
+2026-03-14 07:48:25    [ckpt] saved → checkpoints_training\policy_update_00153.pt  (keeping last 3)
+2026-03-14 07:48:25  
+2026-03-14 07:48:25  ╔══ update 0153 ════════════════════════════════════════════
+2026-03-14 07:48:25  ║  Wall time     : 486.8s  (dist 0.07s | collect 292.80s | GAE 0.0110s | PPO 192.83s)
+2026-03-14 07:48:25  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 07:48:25  ║  Win rate      : 0.000
+2026-03-14 07:48:25  ║  Avg ep length : 16384.0 steps
+2026-03-14 07:48:25  ║  Avg reward/ep : -625.200
+2026-03-14 07:48:25  ║  p_loss        : 0.0290
+2026-03-14 07:48:25  ║  v_loss        : 0.1239
+2026-03-14 07:48:25  ║  entropy       : 2.8965
+2026-03-14 07:48:25  ╚════════════════════════════════════════════════════════════
+2026-03-14 07:48:25  
+2026-03-14 07:48:26  
+[update 0154] weights dispatched in 0.064s
+2026-03-14 07:48:26  [update 0154] waiting for 16 workers …
+2026-03-14 07:53:22  [update 0154] all workers done in 295.94s
+2026-03-14 07:53:22  [update 0154] per-player GAE in 0.0119s
+2026-03-14 07:56:30  [update 0154] PPO update done in 188.66s
+2026-03-14 07:56:31    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00151.pt
+2026-03-14 07:56:31    [ckpt] saved → checkpoints_training\policy_update_00154.pt  (keeping last 3)
+2026-03-14 07:56:31  
+2026-03-14 07:56:31  ╔══ update 0154 ════════════════════════════════════════════
+2026-03-14 07:56:31  ║  Wall time     : 485.8s  (dist 0.06s | collect 295.94s | GAE 0.0119s | PPO 188.66s)
+2026-03-14 07:56:31  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 07:56:31  ║  Win rate      : 0.000
+2026-03-14 07:56:31  ║  Avg ep length : 16384.0 steps
+2026-03-14 07:56:31  ║  Avg reward/ep : -677.300
+2026-03-14 07:56:31  ║  p_loss        : 0.0122
+2026-03-14 07:56:31  ║  v_loss        : 0.1493
+2026-03-14 07:56:31  ║  entropy       : 2.9423
+2026-03-14 07:56:31  ╚════════════════════════════════════════════════════════════
+2026-03-14 07:56:31  
+2026-03-14 07:56:31  
+[update 0155] weights dispatched in 0.070s
+2026-03-14 07:56:31  [update 0155] waiting for 16 workers …
+2026-03-14 08:01:22  [update 0155] all workers done in 290.28s
+2026-03-14 08:01:22  [update 0155] per-player GAE in 0.0112s
+2026-03-14 08:04:26  [update 0155] PPO update done in 183.84s
+2026-03-14 08:04:27    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00152.pt
+2026-03-14 08:04:27    [ckpt] saved → checkpoints_training\policy_update_00155.pt  (keeping last 3)
+2026-03-14 08:04:27  
+2026-03-14 08:04:27  ╔══ update 0155 ════════════════════════════════════════════
+2026-03-14 08:04:27  ║  Wall time     : 475.3s  (dist 0.07s | collect 290.28s | GAE 0.0112s | PPO 183.84s)
+2026-03-14 08:04:27  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 08:04:27  ║  Win rate      : 0.000
+2026-03-14 08:04:27  ║  Avg ep length : 16384.0 steps
+2026-03-14 08:04:27  ║  Avg reward/ep : -686.400
+2026-03-14 08:04:27  ║  p_loss        : -0.0248
+2026-03-14 08:04:27  ║  v_loss        : 0.1392
+2026-03-14 08:04:27  ║  entropy       : 2.9574
+2026-03-14 08:04:27  ╚════════════════════════════════════════════════════════════
+2026-03-14 08:04:27  
+2026-03-14 08:04:27  
+[update 0156] weights dispatched in 0.101s
+2026-03-14 08:04:27  [update 0156] waiting for 16 workers …
+2026-03-14 08:09:10  [update 0156] all workers done in 283.38s
+2026-03-14 08:09:10  [update 0156] per-player GAE in 0.0127s
+2026-03-14 08:12:22  [update 0156] PPO update done in 192.18s
+2026-03-14 08:12:23    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00153.pt
+2026-03-14 08:12:23    [ckpt] saved → checkpoints_training\policy_update_00156.pt  (keeping last 3)
+2026-03-14 08:12:23  
+2026-03-14 08:12:23  ╔══ update 0156 ════════════════════════════════════════════
+2026-03-14 08:12:23  ║  Wall time     : 476.8s  (dist 0.10s | collect 283.38s | GAE 0.0127s | PPO 192.18s)
+2026-03-14 08:12:23  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 08:12:23  ║  Win rate      : 0.000
+2026-03-14 08:12:23  ║  Avg ep length : 16384.0 steps
+2026-03-14 08:12:23  ║  Avg reward/ep : -518.000
+2026-03-14 08:12:23  ║  p_loss        : 0.0250
+2026-03-14 08:12:23  ║  v_loss        : 0.1336
+2026-03-14 08:12:23  ║  entropy       : 2.8599
+2026-03-14 08:12:23  ╚════════════════════════════════════════════════════════════
+2026-03-14 08:12:23  
+2026-03-14 08:12:23  
+[update 0157] weights dispatched in 0.125s
+2026-03-14 08:12:24  [update 0157] waiting for 16 workers …
+2026-03-14 08:17:11  [update 0157] all workers done in 287.60s
+2026-03-14 08:17:11  [update 0157] per-player GAE in 0.0111s
+2026-03-14 08:20:16  [update 0157] PPO update done in 184.58s
+2026-03-14 08:20:17    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00154.pt
+2026-03-14 08:20:17    [ckpt] saved → checkpoints_training\policy_update_00157.pt  (keeping last 3)
+2026-03-14 08:20:17  
+2026-03-14 08:20:17  ╔══ update 0157 ════════════════════════════════════════════
+2026-03-14 08:20:17  ║  Wall time     : 473.4s  (dist 0.13s | collect 287.60s | GAE 0.0111s | PPO 184.58s)
+2026-03-14 08:20:17  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 08:20:17  ║  Win rate      : 0.000
+2026-03-14 08:20:17  ║  Avg ep length : 16384.0 steps
+2026-03-14 08:20:17  ║  Avg reward/ep : -510.100
+2026-03-14 08:20:17  ║  p_loss        : -0.0275
+2026-03-14 08:20:17  ║  v_loss        : 0.1488
+2026-03-14 08:20:17  ║  entropy       : 2.7726
+2026-03-14 08:20:17  ╚════════════════════════════════════════════════════════════
+2026-03-14 08:20:17  
+2026-03-14 08:20:17  
+[update 0158] weights dispatched in 0.119s
+2026-03-14 08:20:17  [update 0158] waiting for 16 workers …
+2026-03-14 08:25:24  [update 0158] all workers done in 306.69s
+2026-03-14 08:25:24  [update 0158] per-player GAE in 0.0109s
+2026-03-14 08:28:30  [update 0158] PPO update done in 185.82s
+2026-03-14 08:28:31    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00155.pt
+2026-03-14 08:28:31    [ckpt] saved → checkpoints_training\policy_update_00158.pt  (keeping last 3)
+2026-03-14 08:28:31  
+2026-03-14 08:28:31  ╔══ update 0158 ════════════════════════════════════════════
+2026-03-14 08:28:31  ║  Wall time     : 493.7s  (dist 0.12s | collect 306.69s | GAE 0.0109s | PPO 185.82s)
+2026-03-14 08:28:31  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 08:28:31  ║  Win rate      : 0.000
+2026-03-14 08:28:31  ║  Avg ep length : 16384.0 steps
+2026-03-14 08:28:31  ║  Avg reward/ep : -521.000
+2026-03-14 08:28:31  ║  p_loss        : -0.0160
+2026-03-14 08:28:31  ║  v_loss        : 0.1277
+2026-03-14 08:28:31  ║  entropy       : 2.8556
+2026-03-14 08:28:31  ╚════════════════════════════════════════════════════════════
+2026-03-14 08:28:31  
+2026-03-14 08:28:31  
+[update 0159] weights dispatched in 0.073s
+2026-03-14 08:28:31  [update 0159] waiting for 16 workers …
+2026-03-14 08:33:28  [update 0159] all workers done in 297.09s
+2026-03-14 08:33:28  [update 0159] per-player GAE in 0.0135s
+2026-03-14 08:36:34  [update 0159] PPO update done in 185.81s
+2026-03-14 08:36:35    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00156.pt
+2026-03-14 08:36:35    [ckpt] saved → checkpoints_training\policy_update_00159.pt  (keeping last 3)
+2026-03-14 08:36:35  
+2026-03-14 08:36:35  ╔══ update 0159 ════════════════════════════════════════════
+2026-03-14 08:36:35  ║  Wall time     : 484.1s  (dist 0.07s | collect 297.09s | GAE 0.0135s | PPO 185.81s)
+2026-03-14 08:36:35  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 08:36:35  ║  Win rate      : 0.000
+2026-03-14 08:36:35  ║  Avg ep length : 16384.0 steps
+2026-03-14 08:36:35  ║  Avg reward/ep : -483.700
+2026-03-14 08:36:35  ║  p_loss        : 0.0045
+2026-03-14 08:36:35  ║  v_loss        : 0.1417
+2026-03-14 08:36:35  ║  entropy       : 2.8055
+2026-03-14 08:36:35  ╚════════════════════════════════════════════════════════════
+2026-03-14 08:36:35  
+2026-03-14 08:36:35  
+[update 0160] weights dispatched in 0.126s
+2026-03-14 08:36:35  [update 0160] waiting for 16 workers …
+2026-03-14 08:41:45  [update 0160] all workers done in 310.23s
+2026-03-14 08:41:45  [update 0160] per-player GAE in 0.0109s
+2026-03-14 08:44:48  [update 0160] PPO update done in 183.33s
+2026-03-14 08:44:49    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00157.pt
+2026-03-14 08:44:49    [ckpt] saved → checkpoints_training\policy_update_00160.pt  (keeping last 3)
+2026-03-14 08:44:49  
+2026-03-14 08:44:49  ╔══ update 0160 ════════════════════════════════════════════
+2026-03-14 08:44:49  ║  Wall time     : 494.8s  (dist 0.13s | collect 310.23s | GAE 0.0109s | PPO 183.33s)
+2026-03-14 08:44:49  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 08:44:49  ║  Win rate      : 1.000
+2026-03-14 08:44:49  ║  Avg ep length : 16384.0 steps
+2026-03-14 08:44:49  ║  Avg reward/ep : -359.300
+2026-03-14 08:44:49  ║  p_loss        : -0.0198
+2026-03-14 08:44:49  ║  v_loss        : 0.4253
+2026-03-14 08:44:49  ║  entropy       : 2.7703
+2026-03-14 08:44:49  ╚════════════════════════════════════════════════════════════
+2026-03-14 08:44:49  
+2026-03-14 08:44:49  
+[update 0161] weights dispatched in 0.121s
+2026-03-14 08:44:49  [update 0161] waiting for 16 workers …
+2026-03-14 08:49:47  [update 0161] all workers done in 297.22s
+2026-03-14 08:49:47  [update 0161] per-player GAE in 0.0129s
+2026-03-14 08:52:50  [update 0161] PPO update done in 183.24s
+2026-03-14 08:52:51    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00158.pt
+2026-03-14 08:52:51    [ckpt] saved → checkpoints_training\policy_update_00161.pt  (keeping last 3)
+2026-03-14 08:52:51  
+2026-03-14 08:52:51  ╔══ update 0161 ════════════════════════════════════════════
+2026-03-14 08:52:51  ║  Wall time     : 481.7s  (dist 0.12s | collect 297.22s | GAE 0.0129s | PPO 183.24s)
+2026-03-14 08:52:51  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 08:52:51  ║  Win rate      : 1.000
+2026-03-14 08:52:51  ║  Avg ep length : 8192.0 steps
+2026-03-14 08:52:51  ║  Avg reward/ep : -97.150
+2026-03-14 08:52:51  ║  p_loss        : 0.0119
+2026-03-14 08:52:51  ║  v_loss        : 0.5362
+2026-03-14 08:52:51  ║  entropy       : 2.7406
+2026-03-14 08:52:51  ╚════════════════════════════════════════════════════════════
+2026-03-14 08:52:51  
+2026-03-14 08:52:51  
+[update 0162] weights dispatched in 0.065s
+2026-03-14 08:52:51  [update 0162] waiting for 16 workers …
+2026-03-14 08:57:36  [update 0162] all workers done in 285.09s
+2026-03-14 08:57:36  [update 0162] per-player GAE in 0.0133s
+2026-03-14 09:00:41  [update 0162] PPO update done in 184.60s
+2026-03-14 09:00:42    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00159.pt
+2026-03-14 09:00:42    [ckpt] saved → checkpoints_training\policy_update_00162.pt  (keeping last 3)
+2026-03-14 09:00:42  
+2026-03-14 09:00:42  ╔══ update 0162 ════════════════════════════════════════════
+2026-03-14 09:00:42  ║  Wall time     : 470.8s  (dist 0.06s | collect 285.09s | GAE 0.0133s | PPO 184.60s)
+2026-03-14 09:00:42  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 09:00:42  ║  Win rate      : 0.000
+2026-03-14 09:00:42  ║  Avg ep length : 16384.0 steps
+2026-03-14 09:00:42  ║  Avg reward/ep : -262.700
+2026-03-14 09:00:42  ║  p_loss        : -0.0099
+2026-03-14 09:00:42  ║  v_loss        : 0.1441
+2026-03-14 09:00:42  ║  entropy       : 2.7823
+2026-03-14 09:00:42  ╚════════════════════════════════════════════════════════════
+2026-03-14 09:00:42  
+2026-03-14 09:00:42  
+[update 0163] weights dispatched in 0.130s
+2026-03-14 09:00:42  [update 0163] waiting for 16 workers …
+2026-03-14 09:05:50  [update 0163] all workers done in 307.63s
+2026-03-14 09:05:50  [update 0163] per-player GAE in 0.0111s
+2026-03-14 09:08:55  [update 0163] PPO update done in 184.77s
+2026-03-14 09:08:55    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00160.pt
+2026-03-14 09:08:55    [ckpt] saved → checkpoints_training\policy_update_00163.pt  (keeping last 3)
+2026-03-14 09:08:55  
+2026-03-14 09:08:55  ╔══ update 0163 ════════════════════════════════════════════
+2026-03-14 09:08:55  ║  Wall time     : 493.6s  (dist 0.13s | collect 307.63s | GAE 0.0111s | PPO 184.77s)
+2026-03-14 09:08:55  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 09:08:55  ║  Win rate      : 1.000
+2026-03-14 09:08:55  ║  Avg ep length : 16384.0 steps
+2026-03-14 09:08:55  ║  Avg reward/ep : -107.100
+2026-03-14 09:08:55  ║  p_loss        : 0.0075
+2026-03-14 09:08:55  ║  v_loss        : 0.4247
+2026-03-14 09:08:55  ║  entropy       : 2.6890
+2026-03-14 09:08:55  ╚════════════════════════════════════════════════════════════
+2026-03-14 09:08:55  
+2026-03-14 09:08:56  
+[update 0164] weights dispatched in 0.067s
+2026-03-14 09:08:56  [update 0164] waiting for 16 workers …
+2026-03-14 09:13:53  [update 0164] all workers done in 297.93s
+2026-03-14 09:13:54  [update 0164] per-player GAE in 0.0111s
+2026-03-14 09:17:07  [update 0164] PPO update done in 193.61s
+2026-03-14 09:17:08    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00161.pt
+2026-03-14 09:17:08    [ckpt] saved → checkpoints_training\policy_update_00164.pt  (keeping last 3)
+2026-03-14 09:17:08  
+2026-03-14 09:17:08  ╔══ update 0164 ════════════════════════════════════════════
+2026-03-14 09:17:08  ║  Wall time     : 492.7s  (dist 0.07s | collect 297.93s | GAE 0.0111s | PPO 193.61s)
+2026-03-14 09:17:08  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 09:17:08  ║  Win rate      : 0.000
+2026-03-14 09:17:08  ║  Avg ep length : 16384.0 steps
+2026-03-14 09:17:08  ║  Avg reward/ep : -152.900
+2026-03-14 09:17:08  ║  p_loss        : -0.0306
+2026-03-14 09:17:08  ║  v_loss        : 0.1561
+2026-03-14 09:17:08  ║  entropy       : 2.7130
+2026-03-14 09:17:08  ╚════════════════════════════════════════════════════════════
+2026-03-14 09:17:08  
+2026-03-14 09:17:08  
+[update 0165] weights dispatched in 0.073s
+2026-03-14 09:17:08  [update 0165] waiting for 16 workers …
+2026-03-14 09:22:13  [update 0165] all workers done in 304.62s
+2026-03-14 09:22:13  [update 0165] per-player GAE in 0.0111s
+2026-03-14 09:25:19  [update 0165] PPO update done in 185.47s
+2026-03-14 09:25:19    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00162.pt
+2026-03-14 09:25:19    [ckpt] saved → checkpoints_training\policy_update_00165.pt  (keeping last 3)
+2026-03-14 09:25:19  
+2026-03-14 09:25:19  ╔══ update 0165 ════════════════════════════════════════════
+2026-03-14 09:25:19  ║  Wall time     : 491.3s  (dist 0.07s | collect 304.62s | GAE 0.0111s | PPO 185.47s)
+2026-03-14 09:25:19  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 09:25:19  ║  Win rate      : 0.000
+2026-03-14 09:25:19  ║  Avg ep length : 16384.0 steps
+2026-03-14 09:25:19  ║  Avg reward/ep : -224.800
+2026-03-14 09:25:19  ║  p_loss        : -0.0213
+2026-03-14 09:25:19  ║  v_loss        : 0.1431
+2026-03-14 09:25:19  ║  entropy       : 2.7262
+2026-03-14 09:25:19  ╚════════════════════════════════════════════════════════════
+2026-03-14 09:25:19  
+2026-03-14 09:25:20  
+[update 0166] weights dispatched in 0.065s
+2026-03-14 09:25:20  [update 0166] waiting for 16 workers …
+2026-03-14 09:30:28  [update 0166] all workers done in 308.62s
+2026-03-14 09:30:28  [update 0166] per-player GAE in 0.0113s
+2026-03-14 09:33:44  [update 0166] PPO update done in 195.38s
+2026-03-14 09:33:45    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00163.pt
+2026-03-14 09:33:45    [ckpt] saved → checkpoints_training\policy_update_00166.pt  (keeping last 3)
+2026-03-14 09:33:45  
+2026-03-14 09:33:45  ╔══ update 0166 ════════════════════════════════════════════
+2026-03-14 09:33:45  ║  Wall time     : 505.1s  (dist 0.06s | collect 308.62s | GAE 0.0113s | PPO 195.38s)
+2026-03-14 09:33:45  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 09:33:45  ║  Win rate      : 0.000
+2026-03-14 09:33:45  ║  Avg ep length : 16384.0 steps
+2026-03-14 09:33:45  ║  Avg reward/ep : -147.500
+2026-03-14 09:33:45  ║  p_loss        : -0.0166
+2026-03-14 09:33:45  ║  v_loss        : 0.1480
+2026-03-14 09:33:45  ║  entropy       : 2.7782
+2026-03-14 09:33:45  ╚════════════════════════════════════════════════════════════
+2026-03-14 09:33:45  
+2026-03-14 09:33:45  
+[update 0167] weights dispatched in 0.126s
+2026-03-14 09:33:45  [update 0167] waiting for 16 workers …
+2026-03-14 09:38:55  [update 0167] all workers done in 310.23s
+2026-03-14 09:38:55  [update 0167] per-player GAE in 0.0110s
+2026-03-14 09:42:02  [update 0167] PPO update done in 186.42s
+2026-03-14 09:42:02    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00164.pt
+2026-03-14 09:42:02    [ckpt] saved → checkpoints_training\policy_update_00167.pt  (keeping last 3)
+2026-03-14 09:42:02  
+2026-03-14 09:42:02  ╔══ update 0167 ════════════════════════════════════════════
+2026-03-14 09:42:02  ║  Wall time     : 497.9s  (dist 0.13s | collect 310.23s | GAE 0.0110s | PPO 186.42s)
+2026-03-14 09:42:02  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 09:42:02  ║  Win rate      : 1.000
+2026-03-14 09:42:02  ║  Avg ep length : 16384.0 steps
+2026-03-14 09:42:02  ║  Avg reward/ep : -306.600
+2026-03-14 09:42:02  ║  p_loss        : 0.0037
+2026-03-14 09:42:02  ║  v_loss        : 0.2681
+2026-03-14 09:42:02  ║  entropy       : 2.7475
+2026-03-14 09:42:02  ╚════════════════════════════════════════════════════════════
+2026-03-14 09:42:02  
+2026-03-14 09:42:03  
+[update 0168] weights dispatched in 0.061s
+2026-03-14 09:42:03  [update 0168] waiting for 16 workers …
+2026-03-14 09:47:18  [update 0168] all workers done in 315.10s
+2026-03-14 09:47:18  [update 0168] per-player GAE in 0.0112s
+2026-03-14 09:50:29  [update 0168] PPO update done in 191.25s
+2026-03-14 09:50:30    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00165.pt
+2026-03-14 09:50:30    [ckpt] saved → checkpoints_training\policy_update_00168.pt  (keeping last 3)
+2026-03-14 09:50:30  
+2026-03-14 09:50:30  ╔══ update 0168 ════════════════════════════════════════════
+2026-03-14 09:50:30  ║  Wall time     : 507.5s  (dist 0.06s | collect 315.10s | GAE 0.0112s | PPO 191.25s)
+2026-03-14 09:50:30  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 09:50:30  ║  Win rate      : 1.000
+2026-03-14 09:50:30  ║  Avg ep length : 8192.0 steps
+2026-03-14 09:50:30  ║  Avg reward/ep : -101.650
+2026-03-14 09:50:30  ║  p_loss        : 0.0032
+2026-03-14 09:50:30  ║  v_loss        : 0.5537
+2026-03-14 09:50:30  ║  entropy       : 2.6876
+2026-03-14 09:50:30  ╚════════════════════════════════════════════════════════════
+2026-03-14 09:50:30  
+2026-03-14 09:50:30  
+[update 0169] weights dispatched in 0.055s
+2026-03-14 09:50:30  [update 0169] waiting for 16 workers …
+2026-03-14 09:55:56  [update 0169] all workers done in 326.20s
+2026-03-14 09:55:56  [update 0169] per-player GAE in 0.0106s
+2026-03-14 09:59:05  [update 0169] PPO update done in 189.09s
+2026-03-14 09:59:06    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00166.pt
+2026-03-14 09:59:06    [ckpt] saved → checkpoints_training\policy_update_00169.pt  (keeping last 3)
+2026-03-14 09:59:06  
+2026-03-14 09:59:06  ╔══ update 0169 ════════════════════════════════════════════
+2026-03-14 09:59:06  ║  Wall time     : 516.4s  (dist 0.05s | collect 326.20s | GAE 0.0106s | PPO 189.09s)
+2026-03-14 09:59:06  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 09:59:06  ║  Win rate      : 1.000
+2026-03-14 09:59:06  ║  Avg ep length : 8192.0 steps
+2026-03-14 09:59:06  ║  Avg reward/ep : -1.000
+2026-03-14 09:59:06  ║  p_loss        : -0.0329
+2026-03-14 09:59:06  ║  v_loss        : 0.2708
+2026-03-14 09:59:06  ║  entropy       : 2.6602
+2026-03-14 09:59:06  ╚════════════════════════════════════════════════════════════
+2026-03-14 09:59:06  
+2026-03-14 09:59:06  
+[update 0170] weights dispatched in 0.062s
+2026-03-14 09:59:06  [update 0170] waiting for 16 workers …
+2026-03-14 10:04:34  [update 0170] all workers done in 327.46s
+2026-03-14 10:04:34  [update 0170] per-player GAE in 0.0109s
+2026-03-14 10:07:40  [update 0170] PPO update done in 185.77s
+2026-03-14 10:07:41    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00167.pt
+2026-03-14 10:07:41    [ckpt] saved → checkpoints_training\policy_update_00170.pt  (keeping last 3)
+2026-03-14 10:07:41  
+2026-03-14 10:07:41  ╔══ update 0170 ════════════════════════════════════════════
+2026-03-14 10:07:41  ║  Wall time     : 514.4s  (dist 0.06s | collect 327.46s | GAE 0.0109s | PPO 185.77s)
+2026-03-14 10:07:41  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 10:07:41  ║  Win rate      : 1.000
+2026-03-14 10:07:41  ║  Avg ep length : 16384.0 steps
+2026-03-14 10:07:41  ║  Avg reward/ep : -79.900
+2026-03-14 10:07:41  ║  p_loss        : 0.0007
+2026-03-14 10:07:41  ║  v_loss        : 0.3811
+2026-03-14 10:07:41  ║  entropy       : 2.6652
+2026-03-14 10:07:41  ╚════════════════════════════════════════════════════════════
+2026-03-14 10:07:41  
+2026-03-14 10:07:41  
+[update 0171] weights dispatched in 0.071s
+2026-03-14 10:07:41  [update 0171] waiting for 16 workers …
+2026-03-14 10:13:02  [update 0171] all workers done in 321.14s
+2026-03-14 10:13:02  [update 0171] per-player GAE in 0.0112s
+2026-03-14 10:16:14  [update 0171] PPO update done in 191.51s
+2026-03-14 10:16:15    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00168.pt
+2026-03-14 10:16:15    [ckpt] saved → checkpoints_training\policy_update_00171.pt  (keeping last 3)
+2026-03-14 10:16:15  
+2026-03-14 10:16:15  ╔══ update 0171 ════════════════════════════════════════════
+2026-03-14 10:16:15  ║  Wall time     : 513.8s  (dist 0.07s | collect 321.14s | GAE 0.0112s | PPO 191.51s)
+2026-03-14 10:16:15  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 10:16:15  ║  Win rate      : 1.000
+2026-03-14 10:16:15  ║  Avg ep length : 16384.0 steps
+2026-03-14 10:16:15  ║  Avg reward/ep : -162.100
+2026-03-14 10:16:15  ║  p_loss        : -0.0146
+2026-03-14 10:16:15  ║  v_loss        : 0.2256
+2026-03-14 10:16:15  ║  entropy       : 2.7095
+2026-03-14 10:16:15  ╚════════════════════════════════════════════════════════════
+2026-03-14 10:16:15  
+2026-03-14 10:16:15  
+[update 0172] weights dispatched in 0.124s
+2026-03-14 10:16:15  [update 0172] waiting for 16 workers …
+2026-03-14 10:21:11  [update 0172] all workers done in 296.18s
+2026-03-14 10:21:11  [update 0172] per-player GAE in 0.0111s
+2026-03-14 10:24:17  [update 0172] PPO update done in 185.98s
+2026-03-14 10:24:18    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00169.pt
+2026-03-14 10:24:18    [ckpt] saved → checkpoints_training\policy_update_00172.pt  (keeping last 3)
+2026-03-14 10:24:18  
+2026-03-14 10:24:18  ╔══ update 0172 ════════════════════════════════════════════
+2026-03-14 10:24:18  ║  Wall time     : 483.3s  (dist 0.12s | collect 296.18s | GAE 0.0111s | PPO 185.98s)
+2026-03-14 10:24:18  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 10:24:18  ║  Win rate      : 1.000
+2026-03-14 10:24:18  ║  Avg ep length : 16384.0 steps
+2026-03-14 10:24:18  ║  Avg reward/ep : -164.700
+2026-03-14 10:24:18  ║  p_loss        : 0.0201
+2026-03-14 10:24:18  ║  v_loss        : 0.6314
+2026-03-14 10:24:18  ║  entropy       : 2.7003
+2026-03-14 10:24:18  ╚════════════════════════════════════════════════════════════
+2026-03-14 10:24:18  
+2026-03-14 10:24:18  
+[update 0173] weights dispatched in 0.062s
+2026-03-14 10:24:18  [update 0173] waiting for 16 workers …
+2026-03-14 10:29:16  [update 0173] all workers done in 297.80s
+2026-03-14 10:29:16  [update 0173] per-player GAE in 0.0113s
+2026-03-14 10:32:27  [update 0173] PPO update done in 190.88s
+2026-03-14 10:32:28    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00170.pt
+2026-03-14 10:32:28    [ckpt] saved → checkpoints_training\policy_update_00173.pt  (keeping last 3)
+2026-03-14 10:32:28  
+2026-03-14 10:32:28  ╔══ update 0173 ════════════════════════════════════════════
+2026-03-14 10:32:28  ║  Wall time     : 489.8s  (dist 0.06s | collect 297.80s | GAE 0.0113s | PPO 190.88s)
+2026-03-14 10:32:28  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 10:32:28  ║  Win rate      : 0.000
+2026-03-14 10:32:28  ║  Avg ep length : 16384.0 steps
+2026-03-14 10:32:28  ║  Avg reward/ep : -296.000
+2026-03-14 10:32:28  ║  p_loss        : 0.0349
+2026-03-14 10:32:28  ║  v_loss        : 0.1425
+2026-03-14 10:32:28  ║  entropy       : 2.7044
+2026-03-14 10:32:28  ╚════════════════════════════════════════════════════════════
+2026-03-14 10:32:28  
+2026-03-14 10:32:28  
+[update 0174] weights dispatched in 0.121s
+2026-03-14 10:32:28  [update 0174] waiting for 16 workers …
+2026-03-14 10:37:39  [update 0174] all workers done in 311.30s
+2026-03-14 10:37:39  [update 0174] per-player GAE in 0.0113s
+2026-03-14 10:40:47  [update 0174] PPO update done in 187.26s
+2026-03-14 10:40:47    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00171.pt
+2026-03-14 10:40:47    [ckpt] saved → checkpoints_training\policy_update_00174.pt  (keeping last 3)
+2026-03-14 10:40:47  
+2026-03-14 10:40:47  ╔══ update 0174 ════════════════════════════════════════════
+2026-03-14 10:40:47  ║  Wall time     : 499.7s  (dist 0.12s | collect 311.30s | GAE 0.0113s | PPO 187.26s)
+2026-03-14 10:40:47  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 10:40:47  ║  Win rate      : 0.000
+2026-03-14 10:40:47  ║  Avg ep length : 16384.0 steps
+2026-03-14 10:40:47  ║  Avg reward/ep : -462.900
+2026-03-14 10:40:47  ║  p_loss        : 0.0096
+2026-03-14 10:40:47  ║  v_loss        : 0.1361
+2026-03-14 10:40:47  ║  entropy       : 2.6366
+2026-03-14 10:40:47  ╚════════════════════════════════════════════════════════════
+2026-03-14 10:40:47  
+2026-03-14 10:40:48  
+[update 0175] weights dispatched in 0.061s
+2026-03-14 10:40:48  [update 0175] waiting for 16 workers …
+2026-03-14 10:46:00  [update 0175] all workers done in 312.09s
+2026-03-14 10:46:00  [update 0175] per-player GAE in 0.0109s
+2026-03-14 10:49:09  [update 0175] PPO update done in 189.16s
+2026-03-14 10:49:10    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00172.pt
+2026-03-14 10:49:10    [ckpt] saved → checkpoints_training\policy_update_00175.pt  (keeping last 3)
+2026-03-14 10:49:10  
+2026-03-14 10:49:10  ╔══ update 0175 ════════════════════════════════════════════
+2026-03-14 10:49:10  ║  Wall time     : 502.4s  (dist 0.06s | collect 312.09s | GAE 0.0109s | PPO 189.16s)
+2026-03-14 10:49:10  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 10:49:10  ║  Win rate      : 0.000
+2026-03-14 10:49:10  ║  Avg ep length : 16384.0 steps
+2026-03-14 10:49:10  ║  Avg reward/ep : -418.900
+2026-03-14 10:49:10  ║  p_loss        : -0.0238
+2026-03-14 10:49:10  ║  v_loss        : 0.1319
+2026-03-14 10:49:10  ║  entropy       : 2.6541
+2026-03-14 10:49:10  ╚════════════════════════════════════════════════════════════
+2026-03-14 10:49:10  
+2026-03-14 10:49:10  
+[update 0176] weights dispatched in 0.111s
+2026-03-14 10:49:10  [update 0176] waiting for 16 workers …
+2026-03-14 10:54:12  [update 0176] all workers done in 301.56s
+2026-03-14 10:54:12  [update 0176] per-player GAE in 0.0113s
+2026-03-14 10:57:19  [update 0176] PPO update done in 187.52s
+2026-03-14 10:57:20    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00173.pt
+2026-03-14 10:57:20    [ckpt] saved → checkpoints_training\policy_update_00176.pt  (keeping last 3)
+2026-03-14 10:57:20  
+2026-03-14 10:57:20  ╔══ update 0176 ════════════════════════════════════════════
+2026-03-14 10:57:20  ║  Wall time     : 490.3s  (dist 0.11s | collect 301.56s | GAE 0.0113s | PPO 187.52s)
+2026-03-14 10:57:20  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 10:57:20  ║  Win rate      : 0.000
+2026-03-14 10:57:20  ║  Avg ep length : 16384.0 steps
+2026-03-14 10:57:20  ║  Avg reward/ep : -248.500
+2026-03-14 10:57:20  ║  p_loss        : -0.0043
+2026-03-14 10:57:20  ║  v_loss        : 0.1343
+2026-03-14 10:57:20  ║  entropy       : 2.5138
+2026-03-14 10:57:20  ╚════════════════════════════════════════════════════════════
+2026-03-14 10:57:20  
+2026-03-14 10:57:20  
+[update 0177] weights dispatched in 0.113s
+2026-03-14 10:57:20  [update 0177] waiting for 16 workers …
+2026-03-14 11:02:38  [update 0177] all workers done in 318.17s
+2026-03-14 11:02:38  [update 0177] per-player GAE in 0.0109s
+2026-03-14 11:05:49  [update 0177] PPO update done in 190.60s
+2026-03-14 11:05:50    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00174.pt
+2026-03-14 11:05:50    [ckpt] saved → checkpoints_training\policy_update_00177.pt  (keeping last 3)
+2026-03-14 11:05:50  
+2026-03-14 11:05:50  ╔══ update 0177 ════════════════════════════════════════════
+2026-03-14 11:05:50  ║  Wall time     : 509.9s  (dist 0.11s | collect 318.17s | GAE 0.0109s | PPO 190.60s)
+2026-03-14 11:05:50  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 11:05:50  ║  Win rate      : 0.000
+2026-03-14 11:05:50  ║  Avg ep length : 16384.0 steps
+2026-03-14 11:05:50  ║  Avg reward/ep : -341.500
+2026-03-14 11:05:50  ║  p_loss        : -0.0085
+2026-03-14 11:05:50  ║  v_loss        : 0.1379
+2026-03-14 11:05:50  ║  entropy       : 2.6114
+2026-03-14 11:05:50  ╚════════════════════════════════════════════════════════════
+2026-03-14 11:05:50  
+2026-03-14 11:05:50  
+[update 0178] weights dispatched in 0.068s
+2026-03-14 11:05:50  [update 0178] waiting for 16 workers …
+2026-03-14 11:11:09  [update 0178] all workers done in 318.56s
+2026-03-14 11:11:09  [update 0178] per-player GAE in 0.0108s
+2026-03-14 11:14:24  [update 0178] PPO update done in 195.49s
+2026-03-14 11:14:25    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00175.pt
+2026-03-14 11:14:25    [ckpt] saved → checkpoints_training\policy_update_00178.pt  (keeping last 3)
+2026-03-14 11:14:25  
+2026-03-14 11:14:25  ╔══ update 0178 ════════════════════════════════════════════
+2026-03-14 11:14:25  ║  Wall time     : 515.2s  (dist 0.07s | collect 318.56s | GAE 0.0108s | PPO 195.49s)
+2026-03-14 11:14:25  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 11:14:25  ║  Win rate      : 1.000
+2026-03-14 11:14:25  ║  Avg ep length : 8192.0 steps
+2026-03-14 11:14:25  ║  Avg reward/ep : -112.450
+2026-03-14 11:14:25  ║  p_loss        : -0.0243
+2026-03-14 11:14:25  ║  v_loss        : 0.4532
+2026-03-14 11:14:25  ║  entropy       : 2.6068
+2026-03-14 11:14:25  ╚════════════════════════════════════════════════════════════
+2026-03-14 11:14:25  
+2026-03-14 11:14:25  
+[update 0179] weights dispatched in 0.126s
+2026-03-14 11:14:25  [update 0179] waiting for 16 workers …
+2026-03-14 11:19:39  [update 0179] all workers done in 313.17s
+2026-03-14 11:19:39  [update 0179] per-player GAE in 0.0109s
+2026-03-14 11:22:47  [update 0179] PPO update done in 187.79s
+2026-03-14 11:22:47    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00176.pt
+2026-03-14 11:22:47    [ckpt] saved → checkpoints_training\policy_update_00179.pt  (keeping last 3)
+2026-03-14 11:22:47  
+2026-03-14 11:22:47  ╔══ update 0179 ════════════════════════════════════════════
+2026-03-14 11:22:47  ║  Wall time     : 502.2s  (dist 0.13s | collect 313.17s | GAE 0.0109s | PPO 187.79s)
+2026-03-14 11:22:47  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 11:22:47  ║  Win rate      : 1.000
+2026-03-14 11:22:47  ║  Avg ep length : 8192.0 steps
+2026-03-14 11:22:47  ║  Avg reward/ep : 5.900
+2026-03-14 11:22:47  ║  p_loss        : 0.0088
+2026-03-14 11:22:47  ║  v_loss        : 0.9483
+2026-03-14 11:22:47  ║  entropy       : 2.5259
+2026-03-14 11:22:47  ╚════════════════════════════════════════════════════════════
+2026-03-14 11:22:47  
+2026-03-14 11:22:48  
+[update 0180] weights dispatched in 0.107s
+2026-03-14 11:22:48  [update 0180] waiting for 16 workers …
+2026-03-14 11:27:47  [update 0180] all workers done in 299.12s
+2026-03-14 11:27:47  [update 0180] per-player GAE in 0.0109s
+2026-03-14 11:30:52  [update 0180] PPO update done in 184.73s
+2026-03-14 11:30:52    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00177.pt
+2026-03-14 11:30:52    [ckpt] saved → checkpoints_training\policy_update_00180.pt  (keeping last 3)
+2026-03-14 11:30:52  
+2026-03-14 11:30:52  ╔══ update 0180 ════════════════════════════════════════════
+2026-03-14 11:30:52  ║  Wall time     : 485.0s  (dist 0.11s | collect 299.12s | GAE 0.0109s | PPO 184.73s)
+2026-03-14 11:30:52  ║  Games finished:      3  (conquest 2, timeout 1)
+2026-03-14 11:30:52  ║  Win rate      : 0.667
+2026-03-14 11:30:52  ║  Avg ep length : 5461.3 steps
+2026-03-14 11:30:52  ║  Avg reward/ep : 21.133
+2026-03-14 11:30:52  ║  p_loss        : -0.0395
+2026-03-14 11:30:52  ║  v_loss        : 0.5387
+2026-03-14 11:30:52  ║  entropy       : 2.5423
+2026-03-14 11:30:52  ╚════════════════════════════════════════════════════════════
+2026-03-14 11:30:52  
+2026-03-14 11:30:53  
+[update 0181] weights dispatched in 0.119s
+2026-03-14 11:30:53  [update 0181] waiting for 16 workers …
+2026-03-14 11:35:35  [update 0181] all workers done in 282.60s
+2026-03-14 11:35:35  [update 0181] per-player GAE in 0.0111s
+2026-03-14 11:38:41  [update 0181] PPO update done in 185.23s
+2026-03-14 11:38:41    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00178.pt
+2026-03-14 11:38:41    [ckpt] saved → checkpoints_training\policy_update_00181.pt  (keeping last 3)
+2026-03-14 11:38:41  
+2026-03-14 11:38:41  ╔══ update 0181 ════════════════════════════════════════════
+2026-03-14 11:38:41  ║  Wall time     : 469.0s  (dist 0.12s | collect 282.60s | GAE 0.0111s | PPO 185.23s)
+2026-03-14 11:38:41  ║  Games finished:      4  (conquest 4, timeout 0)
+2026-03-14 11:38:41  ║  Win rate      : 1.000
+2026-03-14 11:38:41  ║  Avg ep length : 4096.0 steps
+2026-03-14 11:38:41  ║  Avg reward/ep : 40.975
+2026-03-14 11:38:41  ║  p_loss        : 0.0205
+2026-03-14 11:38:41  ║  v_loss        : 1.0002
+2026-03-14 11:38:41  ║  entropy       : 2.5099
+2026-03-14 11:38:41  ╚════════════════════════════════════════════════════════════
+2026-03-14 11:38:41  
+2026-03-14 11:38:42  
+[update 0182] weights dispatched in 0.064s
+2026-03-14 11:38:42  [update 0182] waiting for 16 workers …
+2026-03-14 11:44:03  [update 0182] all workers done in 321.38s
+2026-03-14 11:44:03  [update 0182] per-player GAE in 0.0107s
+2026-03-14 11:47:12  [update 0182] PPO update done in 189.18s
+2026-03-14 11:47:13    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00179.pt
+2026-03-14 11:47:13    [ckpt] saved → checkpoints_training\policy_update_00182.pt  (keeping last 3)
+2026-03-14 11:47:13  
+2026-03-14 11:47:13  ╔══ update 0182 ════════════════════════════════════════════
+2026-03-14 11:47:13  ║  Wall time     : 511.7s  (dist 0.06s | collect 321.38s | GAE 0.0107s | PPO 189.18s)
+2026-03-14 11:47:13  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 11:47:13  ║  Win rate      : 1.000
+2026-03-14 11:47:13  ║  Avg ep length : 16384.0 steps
+2026-03-14 11:47:13  ║  Avg reward/ep : 246.000
+2026-03-14 11:47:13  ║  p_loss        : -0.0079
+2026-03-14 11:47:13  ║  v_loss        : 0.2446
+2026-03-14 11:47:13  ║  entropy       : 2.4871
+2026-03-14 11:47:13  ╚════════════════════════════════════════════════════════════
+2026-03-14 11:47:13  
+2026-03-14 11:47:13  
+[update 0183] weights dispatched in 0.126s
+2026-03-14 11:47:13  [update 0183] waiting for 16 workers …
+2026-03-14 11:52:25  [update 0183] all workers done in 311.99s
+2026-03-14 11:52:25  [update 0183] per-player GAE in 0.0108s
+2026-03-14 11:55:33  [update 0183] PPO update done in 187.46s
+2026-03-14 11:55:34    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00180.pt
+2026-03-14 11:55:34    [ckpt] saved → checkpoints_training\policy_update_00183.pt  (keeping last 3)
+2026-03-14 11:55:34  
+2026-03-14 11:55:34  ╔══ update 0183 ════════════════════════════════════════════
+2026-03-14 11:55:34  ║  Wall time     : 500.7s  (dist 0.13s | collect 311.99s | GAE 0.0108s | PPO 187.46s)
+2026-03-14 11:55:34  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-14 11:55:34  ║  Win rate      : 1.000
+2026-03-14 11:55:34  ║  Avg ep length : 8192.0 steps
+2026-03-14 11:55:34  ║  Avg reward/ep : 56.900
+2026-03-14 11:55:34  ║  p_loss        : -0.0060
+2026-03-14 11:55:34  ║  v_loss        : 0.4655
+2026-03-14 11:55:34  ║  entropy       : 2.4370
+2026-03-14 11:55:34  ╚════════════════════════════════════════════════════════════
+2026-03-14 11:55:34  
+2026-03-14 11:55:34  
+[update 0184] weights dispatched in 0.073s
+2026-03-14 11:55:34  [update 0184] waiting for 16 workers …
+2026-03-14 12:01:01  [update 0184] all workers done in 326.61s
+2026-03-14 12:01:01  [update 0184] per-player GAE in 0.0111s
+2026-03-14 12:04:12  [update 0184] PPO update done in 191.47s
+2026-03-14 12:04:13    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00181.pt
+2026-03-14 12:04:13    [ckpt] saved → checkpoints_training\policy_update_00184.pt  (keeping last 3)
+2026-03-14 12:04:13  
+2026-03-14 12:04:13  ╔══ update 0184 ════════════════════════════════════════════
+2026-03-14 12:04:13  ║  Wall time     : 519.3s  (dist 0.07s | collect 326.61s | GAE 0.0111s | PPO 191.47s)
+2026-03-14 12:04:13  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 12:04:13  ║  Win rate      : 0.000
+2026-03-14 12:04:13  ║  Avg ep length : 16384.0 steps
+2026-03-14 12:04:13  ║  Avg reward/ep : 49.700
+2026-03-14 12:04:13  ║  p_loss        : 0.0121
+2026-03-14 12:04:13  ║  v_loss        : 0.1753
+2026-03-14 12:04:13  ║  entropy       : 2.5501
+2026-03-14 12:04:13  ╚════════════════════════════════════════════════════════════
+2026-03-14 12:04:13  
+2026-03-14 12:04:13  
+[update 0185] weights dispatched in 0.059s
+2026-03-14 12:04:13  [update 0185] waiting for 16 workers …
+2026-03-14 12:09:35  [update 0185] all workers done in 321.89s
+2026-03-14 12:09:35  [update 0185] per-player GAE in 0.0121s
+2026-03-14 12:12:49  [update 0185] PPO update done in 193.88s
+2026-03-14 12:12:50    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00182.pt
+2026-03-14 12:12:50    [ckpt] saved → checkpoints_training\policy_update_00185.pt  (keeping last 3)
+2026-03-14 12:12:50  
+2026-03-14 12:12:50  ╔══ update 0185 ════════════════════════════════════════════
+2026-03-14 12:12:50  ║  Wall time     : 517.0s  (dist 0.06s | collect 321.89s | GAE 0.0121s | PPO 193.88s)
+2026-03-14 12:12:50  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-14 12:12:50  ║  Win rate      : 1.000
+2026-03-14 12:12:50  ║  Avg ep length : 16384.0 steps
+2026-03-14 12:12:50  ║  Avg reward/ep : -131.800
+2026-03-14 12:12:50  ║  p_loss        : -0.0016
+2026-03-14 12:12:50  ║  v_loss        : 0.4694
+2026-03-14 12:12:50  ║  entropy       : 2.5656
+2026-03-14 12:12:50  ╚════════════════════════════════════════════════════════════
+2026-03-14 12:12:50  
+2026-03-14 12:12:50  
+[update 0186] weights dispatched in 0.126s
+2026-03-14 12:12:50  [update 0186] waiting for 16 workers …
+2026-03-14 12:18:19  [update 0186] all workers done in 328.80s
+2026-03-14 12:18:19  [update 0186] per-player GAE in 0.0111s
+2026-03-14 12:21:42  [update 0186] PPO update done in 202.61s
+2026-03-14 12:21:43    [ckpt] removed old checkpoint: checkpoints_training\policy_update_00183.pt
+2026-03-14 12:21:43    [ckpt] saved → checkpoints_training\policy_update_00186.pt  (keeping last 3)
+2026-03-14 12:21:43  
+2026-03-14 12:21:43  ╔══ update 0186 ════════════════════════════════════════════
+2026-03-14 12:21:43  ║  Wall time     : 532.6s  (dist 0.13s | collect 328.80s | GAE 0.0111s | PPO 202.61s)
+2026-03-14 12:21:43  ║  Games finished:      0  (conquest 0, timeout 0)
+2026-03-14 12:21:43  ║  Win rate      : 0.000
+2026-03-14 12:21:43  ║  Avg ep length : 16384.0 steps
+2026-03-14 12:21:43  ║  Avg reward/ep : -90.800
+2026-03-14 12:21:43  ║  p_loss        : 0.0285
+2026-03-14 12:21:43  ║  v_loss        : 0.1568
+2026-03-14 12:21:43  ║  entropy       : 2.6130
+2026-03-14 12:21:43  ╚════════════════════════════════════════════════════════════
+2026-03-14 12:21:43  
+2026-03-14 12:21:43  
+[update 0187] weights dispatched in 0.061s
+2026-03-14 12:21:43  [update 0187] waiting for 16 workers …

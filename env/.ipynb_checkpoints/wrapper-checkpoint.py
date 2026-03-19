@@ -89,7 +89,7 @@ class EnvWrapper(object):
 
         if self.dense_reward:
             if message["action_type"] == ActionTypes.MoveUnit:
-                reward += 0.2 * message["tiles_uncovered"] # for uncovering tiles
+                reward += 0.3 * message["tiles_uncovered"] # for uncovering tiles
             elif message["action_type"] == ActionTypes.Attack:
                 if message["killed_unit"] == 1:
                     reward += 1.0 # for killing a unit
@@ -100,7 +100,7 @@ class EnvWrapper(object):
             elif message["action_type"] == ActionTypes.CaptureCity:
                 reward += 5.0
             elif message["action_type"] == ActionTypes.EndTurn:
-                reward -= 0.5
+                reward -= 1.5
                 
         if done and self.winner != None:
             reward += self.win_reward # biiig reward for winning
@@ -458,7 +458,7 @@ class EnvWrapper(object):
 
 
     def render_with_trajs(self, figsize=(10, 5), shared_fog=True, critic_value=None,
-           action=None, joint_probs=None, traj_actions=None):
+                          action=None, joint_probs=None, traj_actions=None):
         Nx, Ny = self.Nx, self.Ny
         state_graph = self.game.game_board.board_graph
         state_grid  = state_graph.reshape(Nx, Ny, 26)
@@ -567,17 +567,17 @@ class EnvWrapper(object):
                         facecolor='red', edgecolor='black', linewidth=1))
     
                 if tile_id in prob_overlay:
-                    alpha = np.clip(prob_overlay[tile_id], 0.25, 0.92)
+                    alpha = np.clip(prob_overlay[tile_id], 0.0, 0.92)
                     ax.add_patch(Rectangle((x, y), 1, 1,
                         facecolor=pcolor_rgb, alpha=alpha,
                         edgecolor='none', zorder=3))
     
         # ── Pass 2: units ─────────────────────────────────────────────────────
         UNIT_STYLES = [
-            (10, 14, 'blue',  'darkblue', 'warrior'),
-            (14, 18, 'blue',  'darkblue', 'rider'),
-            (18, 22, 'red',   'darkred',  'warrior'),
-            (22, 26, 'red',   'darkred',  'rider'),
+            (10, 14, 'blue', 'darkblue', 'warrior'),
+            (14, 18, 'blue', 'darkblue', 'rider'),
+            (18, 22, 'red',  'darkred',  'warrior'),
+            (22, 26, 'red',  'darkred',  'rider'),
         ]
         for i in range(Nx):
             for j in range(Ny):
@@ -588,20 +588,37 @@ class EnvWrapper(object):
                 x, y = j, Nx - 1 - i
     
                 for s, e, fc, ec, shape in UNIT_STYLES:
-                    if not np.any(tile[s:e] > 0):
+                    hp_val = tile[s:e].max()
+                    if hp_val <= 0:
                         continue
+    
                     if shape == 'warrior':
-                        pts = np.array([[x+0.5,y+0.70],[x+0.40,y+0.30],[x+0.60,y+0.30]])
-                        ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec, linewidth=1.5, zorder=4))
-                        ax.add_patch(Circle((x+0.5, y+0.75), 0.08,
-                            facecolor=fc, edgecolor=ec, linewidth=1.5, zorder=4))
+                        pts = np.array([[x+0.5, y+0.70],
+                                        [x+0.40, y+0.30],
+                                        [x+0.60, y+0.30]])
+                        ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec,
+                                             linewidth=1.5, zorder=4))
+                        ax.add_patch(Circle((x+0.5, y+0.75), 0.08, facecolor=fc,
+                                            edgecolor=ec, linewidth=1.5, zorder=4))
                     else:
                         ax.add_patch(Rectangle((x+0.35, y+0.35), 0.30, 0.25,
-                            facecolor=fc, edgecolor=ec, linewidth=1.5, zorder=4))
-                        pts = np.array([[x+0.50,y+0.75],[x+0.40,y+0.60],[x+0.60,y+0.60]])
-                        ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec, linewidth=1.5, zorder=4))
-                        ax.add_patch(Circle((x+0.65, y+0.70), 0.06,
-                            facecolor=fc, edgecolor=ec, linewidth=1.5, zorder=4))
+                                               facecolor=fc, edgecolor=ec,
+                                               linewidth=1.5, zorder=4))
+                        pts = np.array([[x+0.50, y+0.75],
+                                        [x+0.40, y+0.60],
+                                        [x+0.60, y+0.60]])
+                        ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec,
+                                             linewidth=1.5, zorder=4))
+                        ax.add_patch(Circle((x+0.65, y+0.70), 0.06, facecolor=fc,
+                                            edgecolor=ec, linewidth=1.5, zorder=4))
+    
+                    # HP label at top-right of tile
+                    ax.text(x + 0.92, y + 0.82, f"{hp_val:.1f}",
+                            ha='right', va='top', fontsize=5.5,
+                            fontweight='bold', color='white',
+                            bbox=dict(boxstyle='round,pad=0.1', fc=ec,
+                                      ec='none', alpha=0.7),
+                            zorder=6)
     
         # ── Pass 3: action overlays ───────────────────────────────────────────
         if action is not None:
@@ -618,6 +635,18 @@ class EnvWrapper(object):
                             color=pcolor, markersize=8,
                             markeredgecolor='white', markeredgewidth=1.0,
                             zorder=10)
+            
+            elif atype == ActionTypes.Attack:
+                pass
+                #opponent = self.game.players[(self.game.player_go_id + 1) % 2]
+                #uid = t_act["unit"]
+                #oid = t_act["o_unit_index"]
+                #ax0, ay0 = tile_center(player.units_under_control[uid].tile.id)
+                #ax1, ay1 = tile_center(opponent.units_under_control[oid].tile.id)
+                #mx, my   = (ax0 + ax1) / 2, (ay0 + ay1) / 2
+                #angle    = np.arctan2(ay1 - ay0, ax1 - ax0)
+                #draw_sword(mx, my, angle)
+            
     
             elif atype == ActionTypes.CaptureCity:
                 uid = t_act["unit"]

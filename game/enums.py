@@ -1,4 +1,4 @@
-from enum import IntEnum
+from enum import IntEnum, Enum
 
 class UnitType(IntEnum):
     Warrior = 0
@@ -76,10 +76,10 @@ class Tribes(IntEnum):
     Imperius = 2
 
 
-class DefenseBonus(IntEnum):
-    NoBonus = 1
-    Shield = 1.5
-    Wall = 4
+class DefenseBonus(float, Enum):
+    NoBonus = 1.
+    Shield = float(3/2) # 1.5
+    Wall = 4.
 
 class ActionTypes(IntEnum):
     MoveUnit = 0

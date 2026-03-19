@@ -59,26 +59,6 @@ Good luck and god speed
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 14.01.2026: Some prep be4 coding
 
 player.py will be a wrapper for everything visible to the player with playerId: partial graph, list of units, list of own cities, stars per turn, stars, etc.
@@ -408,15 +388,6 @@ We need to achieve a time of around 1-3 mins for every update; 1000 Updates ~ 16
 
 
 
-
-
-
-
-
-
-
-
-
 06.03. Speed up tiem HOOORAYY
 
 Have read myself into the basics of PPO and disected the current state of processing in the actor network. 
@@ -530,6 +501,174 @@ Next steps: game_manager and ask subreddit!
 
 
 
+
+
+15.03. 14:42 Uhr
+
+
+A lot has happened in the last days. I trained to around 280 updates and the agent is improving. 
+In order to follow the learning process, I have created a libreoffice word file, where there are rendered examples of games after every major learning time. 
+It also includes some summaries, that would usually be here, so from here on, it is important to make a distinction where what information stands.
+
+FOR LEARNING PROCESS OF A SPECIFIC MODEL: 
+For this use the visual_examples folder and LO word files. It will be much easier to follow when looking at the actual rendering. Also, it will be kind of interesting to follow the rendering quality as it receives updates every once in a while when new features need to be observed.
+
+
+FOR CODEBASE CHANGES AND PROGRESS IN THE GAMES CODE AND RL APPROACHES:
+This is here. Here should be where the main design choices are laid out and the codebase is managed. Because this will be the source of the blog post one day.
+From here, there should be references to the other writeup sources, so this will be the central bundler. 
+
+---------------------------------------------------------------------------
+
+Back to the current state of the project:
+
+The base version of the game is now training and I will keep training it until around 1000 updates. This is mainly to get a feeling for how long PPO takes to learn something meaningful. 
+HOWEVER, as there are currently no major choices for the agent other than explore, attack and capture, the policy naturally is limited in refined decision making. 
+One thing that makes this very clear is that riders get <0.1% chance to be spawned at any point in the game. Even tho they dont "cost" more and provide much more utility than warriors... Why is that?
+---> UTILITY at this point in the games implementation does not mean ANYTHING!
+     Maybe, at some close encounter game, the agent made warriors and won the game and the gradient signal was so large, that riders got kicked out of being able 
+     to exist for ever. There is also currently no (direct) reason for an agent to hold a city; all the agent cares about is to make as many trades as possible
+     and therefore, hes happy as long as the fight keeps going on. 
+     Actually, the agent SHOULD have learned that having more cities means creating more units and therefore, HOLDING a city is a plus, but maybe he also
+     learned that its a good bait in order to draw in more enemy units to make kills. 
+
+
+
+Therefore, it is now important to add the major decision to the game; balance between eco and army. 
+I think this will be the point, where I can actually start to observe the emergence of strategic decision making. 
+
+To drive this giant task of advancing the game simulation (which literally means reworking the ENTIRE codebase), I want to go on with two major checklists to be worked off. Luckily, they go somehow hand-in-hand:
+
+
+
+
+
+
+
+    The tactics to be observed (including how)                          .       The things that need to be implemented into the game
+                                                                        .       
+     #################################                                  .      - include currency income based on city level (also add city levels)
+     #       First big block:        #                                  .      - include unit cost
+     #      balance eco and army     #                                  .      - include cost of city upgrade (NO RECOURCES YET)
+     #################################                                  .  (to make our lifes easier, just estimate the average price for a city upgrade
+                                                                        .   and have the agent pay that much to upgrade the city. Tech-trees and recource
+     A) city upgrades (count number of each upgrade chosen)             .   harvesting are something for the future, when its actually about linking the agent
+     B) Income maximizing (count avg. income value at every turn)       .   to the actual game with some screen readers or smthn)
+                                                                        .      - include no income for seiged city
+                                                                        .
+                                                                        .
+     Observe diverse tactical warfare:                                  .
+                                                                        .
+     A) Vet assigning (count number of vets/ game)                      .      - Add veteran mechanic to units (unit counts its kills)
+     B) Zone of control management (look at rendered games)             .      - Add ZoC to restrict movement, also add defenders
+     C) Role of superunit? (count number of superunits per game)        .      - Add superunit creation (only unit not purchasable with currency)
+     D) Big units for big impact? (count number of unit type)           .      - Specifically, add knights and catapults, why not also add archers at this point
+     E) Healing units in own borders? (heals in/ heals out)             .      - Add healing mechanic
+                                                                        .
+                                                                        .
+    Advanced exploring techniques:                                      .
+                                                                        .
+    A) Rider leapfrogging (look at rendered games)                      .      - Nothing to add here (couldve already been learned in the basegame)
+    B) Dash dancing       (look at rendered games)                      .      - Nothing to add here (couldve already been learned in the basegame)
+    C) Using roads (number of roads built per game)                     .      - Add road mechanic and where roads can be built. This will also need
+                                                                        .        its own decision head I suppose...
+    D) Explorer shaping (look at rendered games)                        .      - Add explorer dynamics based on gully video
+    E) Efficient exploring in general (avg. uncovered tiles per turn)   .      - Nothing to add here
+                                                                        .
+                                                                        .
+                                                                        .
+                                                                        .
+                                                                        .
+                                                                        .
+                                                                        .
+                                                                        .
+                                                                        .
+                                                                        .
+                                                                        .
+                                                                        .
+
+
+
+
+
+
+The first step is to think about how the new node dimensions should be ordered. I think that one hot encoding still will be the way to go over having a toggle dimension between players, because the network can learn it much easier. 
+Also, in order to add features easier later, it should actually give a Enum class that saves out the dimensions for each "thing" in order to have the rest of the codebase program it dynamically, instead of hardcoding the dimensions into the classes. This also means finding a way for the hard-coded action masks... (maybe another Enum?)
+
+
+Additionally, it must be easier to add features of the game and apply them to the tiles/ objects that they need to be applied to. LOOKING AT YOU city.unit AND tile.city AND tile.unit AND city.tile
+
+To change this, I would really really really really really really really really really really like AI to do this, so I need a way to read the entire codebase into
+a coding agent and have the agent do the cumbersome changes for me. 
+
+All of this will be a fucking giant mega task spanning months potentially, so I need a way to version control.
+
+Specifically, I would also like the base version of the game to still have its codebase form preserved, so maybe its time to create a branch on git?
+
+Then, we can also incrementally include features rather than all at once. For example, the first branch could include just one or two city upgrades and currency, the next one then adds more city upgrades and the super unit and the next one then adds roads and other advanced shit.
+
+-----------------------------------------------------------------
+
+Lastly about the PPO training. I honestly think that it could be infeasible to ever learn the advanced version of the game on my machine (or any other means that are not supercomputing clusters). This is because the number of games simulated to learn that stuff is just absurdly high. 
+
+There are some ways to improve training; Remember the staged training idea written down in the .txt file for the new architecture (its on the surface)? By 
+
+CHANGING THE SOFTMAX TO THE GUMBEL DISTRIBUTION (or something along the lines of it)
+
+... I can force the policy to choose with much more entropy in the decisions. Then, stage by stage, the enforced temperature can be lowered again to make the agents decision less biased. 
+
+Then we can see how far this can reach.
+
+Also remember to look into CFR, maybe they got some additional techniques that can help me with that.
+
+
+###################
+
+Finally, if nothing of that works (were talking potentially a year of trying here!), one could think about bringing large reasoning models into play.
+
+Lets say, I have an agent that does decently well. He knows how to balance eco and army on a 12 year old kid level and also knows how to defend a city against some simple attacks. 
+But lets also say, that he has no idea about long term strategy, the critics value does not really reflect on the potential of the state and is just not close to human level...
+------> Then what needs to happen is to include LRMs into the process. This will SIGNIFICANTLY slow down everything and simulating 1000 decisions would empty my wallet and full training time. BUT maybe, I can find a way to have the evaluation of the board state by a LRM finetuned to this version of the game to influence the decisions of the agent. It would be like exchanging the MCTS with an expert opinion of a LRM. How to build the bridge, whether the LRM is even able to plan long term and if the agent listens to the LRM are questions to be adressed. But, it could be the only way...
+        
+
+------------------------------------------------------------------
+
+Now, now, this is quite a lot to swallow. 
+
+Lets move this up step by step. Here are the next things to do and how cool or uncool they are:
+
+1. Very uncool: Prepare the entire codebase to be dynamically programmed to introduce new mechanics that will 
+    a) change the node dimensions 
+    b) introduce new units/ city levels to the game 
+    c) introduce new mechanics to the game (roads) 
+    d) introduce new observables to the game (income, score, ...)
+
+    This also includes git management, adding new branches
+
+
+2. Very cool: Add the new mechanics (ZoC, income by city, city upgrades and explorer, new units, roads increase movement, ...)
+
+3. Medium cool: Add new decision heads that will handle the new mechanics (city upgrade head line, road head line, upgrade to vet head, ...)
+                Also prepare training in stages. Add new rewards. 
+
+4. Very cool: Start training new policy. Train in stages, first high temperature, then lower.
+    4.5 Medium cool: Add logging for all the interesting observations during training that are mentioned above
+
+
+As you can see, the first part is very uncool. Therefore, seek help from claude and meanwhile have some training running to stay motivated!
+
+
+
+
+Good luck with that kiddo, here is where the good separate from the decent. Dont give up! You can do it.
+
+
+
+
+
+16.03. 16:47 Uhr
+
+unit.def_bonus was fixed, although there needs to be logic for units with no fortify...
 
 
 

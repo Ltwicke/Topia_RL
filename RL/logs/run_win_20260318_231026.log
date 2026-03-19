@@ -1,0 +1,1672 @@
+2026-03-18 23:10:26  Run tag : run_win_20260318_231026
+2026-03-18 23:10:26  Log dir : C:\Users\laure\1own_projects\1polytopia_score\RL\logs
+2026-03-18 23:10:26  Loading pretrained weights: .\checkpoints_win_reward\policy_update_00029.pt
+2026-03-18 23:10:26  Checkpoint loaded.
+2026-03-18 23:10:26  
+2026-03-18 23:10:26  ========================================================================
+2026-03-18 23:10:26    POLYTOPIA RL — PPO  (win-reward fine-tuning)
+2026-03-18 23:10:26  ========================================================================
+2026-03-18 23:10:26    Device            : cuda
+2026-03-18 23:10:26    Board size        : random square [11×11 … 11×11]
+2026-03-18 23:10:26    Workers × envs    : 16 × 8  =  128 parallel envs
+2026-03-18 23:10:26    Rollout steps     : 256
+2026-03-18 23:10:26    Full batch        : 32,768 samples (256 steps × 128 envs)
+2026-03-18 23:10:26    Minibatch size    : 128  →  256 minibatches / epoch  (drop_last=True)
+2026-03-18 23:10:26    PPO epochs        : 4  |  Updates: 500
+2026-03-18 23:10:26    Win reward        : 30.0   |  Loss reward : -10.0
+2026-03-18 23:10:26    clip_eps / vf / ent: 0.2 / 0.5 / 0.02
+2026-03-18 23:10:26    γ / λ             : 0.998 / 0.95
+2026-03-18 23:10:26    LR                : 4e-05
+2026-03-18 23:10:26    AMP               : True
+2026-03-18 23:10:26    Encoder           : 4 layers × 64d (4 heads)
+2026-03-18 23:10:26    Selection heads   : 2 layers × 64d (4 heads)
+2026-03-18 23:10:26    MLP               : 3 layers × 128d
+2026-03-18 23:10:26    Conv kernels      : (5, 3) × 1 layers
+2026-03-18 23:10:26    Context bias      : 4
+2026-03-18 23:10:26    Start update      : 30
+2026-03-18 23:10:26    Pretrained        : .\checkpoints_win_reward\policy_update_00029.pt
+2026-03-18 23:10:26  
+2026-03-18 23:10:26    GAE mode          : per-player MDP (cross-turn credit assignment)
+2026-03-18 23:10:26    Update gate       : only advances when ≥1 conquest in batch
+2026-03-18 23:10:26  
+2026-03-18 23:10:26  
+2026-03-18 23:10:26  Spawned 16 worker processes.
+2026-03-18 23:13:46  
+[update 0030] winner found after 1 simulation round(s)  (dist 0.590s | collect 199.30s)
+2026-03-18 23:13:46  [update 0030] per-player GAE in 0.0223s
+2026-03-18 23:31:51  [update 0030] PPO update done in 1083.40s
+2026-03-18 23:31:52    [ckpt] saved → checkpoints_win_reward\policy_update_00030.pt  (keeping last 3)
+2026-03-18 23:31:52  
+2026-03-18 23:31:52  ╔══ update 0030 ════════════════════════════════════════════
+2026-03-18 23:31:52  ║  Wall time     : 1285.6s  (dist 0.59s | collect 199.30s | GAE 0.0223s | PPO 1083.40s)
+2026-03-18 23:31:52  ║  Simul rounds  : 1
+2026-03-18 23:31:52  ║  Games finished:     54  (conquest 54, timeout 0)
+2026-03-18 23:31:52  ║  Win rate      : 1.000
+2026-03-18 23:31:52  ║  Avg ep length : 606.8 steps
+2026-03-18 23:31:52  ║  Avg reward/ep : 20.0000
+2026-03-18 23:31:52  ║  p_loss        : 0.0027
+2026-03-18 23:31:52  ║  v_loss        : 0.5131
+2026-03-18 23:31:52  ║  entropy       : 0.8276
+2026-03-18 23:31:52  ╚════════════════════════════════════════════════════════════
+2026-03-18 23:31:52  
+2026-03-18 23:36:18  
+[update 0031] winner found after 1 simulation round(s)  (dist 0.145s | collect 266.14s)
+2026-03-18 23:36:18  [update 0031] per-player GAE in 0.0223s
+2026-03-18 23:52:33  [update 0031] PPO update done in 971.67s
+2026-03-18 23:52:34    [ckpt] saved → checkpoints_win_reward\policy_update_00031.pt  (keeping last 3)
+2026-03-18 23:52:34  
+2026-03-18 23:52:34  ╔══ update 0031 ════════════════════════════════════════════
+2026-03-18 23:52:34  ║  Wall time     : 1242.4s  (dist 0.15s | collect 266.14s | GAE 0.0223s | PPO 971.67s)
+2026-03-18 23:52:34  ║  Simul rounds  : 1
+2026-03-18 23:52:34  ║  Games finished:     38  (conquest 38, timeout 0)
+2026-03-18 23:52:34  ║  Win rate      : 1.000
+2026-03-18 23:52:34  ║  Avg ep length : 862.3 steps
+2026-03-18 23:52:34  ║  Avg reward/ep : 20.0000
+2026-03-18 23:52:34  ║  p_loss        : 0.0021
+2026-03-18 23:52:34  ║  v_loss        : 0.3286
+2026-03-18 23:52:34  ║  entropy       : 1.1681
+2026-03-18 23:52:34  ╚════════════════════════════════════════════════════════════
+2026-03-18 23:52:34  
+2026-03-18 23:57:13  
+[update 0032] winner found after 1 simulation round(s)  (dist 0.086s | collect 278.28s)
+2026-03-18 23:57:13  [update 0032] per-player GAE in 0.0204s
+2026-03-19 00:13:37  [update 0032] PPO update done in 981.90s
+2026-03-19 00:13:39    [ckpt] saved → checkpoints_win_reward\policy_update_00032.pt  (keeping last 3)
+2026-03-19 00:13:39  
+2026-03-19 00:13:39  ╔══ update 0032 ════════════════════════════════════════════
+2026-03-19 00:13:39  ║  Wall time     : 1264.8s  (dist 0.09s | collect 278.28s | GAE 0.0204s | PPO 981.90s)
+2026-03-19 00:13:39  ║  Simul rounds  : 1
+2026-03-19 00:13:39  ║  Games finished:     29  (conquest 29, timeout 0)
+2026-03-19 00:13:39  ║  Win rate      : 1.000
+2026-03-19 00:13:39  ║  Avg ep length : 1129.9 steps
+2026-03-19 00:13:39  ║  Avg reward/ep : 20.0000
+2026-03-19 00:13:39  ║  p_loss        : 0.0066
+2026-03-19 00:13:39  ║  v_loss        : 0.2741
+2026-03-19 00:13:39  ║  entropy       : 1.3305
+2026-03-19 00:13:39  ╚════════════════════════════════════════════════════════════
+2026-03-19 00:13:39  
+2026-03-19 00:18:29  
+[update 0033] winner found after 1 simulation round(s)  (dist 0.087s | collect 289.30s)
+2026-03-19 00:18:29  [update 0033] per-player GAE in 0.0214s
+2026-03-19 00:28:49  [update 0033] PPO update done in 616.90s
+2026-03-19 00:28:50    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00030.pt
+2026-03-19 00:28:50    [ckpt] saved → checkpoints_win_reward\policy_update_00033.pt  (keeping last 3)
+2026-03-19 00:28:50  
+2026-03-19 00:28:50  ╔══ update 0033 ════════════════════════════════════════════
+2026-03-19 00:28:50  ║  Wall time     : 910.6s  (dist 0.09s | collect 289.30s | GAE 0.0214s | PPO 616.90s)
+2026-03-19 00:28:50  ║  Simul rounds  : 1
+2026-03-19 00:28:50  ║  Games finished:     21  (conquest 21, timeout 0)
+2026-03-19 00:28:50  ║  Win rate      : 1.000
+2026-03-19 00:28:50  ║  Avg ep length : 1560.4 steps
+2026-03-19 00:28:50  ║  Avg reward/ep : 20.0000
+2026-03-19 00:28:50  ║  p_loss        : 0.0068
+2026-03-19 00:28:50  ║  v_loss        : 0.2687
+2026-03-19 00:28:50  ║  entropy       : 1.2760
+2026-03-19 00:28:50  ╚════════════════════════════════════════════════════════════
+2026-03-19 00:28:50  
+2026-03-19 00:34:04  
+[update 0034] winner found after 1 simulation round(s)  (dist 0.075s | collect 314.06s)
+2026-03-19 00:34:04  [update 0034] per-player GAE in 0.0226s
+2026-03-19 00:48:18  [update 0034] PPO update done in 850.85s
+2026-03-19 00:48:20    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00031.pt
+2026-03-19 00:48:20    [ckpt] saved → checkpoints_win_reward\policy_update_00034.pt  (keeping last 3)
+2026-03-19 00:48:20  
+2026-03-19 00:48:20  ╔══ update 0034 ════════════════════════════════════════════
+2026-03-19 00:48:20  ║  Wall time     : 1169.9s  (dist 0.07s | collect 314.06s | GAE 0.0226s | PPO 850.85s)
+2026-03-19 00:48:20  ║  Simul rounds  : 1
+2026-03-19 00:48:20  ║  Games finished:     23  (conquest 23, timeout 0)
+2026-03-19 00:48:20  ║  Win rate      : 1.000
+2026-03-19 00:48:20  ║  Avg ep length : 1424.7 steps
+2026-03-19 00:48:20  ║  Avg reward/ep : 20.0000
+2026-03-19 00:48:20  ║  p_loss        : 0.0066
+2026-03-19 00:48:20  ║  v_loss        : 0.2538
+2026-03-19 00:48:20  ║  entropy       : 1.4438
+2026-03-19 00:48:20  ╚════════════════════════════════════════════════════════════
+2026-03-19 00:48:20  
+2026-03-19 00:53:52  
+[update 0035] winner found after 1 simulation round(s)  (dist 0.076s | collect 332.24s)
+2026-03-19 00:53:52  [update 0035] per-player GAE in 0.0202s
+2026-03-19 01:05:26  [update 0035] PPO update done in 691.17s
+2026-03-19 01:05:27    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00032.pt
+2026-03-19 01:05:27    [ckpt] saved → checkpoints_win_reward\policy_update_00035.pt  (keeping last 3)
+2026-03-19 01:05:27  
+2026-03-19 01:05:27  ╔══ update 0035 ════════════════════════════════════════════
+2026-03-19 01:05:27  ║  Wall time     : 1027.3s  (dist 0.08s | collect 332.24s | GAE 0.0202s | PPO 691.17s)
+2026-03-19 01:05:27  ║  Simul rounds  : 1
+2026-03-19 01:05:27  ║  Games finished:     24  (conquest 24, timeout 0)
+2026-03-19 01:05:27  ║  Win rate      : 1.000
+2026-03-19 01:05:27  ║  Avg ep length : 1365.3 steps
+2026-03-19 01:05:27  ║  Avg reward/ep : 20.0000
+2026-03-19 01:05:27  ║  p_loss        : 0.0058
+2026-03-19 01:05:27  ║  v_loss        : 0.4870
+2026-03-19 01:05:27  ║  entropy       : 1.4527
+2026-03-19 01:05:27  ╚════════════════════════════════════════════════════════════
+2026-03-19 01:05:27  
+2026-03-19 01:11:03  
+[update 0036] winner found after 1 simulation round(s)  (dist 0.082s | collect 336.23s)
+2026-03-19 01:11:03  [update 0036] per-player GAE in 0.0217s
+2026-03-19 01:23:39  [update 0036] PPO update done in 753.02s
+2026-03-19 01:23:41    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00033.pt
+2026-03-19 01:23:41    [ckpt] saved → checkpoints_win_reward\policy_update_00036.pt  (keeping last 3)
+2026-03-19 01:23:41  
+2026-03-19 01:23:41  ╔══ update 0036 ════════════════════════════════════════════
+2026-03-19 01:23:41  ║  Wall time     : 1093.4s  (dist 0.08s | collect 336.23s | GAE 0.0217s | PPO 753.02s)
+2026-03-19 01:23:41  ║  Simul rounds  : 1
+2026-03-19 01:23:41  ║  Games finished:     24  (conquest 24, timeout 0)
+2026-03-19 01:23:41  ║  Win rate      : 1.000
+2026-03-19 01:23:41  ║  Avg ep length : 1365.3 steps
+2026-03-19 01:23:41  ║  Avg reward/ep : 20.0000
+2026-03-19 01:23:41  ║  p_loss        : 0.0052
+2026-03-19 01:23:41  ║  v_loss        : 0.2976
+2026-03-19 01:23:41  ║  entropy       : 1.4474
+2026-03-19 01:23:41  ╚════════════════════════════════════════════════════════════
+2026-03-19 01:23:41  
+2026-03-19 01:29:17  
+[update 0037] winner found after 1 simulation round(s)  (dist 0.158s | collect 336.01s)
+2026-03-19 01:29:17  [update 0037] per-player GAE in 0.0211s
+2026-03-19 01:40:51  [update 0037] PPO update done in 691.04s
+2026-03-19 01:40:52    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00034.pt
+2026-03-19 01:40:52    [ckpt] saved → checkpoints_win_reward\policy_update_00037.pt  (keeping last 3)
+2026-03-19 01:40:52  
+2026-03-19 01:40:52  ╔══ update 0037 ════════════════════════════════════════════
+2026-03-19 01:40:52  ║  Wall time     : 1031.2s  (dist 0.16s | collect 336.01s | GAE 0.0211s | PPO 691.04s)
+2026-03-19 01:40:52  ║  Simul rounds  : 1
+2026-03-19 01:40:52  ║  Games finished:     20  (conquest 20, timeout 0)
+2026-03-19 01:40:52  ║  Win rate      : 1.000
+2026-03-19 01:40:52  ║  Avg ep length : 1638.4 steps
+2026-03-19 01:40:52  ║  Avg reward/ep : 20.0000
+2026-03-19 01:40:52  ║  p_loss        : 0.0079
+2026-03-19 01:40:52  ║  v_loss        : 0.2417
+2026-03-19 01:40:52  ║  entropy       : 1.4163
+2026-03-19 01:40:52  ╚════════════════════════════════════════════════════════════
+2026-03-19 01:40:52  
+2026-03-19 01:46:32  
+[update 0038] winner found after 1 simulation round(s)  (dist 0.149s | collect 339.75s)
+2026-03-19 01:46:32  [update 0038] per-player GAE in 0.0231s
+2026-03-19 01:56:30  [update 0038] PPO update done in 595.08s
+2026-03-19 01:56:31    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00035.pt
+2026-03-19 01:56:31    [ckpt] saved → checkpoints_win_reward\policy_update_00038.pt  (keeping last 3)
+2026-03-19 01:56:31  
+2026-03-19 01:56:31  ╔══ update 0038 ════════════════════════════════════════════
+2026-03-19 01:56:31  ║  Wall time     : 939.1s  (dist 0.15s | collect 339.75s | GAE 0.0231s | PPO 595.08s)
+2026-03-19 01:56:31  ║  Simul rounds  : 1
+2026-03-19 01:56:31  ║  Games finished:     19  (conquest 19, timeout 0)
+2026-03-19 01:56:31  ║  Win rate      : 1.000
+2026-03-19 01:56:31  ║  Avg ep length : 1724.6 steps
+2026-03-19 01:56:31  ║  Avg reward/ep : 20.0000
+2026-03-19 01:56:31  ║  p_loss        : 0.0078
+2026-03-19 01:56:31  ║  v_loss        : 0.2994
+2026-03-19 01:56:31  ║  entropy       : 1.5872
+2026-03-19 01:56:31  ╚════════════════════════════════════════════════════════════
+2026-03-19 01:56:31  
+2026-03-19 02:01:46  
+[update 0039] winner found after 1 simulation round(s)  (dist 0.146s | collect 314.72s)
+2026-03-19 02:01:46  [update 0039] per-player GAE in 0.0220s
+2026-03-19 02:10:42  [update 0039] PPO update done in 534.41s
+2026-03-19 02:10:43    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00036.pt
+2026-03-19 02:10:43    [ckpt] saved → checkpoints_win_reward\policy_update_00039.pt  (keeping last 3)
+2026-03-19 02:10:43  
+2026-03-19 02:10:43  ╔══ update 0039 ════════════════════════════════════════════
+2026-03-19 02:10:43  ║  Wall time     : 852.4s  (dist 0.15s | collect 314.72s | GAE 0.0220s | PPO 534.41s)
+2026-03-19 02:10:43  ║  Simul rounds  : 1
+2026-03-19 02:10:43  ║  Games finished:     17  (conquest 17, timeout 0)
+2026-03-19 02:10:43  ║  Win rate      : 1.000
+2026-03-19 02:10:43  ║  Avg ep length : 1927.5 steps
+2026-03-19 02:10:43  ║  Avg reward/ep : 20.0000
+2026-03-19 02:10:43  ║  p_loss        : 0.0080
+2026-03-19 02:10:43  ║  v_loss        : 0.2205
+2026-03-19 02:10:43  ║  entropy       : 1.5634
+2026-03-19 02:10:43  ╚════════════════════════════════════════════════════════════
+2026-03-19 02:10:43  
+2026-03-19 02:16:39  
+[update 0040] winner found after 1 simulation round(s)  (dist 0.071s | collect 355.36s)
+2026-03-19 02:16:39  [update 0040] per-player GAE in 0.0234s
+2026-03-19 02:22:46  [update 0040] PPO update done in 364.32s
+2026-03-19 02:22:46    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00037.pt
+2026-03-19 02:22:46    [ckpt] saved → checkpoints_win_reward\policy_update_00040.pt  (keeping last 3)
+2026-03-19 02:22:46  
+2026-03-19 02:22:46  ╔══ update 0040 ════════════════════════════════════════════
+2026-03-19 02:22:46  ║  Wall time     : 723.2s  (dist 0.07s | collect 355.36s | GAE 0.0234s | PPO 364.32s)
+2026-03-19 02:22:46  ║  Simul rounds  : 1
+2026-03-19 02:22:46  ║  Games finished:     16  (conquest 16, timeout 0)
+2026-03-19 02:22:46  ║  Win rate      : 1.000
+2026-03-19 02:22:46  ║  Avg ep length : 2048.0 steps
+2026-03-19 02:22:46  ║  Avg reward/ep : 20.0000
+2026-03-19 02:22:46  ║  p_loss        : 0.0073
+2026-03-19 02:22:46  ║  v_loss        : 0.4862
+2026-03-19 02:22:46  ║  entropy       : 1.6912
+2026-03-19 02:22:46  ╚════════════════════════════════════════════════════════════
+2026-03-19 02:22:46  
+2026-03-19 02:28:18  
+[update 0041] winner found after 1 simulation round(s)  (dist 0.137s | collect 331.25s)
+2026-03-19 02:28:18  [update 0041] per-player GAE in 0.0201s
+2026-03-19 02:33:14  [update 0041] PPO update done in 292.99s
+2026-03-19 02:33:14    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00038.pt
+2026-03-19 02:33:14    [ckpt] saved → checkpoints_win_reward\policy_update_00041.pt  (keeping last 3)
+2026-03-19 02:33:14  
+2026-03-19 02:33:14  ╔══ update 0041 ════════════════════════════════════════════
+2026-03-19 02:33:14  ║  Wall time     : 627.9s  (dist 0.14s | collect 331.25s | GAE 0.0201s | PPO 292.99s)
+2026-03-19 02:33:14  ║  Simul rounds  : 1
+2026-03-19 02:33:14  ║  Games finished:     13  (conquest 13, timeout 0)
+2026-03-19 02:33:14  ║  Win rate      : 1.000
+2026-03-19 02:33:14  ║  Avg ep length : 2520.6 steps
+2026-03-19 02:33:14  ║  Avg reward/ep : 20.0000
+2026-03-19 02:33:14  ║  p_loss        : 0.0081
+2026-03-19 02:33:14  ║  v_loss        : 0.3537
+2026-03-19 02:33:14  ║  entropy       : 1.3659
+2026-03-19 02:33:14  ╚════════════════════════════════════════════════════════════
+2026-03-19 02:33:14  
+2026-03-19 02:38:48  
+[update 0042] winner found after 1 simulation round(s)  (dist 0.089s | collect 333.72s)
+2026-03-19 02:38:48  [update 0042] per-player GAE in 0.0204s
+2026-03-19 02:43:52  [update 0042] PPO update done in 301.00s
+2026-03-19 02:43:53    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00039.pt
+2026-03-19 02:43:53    [ckpt] saved → checkpoints_win_reward\policy_update_00042.pt  (keeping last 3)
+2026-03-19 02:43:53  
+2026-03-19 02:43:53  ╔══ update 0042 ════════════════════════════════════════════
+2026-03-19 02:43:53  ║  Wall time     : 638.2s  (dist 0.09s | collect 333.72s | GAE 0.0204s | PPO 301.00s)
+2026-03-19 02:43:53  ║  Simul rounds  : 1
+2026-03-19 02:43:53  ║  Games finished:     11  (conquest 11, timeout 0)
+2026-03-19 02:43:53  ║  Win rate      : 1.000
+2026-03-19 02:43:53  ║  Avg ep length : 2978.9 steps
+2026-03-19 02:43:53  ║  Avg reward/ep : 20.0000
+2026-03-19 02:43:53  ║  p_loss        : 0.0091
+2026-03-19 02:43:53  ║  v_loss        : 0.3107
+2026-03-19 02:43:53  ║  entropy       : 1.4246
+2026-03-19 02:43:53  ╚════════════════════════════════════════════════════════════
+2026-03-19 02:43:53  
+2026-03-19 02:49:44  
+[update 0043] winner found after 1 simulation round(s)  (dist 0.142s | collect 351.80s)
+2026-03-19 02:49:44  [update 0043] per-player GAE in 0.0232s
+2026-03-19 02:53:57  [update 0043] PPO update done in 250.40s
+2026-03-19 02:53:58    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00040.pt
+2026-03-19 02:53:58    [ckpt] saved → checkpoints_win_reward\policy_update_00043.pt  (keeping last 3)
+2026-03-19 02:53:58  
+2026-03-19 02:53:58  ╔══ update 0043 ════════════════════════════════════════════
+2026-03-19 02:53:58  ║  Wall time     : 605.4s  (dist 0.14s | collect 351.80s | GAE 0.0232s | PPO 250.40s)
+2026-03-19 02:53:58  ║  Simul rounds  : 1
+2026-03-19 02:53:58  ║  Games finished:     10  (conquest 10, timeout 0)
+2026-03-19 02:53:58  ║  Win rate      : 1.000
+2026-03-19 02:53:58  ║  Avg ep length : 3276.8 steps
+2026-03-19 02:53:58  ║  Avg reward/ep : 20.0000
+2026-03-19 02:53:58  ║  p_loss        : 0.0079
+2026-03-19 02:53:58  ║  v_loss        : 0.2658
+2026-03-19 02:53:58  ║  entropy       : 1.4351
+2026-03-19 02:53:58  ╚════════════════════════════════════════════════════════════
+2026-03-19 02:53:58  
+2026-03-19 02:59:42  
+[update 0044] winner found after 1 simulation round(s)  (dist 0.087s | collect 343.78s)
+2026-03-19 02:59:42  [update 0044] per-player GAE in 0.0257s
+2026-03-19 03:05:17  [update 0044] PPO update done in 332.48s
+2026-03-19 03:05:18    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00041.pt
+2026-03-19 03:05:18    [ckpt] saved → checkpoints_win_reward\policy_update_00044.pt  (keeping last 3)
+2026-03-19 03:05:18  
+2026-03-19 03:05:18  ╔══ update 0044 ════════════════════════════════════════════
+2026-03-19 03:05:18  ║  Wall time     : 679.9s  (dist 0.09s | collect 343.78s | GAE 0.0257s | PPO 332.48s)
+2026-03-19 03:05:18  ║  Simul rounds  : 1
+2026-03-19 03:05:18  ║  Games finished:     12  (conquest 12, timeout 0)
+2026-03-19 03:05:18  ║  Win rate      : 1.000
+2026-03-19 03:05:18  ║  Avg ep length : 2730.7 steps
+2026-03-19 03:05:18  ║  Avg reward/ep : 20.0000
+2026-03-19 03:05:18  ║  p_loss        : 0.0088
+2026-03-19 03:05:18  ║  v_loss        : 0.4229
+2026-03-19 03:05:18  ║  entropy       : 1.5602
+2026-03-19 03:05:18  ╚════════════════════════════════════════════════════════════
+2026-03-19 03:05:18  
+2026-03-19 03:11:12  
+[update 0045] winner found after 1 simulation round(s)  (dist 0.139s | collect 353.76s)
+2026-03-19 03:11:12  [update 0045] per-player GAE in 0.0212s
+2026-03-19 03:17:20  [update 0045] PPO update done in 365.86s
+2026-03-19 03:17:21    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00042.pt
+2026-03-19 03:17:21    [ckpt] saved → checkpoints_win_reward\policy_update_00045.pt  (keeping last 3)
+2026-03-19 03:17:21  
+2026-03-19 03:17:21  ╔══ update 0045 ════════════════════════════════════════════
+2026-03-19 03:17:21  ║  Wall time     : 723.2s  (dist 0.14s | collect 353.76s | GAE 0.0212s | PPO 365.86s)
+2026-03-19 03:17:21  ║  Simul rounds  : 1
+2026-03-19 03:17:21  ║  Games finished:     11  (conquest 11, timeout 0)
+2026-03-19 03:17:21  ║  Win rate      : 1.000
+2026-03-19 03:17:21  ║  Avg ep length : 2978.9 steps
+2026-03-19 03:17:21  ║  Avg reward/ep : 20.0000
+2026-03-19 03:17:21  ║  p_loss        : 0.0077
+2026-03-19 03:17:21  ║  v_loss        : 0.2545
+2026-03-19 03:17:21  ║  entropy       : 1.5404
+2026-03-19 03:17:21  ╚════════════════════════════════════════════════════════════
+2026-03-19 03:17:21  
+2026-03-19 03:23:29  
+[update 0046] winner found after 1 simulation round(s)  (dist 0.147s | collect 367.93s)
+2026-03-19 03:23:29  [update 0046] per-player GAE in 0.0208s
+2026-03-19 03:28:25  [update 0046] PPO update done in 293.20s
+2026-03-19 03:28:26    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00043.pt
+2026-03-19 03:28:26    [ckpt] saved → checkpoints_win_reward\policy_update_00046.pt  (keeping last 3)
+2026-03-19 03:28:26  
+2026-03-19 03:28:26  ╔══ update 0046 ════════════════════════════════════════════
+2026-03-19 03:28:26  ║  Wall time     : 664.6s  (dist 0.15s | collect 367.93s | GAE 0.0208s | PPO 293.20s)
+2026-03-19 03:28:26  ║  Simul rounds  : 1
+2026-03-19 03:28:26  ║  Games finished:     12  (conquest 12, timeout 0)
+2026-03-19 03:28:26  ║  Win rate      : 1.000
+2026-03-19 03:28:26  ║  Avg ep length : 2730.7 steps
+2026-03-19 03:28:26  ║  Avg reward/ep : 20.0000
+2026-03-19 03:28:26  ║  p_loss        : 0.0068
+2026-03-19 03:28:26  ║  v_loss        : 0.4243
+2026-03-19 03:28:26  ║  entropy       : 1.4891
+2026-03-19 03:28:26  ╚════════════════════════════════════════════════════════════
+2026-03-19 03:28:26  
+2026-03-19 03:34:21  
+[update 0047] winner found after 1 simulation round(s)  (dist 0.146s | collect 355.41s)
+2026-03-19 03:34:21  [update 0047] per-player GAE in 0.0206s
+2026-03-19 03:36:37  [update 0047] PPO update done in 132.99s
+2026-03-19 03:36:37    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00044.pt
+2026-03-19 03:36:37    [ckpt] saved → checkpoints_win_reward\policy_update_00047.pt  (keeping last 3)
+2026-03-19 03:36:37  
+2026-03-19 03:36:37  ╔══ update 0047 ════════════════════════════════════════════
+2026-03-19 03:36:37  ║  Wall time     : 491.4s  (dist 0.15s | collect 355.41s | GAE 0.0206s | PPO 132.99s)
+2026-03-19 03:36:37  ║  Simul rounds  : 1
+2026-03-19 03:36:37  ║  Games finished:      7  (conquest 7, timeout 0)
+2026-03-19 03:36:37  ║  Win rate      : 1.000
+2026-03-19 03:36:37  ║  Avg ep length : 4681.1 steps
+2026-03-19 03:36:37  ║  Avg reward/ep : 20.0000
+2026-03-19 03:36:37  ║  p_loss        : 0.0078
+2026-03-19 03:36:37  ║  v_loss        : 0.3623
+2026-03-19 03:36:37  ║  entropy       : 1.4163
+2026-03-19 03:36:37  ╚════════════════════════════════════════════════════════════
+2026-03-19 03:36:37  
+2026-03-19 03:42:52  
+[update 0048] winner found after 1 simulation round(s)  (dist 0.130s | collect 374.44s)
+2026-03-19 03:42:52  [update 0048] per-player GAE in 0.0213s
+2026-03-19 03:46:51  [update 0048] PPO update done in 237.24s
+2026-03-19 03:46:52    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00045.pt
+2026-03-19 03:46:52    [ckpt] saved → checkpoints_win_reward\policy_update_00048.pt  (keeping last 3)
+2026-03-19 03:46:52  
+2026-03-19 03:46:52  ╔══ update 0048 ════════════════════════════════════════════
+2026-03-19 03:46:52  ║  Wall time     : 614.6s  (dist 0.13s | collect 374.44s | GAE 0.0213s | PPO 237.24s)
+2026-03-19 03:46:52  ║  Simul rounds  : 1
+2026-03-19 03:46:52  ║  Games finished:     11  (conquest 11, timeout 0)
+2026-03-19 03:46:52  ║  Win rate      : 1.000
+2026-03-19 03:46:52  ║  Avg ep length : 2978.9 steps
+2026-03-19 03:46:52  ║  Avg reward/ep : 20.0000
+2026-03-19 03:46:52  ║  p_loss        : 0.0088
+2026-03-19 03:46:52  ║  v_loss        : 0.3000
+2026-03-19 03:46:52  ║  entropy       : 1.2805
+2026-03-19 03:46:52  ╚════════════════════════════════════════════════════════════
+2026-03-19 03:46:52  
+2026-03-19 03:53:13  
+[update 0049] winner found after 1 simulation round(s)  (dist 0.141s | collect 381.43s)
+2026-03-19 03:53:13  [update 0049] per-player GAE in 0.0212s
+2026-03-19 03:56:15  [update 0049] PPO update done in 179.15s
+2026-03-19 03:56:15    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00046.pt
+2026-03-19 03:56:15    [ckpt] saved → checkpoints_win_reward\policy_update_00049.pt  (keeping last 3)
+2026-03-19 03:56:15  
+2026-03-19 03:56:15  ╔══ update 0049 ════════════════════════════════════════════
+2026-03-19 03:56:15  ║  Wall time     : 563.6s  (dist 0.14s | collect 381.43s | GAE 0.0212s | PPO 179.15s)
+2026-03-19 03:56:15  ║  Simul rounds  : 1
+2026-03-19 03:56:15  ║  Games finished:      8  (conquest 8, timeout 0)
+2026-03-19 03:56:15  ║  Win rate      : 1.000
+2026-03-19 03:56:15  ║  Avg ep length : 4096.0 steps
+2026-03-19 03:56:15  ║  Avg reward/ep : 20.0000
+2026-03-19 03:56:15  ║  p_loss        : 0.0082
+2026-03-19 03:56:15  ║  v_loss        : 0.7076
+2026-03-19 03:56:15  ║  entropy       : 1.5181
+2026-03-19 03:56:15  ╚════════════════════════════════════════════════════════════
+2026-03-19 03:56:15  
+2026-03-19 04:02:35  
+[update 0050] winner found after 1 simulation round(s)  (dist 0.149s | collect 379.39s)
+2026-03-19 04:02:35  [update 0050] per-player GAE in 0.0244s
+2026-03-19 04:03:58  [update 0050] PPO update done in 80.96s
+2026-03-19 04:03:58    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00047.pt
+2026-03-19 04:03:58    [ckpt] saved → checkpoints_win_reward\policy_update_00050.pt  (keeping last 3)
+2026-03-19 04:03:58  
+2026-03-19 04:03:58  ╔══ update 0050 ════════════════════════════════════════════
+2026-03-19 04:03:58  ║  Wall time     : 463.2s  (dist 0.15s | collect 379.39s | GAE 0.0244s | PPO 80.96s)
+2026-03-19 04:03:58  ║  Simul rounds  : 1
+2026-03-19 04:03:58  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 04:03:58  ║  Win rate      : 1.000
+2026-03-19 04:03:58  ║  Avg ep length : 16384.0 steps
+2026-03-19 04:03:58  ║  Avg reward/ep : 20.0000
+2026-03-19 04:03:58  ║  p_loss        : 0.0062
+2026-03-19 04:03:58  ║  v_loss        : 0.4011
+2026-03-19 04:03:58  ║  entropy       : 1.4814
+2026-03-19 04:03:58  ╚════════════════════════════════════════════════════════════
+2026-03-19 04:03:58  
+2026-03-19 04:10:23  
+[update 0051] winner found after 1 simulation round(s)  (dist 0.080s | collect 384.52s)
+2026-03-19 04:10:23  [update 0051] per-player GAE in 0.0236s
+2026-03-19 04:12:11  [update 0051] PPO update done in 105.41s
+2026-03-19 04:12:11    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00048.pt
+2026-03-19 04:12:11    [ckpt] saved → checkpoints_win_reward\policy_update_00051.pt  (keeping last 3)
+2026-03-19 04:12:11  
+2026-03-19 04:12:11  ╔══ update 0051 ════════════════════════════════════════════
+2026-03-19 04:12:11  ║  Wall time     : 492.7s  (dist 0.08s | collect 384.52s | GAE 0.0236s | PPO 105.41s)
+2026-03-19 04:12:11  ║  Simul rounds  : 1
+2026-03-19 04:12:11  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 04:12:11  ║  Win rate      : 1.000
+2026-03-19 04:12:11  ║  Avg ep length : 16384.0 steps
+2026-03-19 04:12:11  ║  Avg reward/ep : 20.0000
+2026-03-19 04:12:11  ║  p_loss        : 0.0065
+2026-03-19 04:12:11  ║  v_loss        : 0.1980
+2026-03-19 04:12:11  ║  entropy       : 1.4904
+2026-03-19 04:12:11  ╚════════════════════════════════════════════════════════════
+2026-03-19 04:12:11  
+2026-03-19 04:18:37  
+[update 0052] winner found after 1 simulation round(s)  (dist 0.078s | collect 385.94s)
+2026-03-19 04:18:37  [update 0052] per-player GAE in 0.0271s
+2026-03-19 04:19:40  [update 0052] PPO update done in 60.63s
+2026-03-19 04:19:41    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00049.pt
+2026-03-19 04:19:41    [ckpt] saved → checkpoints_win_reward\policy_update_00052.pt  (keeping last 3)
+2026-03-19 04:19:41  
+2026-03-19 04:19:41  ╔══ update 0052 ════════════════════════════════════════════
+2026-03-19 04:19:41  ║  Wall time     : 449.4s  (dist 0.08s | collect 385.94s | GAE 0.0271s | PPO 60.63s)
+2026-03-19 04:19:41  ║  Simul rounds  : 1
+2026-03-19 04:19:41  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-19 04:19:41  ║  Win rate      : 1.000
+2026-03-19 04:19:41  ║  Avg ep length : 10922.7 steps
+2026-03-19 04:19:41  ║  Avg reward/ep : 20.0000
+2026-03-19 04:19:41  ║  p_loss        : 0.0092
+2026-03-19 04:19:41  ║  v_loss        : 0.5200
+2026-03-19 04:19:41  ║  entropy       : 1.0557
+2026-03-19 04:19:41  ╚════════════════════════════════════════════════════════════
+2026-03-19 04:19:41  
+2026-03-19 04:26:15  
+[update 0053] winner found after 1 simulation round(s)  (dist 0.089s | collect 393.93s)
+2026-03-19 04:26:15  [update 0053] per-player GAE in 0.0231s
+2026-03-19 04:27:25  [update 0053] PPO update done in 67.77s
+2026-03-19 04:27:25    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00050.pt
+2026-03-19 04:27:25    [ckpt] saved → checkpoints_win_reward\policy_update_00053.pt  (keeping last 3)
+2026-03-19 04:27:25  
+2026-03-19 04:27:25  ╔══ update 0053 ════════════════════════════════════════════
+2026-03-19 04:27:25  ║  Wall time     : 464.6s  (dist 0.09s | collect 393.93s | GAE 0.0231s | PPO 67.77s)
+2026-03-19 04:27:25  ║  Simul rounds  : 1
+2026-03-19 04:27:25  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 04:27:25  ║  Win rate      : 1.000
+2026-03-19 04:27:25  ║  Avg ep length : 16384.0 steps
+2026-03-19 04:27:25  ║  Avg reward/ep : 20.0000
+2026-03-19 04:27:25  ║  p_loss        : 0.0075
+2026-03-19 04:27:25  ║  v_loss        : 0.3853
+2026-03-19 04:27:25  ║  entropy       : 1.5699
+2026-03-19 04:27:25  ╚════════════════════════════════════════════════════════════
+2026-03-19 04:27:25  
+2026-03-19 04:34:00  
+[update 0054] winner found after 1 simulation round(s)  (dist 0.151s | collect 394.32s)
+2026-03-19 04:34:00  [update 0054] per-player GAE in 0.0226s
+2026-03-19 04:36:47  [update 0054] PPO update done in 164.89s
+2026-03-19 04:36:48    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00051.pt
+2026-03-19 04:36:48    [ckpt] saved → checkpoints_win_reward\policy_update_00054.pt  (keeping last 3)
+2026-03-19 04:36:48  
+2026-03-19 04:36:48  ╔══ update 0054 ════════════════════════════════════════════
+2026-03-19 04:36:48  ║  Wall time     : 562.4s  (dist 0.15s | collect 394.32s | GAE 0.0226s | PPO 164.89s)
+2026-03-19 04:36:48  ║  Simul rounds  : 1
+2026-03-19 04:36:48  ║  Games finished:      4  (conquest 4, timeout 0)
+2026-03-19 04:36:48  ║  Win rate      : 1.000
+2026-03-19 04:36:48  ║  Avg ep length : 8192.0 steps
+2026-03-19 04:36:48  ║  Avg reward/ep : 20.0000
+2026-03-19 04:36:48  ║  p_loss        : 0.0076
+2026-03-19 04:36:48  ║  v_loss        : 0.3680
+2026-03-19 04:36:48  ║  entropy       : 1.6010
+2026-03-19 04:36:48  ╚════════════════════════════════════════════════════════════
+2026-03-19 04:36:48  
+2026-03-19 04:43:20  
+[update 0055] winner found after 1 simulation round(s)  (dist 0.151s | collect 392.78s)
+2026-03-19 04:43:20  [update 0055] per-player GAE in 0.0230s
+2026-03-19 04:44:03  [update 0055] PPO update done in 39.59s
+2026-03-19 04:44:03    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00052.pt
+2026-03-19 04:44:03    [ckpt] saved → checkpoints_win_reward\policy_update_00055.pt  (keeping last 3)
+2026-03-19 04:44:03  
+2026-03-19 04:44:03  ╔══ update 0055 ════════════════════════════════════════════
+2026-03-19 04:44:03  ║  Wall time     : 435.3s  (dist 0.15s | collect 392.78s | GAE 0.0230s | PPO 39.59s)
+2026-03-19 04:44:03  ║  Simul rounds  : 1
+2026-03-19 04:44:03  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-19 04:44:03  ║  Win rate      : 1.000
+2026-03-19 04:44:03  ║  Avg ep length : 32768.0 steps
+2026-03-19 04:44:03  ║  Avg reward/ep : 20.0000
+2026-03-19 04:44:03  ║  p_loss        : 0.0040
+2026-03-19 04:44:03  ║  v_loss        : 0.0163
+2026-03-19 04:44:03  ║  entropy       : 1.4865
+2026-03-19 04:44:03  ╚════════════════════════════════════════════════════════════
+2026-03-19 04:44:03  
+2026-03-19 04:50:23  
+[update 0056] winner found after 1 simulation round(s)  (dist 0.081s | collect 379.64s)
+2026-03-19 04:50:23  [update 0056] per-player GAE in 0.0232s
+2026-03-19 04:53:31  [update 0056] PPO update done in 185.08s
+2026-03-19 04:53:31    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00053.pt
+2026-03-19 04:53:31    [ckpt] saved → checkpoints_win_reward\policy_update_00056.pt  (keeping last 3)
+2026-03-19 04:53:31  
+2026-03-19 04:53:31  ╔══ update 0056 ════════════════════════════════════════════
+2026-03-19 04:53:31  ║  Wall time     : 568.2s  (dist 0.08s | collect 379.64s | GAE 0.0232s | PPO 185.08s)
+2026-03-19 04:53:31  ║  Simul rounds  : 1
+2026-03-19 04:53:31  ║  Games finished:      5  (conquest 5, timeout 0)
+2026-03-19 04:53:31  ║  Win rate      : 1.000
+2026-03-19 04:53:31  ║  Avg ep length : 6553.6 steps
+2026-03-19 04:53:31  ║  Avg reward/ep : 20.0000
+2026-03-19 04:53:31  ║  p_loss        : 0.0077
+2026-03-19 04:53:31  ║  v_loss        : 0.4804
+2026-03-19 04:53:31  ║  entropy       : 1.5911
+2026-03-19 04:53:31  ╚════════════════════════════════════════════════════════════
+2026-03-19 04:53:31  
+2026-03-19 04:59:48  
+[update 0057] winner found after 1 simulation round(s)  (dist 0.091s | collect 376.97s)
+2026-03-19 04:59:48  [update 0057] per-player GAE in 0.0236s
+2026-03-19 05:01:30  [update 0057] PPO update done in 98.67s
+2026-03-19 05:01:30    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00054.pt
+2026-03-19 05:01:30    [ckpt] saved → checkpoints_win_reward\policy_update_00057.pt  (keeping last 3)
+2026-03-19 05:01:30  
+2026-03-19 05:01:30  ╔══ update 0057 ════════════════════════════════════════════
+2026-03-19 05:01:30  ║  Wall time     : 479.0s  (dist 0.09s | collect 376.97s | GAE 0.0236s | PPO 98.67s)
+2026-03-19 05:01:30  ║  Simul rounds  : 1
+2026-03-19 05:01:30  ║  Games finished:      4  (conquest 4, timeout 0)
+2026-03-19 05:01:30  ║  Win rate      : 1.000
+2026-03-19 05:01:30  ║  Avg ep length : 8192.0 steps
+2026-03-19 05:01:30  ║  Avg reward/ep : 22.5000
+2026-03-19 05:01:30  ║  p_loss        : 0.0078
+2026-03-19 05:01:30  ║  v_loss        : 0.5533
+2026-03-19 05:01:30  ║  entropy       : 1.6284
+2026-03-19 05:01:30  ╚════════════════════════════════════════════════════════════
+2026-03-19 05:01:30  
+2026-03-19 05:08:13  
+[update 0058] winner found after 1 simulation round(s)  (dist 0.143s | collect 402.89s)
+2026-03-19 05:08:13  [update 0058] per-player GAE in 0.0239s
+2026-03-19 05:09:33  [update 0058] PPO update done in 76.53s
+2026-03-19 05:09:33    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00055.pt
+2026-03-19 05:09:33    [ckpt] saved → checkpoints_win_reward\policy_update_00058.pt  (keeping last 3)
+2026-03-19 05:09:33  
+2026-03-19 05:09:33  ╔══ update 0058 ════════════════════════════════════════════
+2026-03-19 05:09:33  ║  Wall time     : 482.8s  (dist 0.14s | collect 402.89s | GAE 0.0239s | PPO 76.53s)
+2026-03-19 05:09:33  ║  Simul rounds  : 1
+2026-03-19 05:09:33  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-19 05:09:33  ║  Win rate      : 1.000
+2026-03-19 05:09:33  ║  Avg ep length : 10922.7 steps
+2026-03-19 05:09:33  ║  Avg reward/ep : 20.0000
+2026-03-19 05:09:33  ║  p_loss        : 0.0065
+2026-03-19 05:09:33  ║  v_loss        : 0.2430
+2026-03-19 05:09:33  ║  entropy       : 1.8924
+2026-03-19 05:09:33  ╚════════════════════════════════════════════════════════════
+2026-03-19 05:09:33  
+2026-03-19 05:16:11  
+[update 0059] winner found after 1 simulation round(s)  (dist 0.076s | collect 398.19s)
+2026-03-19 05:16:11  [update 0059] per-player GAE in 0.0257s
+2026-03-19 05:17:06  [update 0059] PPO update done in 51.90s
+2026-03-19 05:17:06    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00056.pt
+2026-03-19 05:17:06    [ckpt] saved → checkpoints_win_reward\policy_update_00059.pt  (keeping last 3)
+2026-03-19 05:17:06  
+2026-03-19 05:17:06  ╔══ update 0059 ════════════════════════════════════════════
+2026-03-19 05:17:06  ║  Wall time     : 453.1s  (dist 0.08s | collect 398.19s | GAE 0.0257s | PPO 51.90s)
+2026-03-19 05:17:06  ║  Simul rounds  : 1
+2026-03-19 05:17:06  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-19 05:17:06  ║  Win rate      : 1.000
+2026-03-19 05:17:06  ║  Avg ep length : 32768.0 steps
+2026-03-19 05:17:06  ║  Avg reward/ep : 20.0000
+2026-03-19 05:17:06  ║  p_loss        : 0.0071
+2026-03-19 05:17:06  ║  v_loss        : 0.1277
+2026-03-19 05:17:06  ║  entropy       : 1.6161
+2026-03-19 05:17:06  ╚════════════════════════════════════════════════════════════
+2026-03-19 05:17:06  
+2026-03-19 05:23:27  
+[update 0060] winner found after 1 simulation round(s)  (dist 0.160s | collect 380.77s)
+2026-03-19 05:23:27  [update 0060] per-player GAE in 0.0220s
+2026-03-19 05:23:56  [update 0060] PPO update done in 26.38s
+2026-03-19 05:23:56    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00057.pt
+2026-03-19 05:23:56    [ckpt] saved → checkpoints_win_reward\policy_update_00060.pt  (keeping last 3)
+2026-03-19 05:23:56  
+2026-03-19 05:23:56  ╔══ update 0060 ════════════════════════════════════════════
+2026-03-19 05:23:56  ║  Wall time     : 410.2s  (dist 0.16s | collect 380.77s | GAE 0.0220s | PPO 26.38s)
+2026-03-19 05:23:56  ║  Simul rounds  : 1
+2026-03-19 05:23:56  ║  Games finished:      4  (conquest 4, timeout 0)
+2026-03-19 05:23:56  ║  Win rate      : 1.000
+2026-03-19 05:23:56  ║  Avg ep length : 8192.0 steps
+2026-03-19 05:23:56  ║  Avg reward/ep : 20.0000
+2026-03-19 05:23:56  ║  p_loss        : 0.0011
+2026-03-19 05:23:56  ║  v_loss        : 1.5638
+2026-03-19 05:23:56  ║  entropy       : 1.0740
+2026-03-19 05:23:56  ╚════════════════════════════════════════════════════════════
+2026-03-19 05:23:56  
+2026-03-19 05:30:37  [update 0061] no conquest in round 1 — re-simulating …
+2026-03-19 05:37:25  
+[update 0061] winner found after 2 simulation round(s)  (dist 0.344s | collect 805.31s)
+2026-03-19 05:37:25  [update 0061] per-player GAE in 0.0234s
+2026-03-19 05:38:27  [update 0061] PPO update done in 59.90s
+2026-03-19 05:38:27    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00058.pt
+2026-03-19 05:38:27    [ckpt] saved → checkpoints_win_reward\policy_update_00061.pt  (keeping last 3)
+2026-03-19 05:38:27  
+2026-03-19 05:38:27  ╔══ update 0061 ════════════════════════════════════════════
+2026-03-19 05:38:27  ║  Wall time     : 871.3s  (dist 0.34s | collect 805.31s | GAE 0.0234s | PPO 59.90s)
+2026-03-19 05:38:27  ║  Simul rounds  : 2
+2026-03-19 05:38:27  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-19 05:38:27  ║  Win rate      : 1.000
+2026-03-19 05:38:27  ║  Avg ep length : 32768.0 steps
+2026-03-19 05:38:27  ║  Avg reward/ep : 20.0000
+2026-03-19 05:38:27  ║  p_loss        : 0.0070
+2026-03-19 05:38:27  ║  v_loss        : 0.1231
+2026-03-19 05:38:27  ║  entropy       : 1.7055
+2026-03-19 05:38:27  ╚════════════════════════════════════════════════════════════
+2026-03-19 05:38:27  
+2026-03-19 05:45:15  
+[update 0062] winner found after 1 simulation round(s)  (dist 0.147s | collect 407.76s)
+2026-03-19 05:45:15  [update 0062] per-player GAE in 0.0246s
+2026-03-19 05:47:19  [update 0062] PPO update done in 120.32s
+2026-03-19 05:47:19    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00059.pt
+2026-03-19 05:47:19    [ckpt] saved → checkpoints_win_reward\policy_update_00062.pt  (keeping last 3)
+2026-03-19 05:47:19  
+2026-03-19 05:47:19  ╔══ update 0062 ════════════════════════════════════════════
+2026-03-19 05:47:19  ║  Wall time     : 531.7s  (dist 0.15s | collect 407.76s | GAE 0.0246s | PPO 120.32s)
+2026-03-19 05:47:19  ║  Simul rounds  : 1
+2026-03-19 05:47:19  ║  Games finished:      4  (conquest 4, timeout 0)
+2026-03-19 05:47:19  ║  Win rate      : 1.000
+2026-03-19 05:47:19  ║  Avg ep length : 8192.0 steps
+2026-03-19 05:47:19  ║  Avg reward/ep : 20.0000
+2026-03-19 05:47:19  ║  p_loss        : 0.0071
+2026-03-19 05:47:19  ║  v_loss        : 0.6147
+2026-03-19 05:47:19  ║  entropy       : 1.5882
+2026-03-19 05:47:19  ╚════════════════════════════════════════════════════════════
+2026-03-19 05:47:19  
+2026-03-19 05:53:54  
+[update 0063] winner found after 1 simulation round(s)  (dist 0.085s | collect 394.74s)
+2026-03-19 05:53:54  [update 0063] per-player GAE in 0.0247s
+2026-03-19 05:54:54  [update 0063] PPO update done in 57.33s
+2026-03-19 05:54:54    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00060.pt
+2026-03-19 05:54:54    [ckpt] saved → checkpoints_win_reward\policy_update_00063.pt  (keeping last 3)
+2026-03-19 05:54:54  
+2026-03-19 05:54:54  ╔══ update 0063 ════════════════════════════════════════════
+2026-03-19 05:54:54  ║  Wall time     : 455.2s  (dist 0.09s | collect 394.74s | GAE 0.0247s | PPO 57.33s)
+2026-03-19 05:54:54  ║  Simul rounds  : 1
+2026-03-19 05:54:54  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 05:54:54  ║  Win rate      : 1.000
+2026-03-19 05:54:54  ║  Avg ep length : 16384.0 steps
+2026-03-19 05:54:54  ║  Avg reward/ep : 20.0000
+2026-03-19 05:54:54  ║  p_loss        : 0.0039
+2026-03-19 05:54:54  ║  v_loss        : 0.3046
+2026-03-19 05:54:54  ║  entropy       : 1.5928
+2026-03-19 05:54:54  ╚════════════════════════════════════════════════════════════
+2026-03-19 05:54:54  
+2026-03-19 06:01:22  
+[update 0064] winner found after 1 simulation round(s)  (dist 0.080s | collect 387.01s)
+2026-03-19 06:01:22  [update 0064] per-player GAE in 0.0215s
+2026-03-19 06:01:59  [update 0064] PPO update done in 34.53s
+2026-03-19 06:01:59    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00061.pt
+2026-03-19 06:01:59    [ckpt] saved → checkpoints_win_reward\policy_update_00064.pt  (keeping last 3)
+2026-03-19 06:01:59  
+2026-03-19 06:01:59  ╔══ update 0064 ════════════════════════════════════════════
+2026-03-19 06:01:59  ║  Wall time     : 424.7s  (dist 0.08s | collect 387.01s | GAE 0.0215s | PPO 34.53s)
+2026-03-19 06:01:59  ║  Simul rounds  : 1
+2026-03-19 06:01:59  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-19 06:01:59  ║  Win rate      : 1.000
+2026-03-19 06:01:59  ║  Avg ep length : 10922.7 steps
+2026-03-19 06:01:59  ║  Avg reward/ep : 20.0000
+2026-03-19 06:01:59  ║  p_loss        : 0.0041
+2026-03-19 06:01:59  ║  v_loss        : 0.9166
+2026-03-19 06:01:59  ║  entropy       : 1.5243
+2026-03-19 06:01:59  ╚════════════════════════════════════════════════════════════
+2026-03-19 06:01:59  
+2026-03-19 06:09:05  [update 0065] no conquest in round 1 — re-simulating …
+2026-03-19 06:16:15  
+[update 0065] winner found after 2 simulation round(s)  (dist 0.342s | collect 852.94s)
+2026-03-19 06:16:15  [update 0065] per-player GAE in 0.0209s
+2026-03-19 06:18:10  [update 0065] PPO update done in 111.97s
+2026-03-19 06:18:10    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00062.pt
+2026-03-19 06:18:10    [ckpt] saved → checkpoints_win_reward\policy_update_00065.pt  (keeping last 3)
+2026-03-19 06:18:10  
+2026-03-19 06:18:10  ╔══ update 0065 ════════════════════════════════════════════
+2026-03-19 06:18:10  ║  Wall time     : 971.1s  (dist 0.34s | collect 852.94s | GAE 0.0209s | PPO 111.97s)
+2026-03-19 06:18:10  ║  Simul rounds  : 2
+2026-03-19 06:18:10  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 06:18:10  ║  Win rate      : 1.000
+2026-03-19 06:18:10  ║  Avg ep length : 16384.0 steps
+2026-03-19 06:18:10  ║  Avg reward/ep : 20.0000
+2026-03-19 06:18:10  ║  p_loss        : 0.0047
+2026-03-19 06:18:10  ║  v_loss        : 0.2561
+2026-03-19 06:18:10  ║  entropy       : 1.6425
+2026-03-19 06:18:10  ╚════════════════════════════════════════════════════════════
+2026-03-19 06:18:10  
+2026-03-19 06:25:13  
+[update 0066] winner found after 1 simulation round(s)  (dist 0.079s | collect 422.83s)
+2026-03-19 06:25:13  [update 0066] per-player GAE in 0.0222s
+2026-03-19 06:26:34  [update 0066] PPO update done in 77.56s
+2026-03-19 06:26:34    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00063.pt
+2026-03-19 06:26:34    [ckpt] saved → checkpoints_win_reward\policy_update_00066.pt  (keeping last 3)
+2026-03-19 06:26:34  
+2026-03-19 06:26:34  ╔══ update 0066 ════════════════════════════════════════════
+2026-03-19 06:26:34  ║  Wall time     : 503.9s  (dist 0.08s | collect 422.83s | GAE 0.0222s | PPO 77.56s)
+2026-03-19 06:26:34  ║  Simul rounds  : 1
+2026-03-19 06:26:34  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-19 06:26:34  ║  Win rate      : 1.000
+2026-03-19 06:26:34  ║  Avg ep length : 10922.7 steps
+2026-03-19 06:26:34  ║  Avg reward/ep : 20.0000
+2026-03-19 06:26:34  ║  p_loss        : 0.0041
+2026-03-19 06:26:34  ║  v_loss        : 0.6162
+2026-03-19 06:26:34  ║  entropy       : 1.0348
+2026-03-19 06:26:34  ╚════════════════════════════════════════════════════════════
+2026-03-19 06:26:34  
+2026-03-19 06:33:36  
+[update 0067] winner found after 1 simulation round(s)  (dist 0.143s | collect 421.63s)
+2026-03-19 06:33:36  [update 0067] per-player GAE in 0.0217s
+2026-03-19 06:34:03  [update 0067] PPO update done in 23.77s
+2026-03-19 06:34:03    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00064.pt
+2026-03-19 06:34:03    [ckpt] saved → checkpoints_win_reward\policy_update_00067.pt  (keeping last 3)
+2026-03-19 06:34:03  
+2026-03-19 06:34:03  ╔══ update 0067 ════════════════════════════════════════════
+2026-03-19 06:34:03  ║  Wall time     : 448.7s  (dist 0.14s | collect 421.63s | GAE 0.0217s | PPO 23.77s)
+2026-03-19 06:34:03  ║  Simul rounds  : 1
+2026-03-19 06:34:03  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 06:34:03  ║  Win rate      : 1.000
+2026-03-19 06:34:03  ║  Avg ep length : 16384.0 steps
+2026-03-19 06:34:03  ║  Avg reward/ep : 20.0000
+2026-03-19 06:34:03  ║  p_loss        : 0.0068
+2026-03-19 06:34:03  ║  v_loss        : 0.6057
+2026-03-19 06:34:03  ║  entropy       : 1.1466
+2026-03-19 06:34:03  ╚════════════════════════════════════════════════════════════
+2026-03-19 06:34:03  
+2026-03-19 06:41:06  
+[update 0068] winner found after 1 simulation round(s)  (dist 0.150s | collect 423.45s)
+2026-03-19 06:41:06  [update 0068] per-player GAE in 0.0234s
+2026-03-19 06:41:41  [update 0068] PPO update done in 31.32s
+2026-03-19 06:41:41    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00065.pt
+2026-03-19 06:41:41    [ckpt] saved → checkpoints_win_reward\policy_update_00068.pt  (keeping last 3)
+2026-03-19 06:41:41  
+2026-03-19 06:41:41  ╔══ update 0068 ════════════════════════════════════════════
+2026-03-19 06:41:41  ║  Wall time     : 457.9s  (dist 0.15s | collect 423.45s | GAE 0.0234s | PPO 31.32s)
+2026-03-19 06:41:41  ║  Simul rounds  : 1
+2026-03-19 06:41:41  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-19 06:41:41  ║  Win rate      : 1.000
+2026-03-19 06:41:41  ║  Avg ep length : 32768.0 steps
+2026-03-19 06:41:41  ║  Avg reward/ep : 20.0000
+2026-03-19 06:41:41  ║  p_loss        : 0.0046
+2026-03-19 06:41:41  ║  v_loss        : 0.3650
+2026-03-19 06:41:41  ║  entropy       : 1.3863
+2026-03-19 06:41:41  ╚════════════════════════════════════════════════════════════
+2026-03-19 06:41:41  
+2026-03-19 06:48:24  
+[update 0069] winner found after 1 simulation round(s)  (dist 0.083s | collect 403.27s)
+2026-03-19 06:48:24  [update 0069] per-player GAE in 0.0204s
+2026-03-19 06:49:16  [update 0069] PPO update done in 49.18s
+2026-03-19 06:49:16    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00066.pt
+2026-03-19 06:49:16    [ckpt] saved → checkpoints_win_reward\policy_update_00069.pt  (keeping last 3)
+2026-03-19 06:49:16  
+2026-03-19 06:49:16  ╔══ update 0069 ════════════════════════════════════════════
+2026-03-19 06:49:16  ║  Wall time     : 455.5s  (dist 0.08s | collect 403.27s | GAE 0.0204s | PPO 49.18s)
+2026-03-19 06:49:16  ║  Simul rounds  : 1
+2026-03-19 06:49:16  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-19 06:49:16  ║  Win rate      : 1.000
+2026-03-19 06:49:16  ║  Avg ep length : 32768.0 steps
+2026-03-19 06:49:16  ║  Avg reward/ep : 20.0000
+2026-03-19 06:49:16  ║  p_loss        : 0.0045
+2026-03-19 06:49:16  ║  v_loss        : 0.1620
+2026-03-19 06:49:16  ║  entropy       : 1.8437
+2026-03-19 06:49:16  ╚════════════════════════════════════════════════════════════
+2026-03-19 06:49:16  
+2026-03-19 06:56:19  
+[update 0070] winner found after 1 simulation round(s)  (dist 0.084s | collect 423.11s)
+2026-03-19 06:56:19  [update 0070] per-player GAE in 0.0222s
+2026-03-19 06:57:25  [update 0070] PPO update done in 63.07s
+2026-03-19 06:57:25    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00067.pt
+2026-03-19 06:57:25    [ckpt] saved → checkpoints_win_reward\policy_update_00070.pt  (keeping last 3)
+2026-03-19 06:57:25  
+2026-03-19 06:57:25  ╔══ update 0070 ════════════════════════════════════════════
+2026-03-19 06:57:25  ║  Wall time     : 489.3s  (dist 0.08s | collect 423.11s | GAE 0.0222s | PPO 63.07s)
+2026-03-19 06:57:25  ║  Simul rounds  : 1
+2026-03-19 06:57:25  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 06:57:25  ║  Win rate      : 1.000
+2026-03-19 06:57:25  ║  Avg ep length : 16384.0 steps
+2026-03-19 06:57:25  ║  Avg reward/ep : 20.0000
+2026-03-19 06:57:25  ║  p_loss        : 0.0041
+2026-03-19 06:57:25  ║  v_loss        : 0.9429
+2026-03-19 06:57:25  ║  entropy       : 2.0021
+2026-03-19 06:57:25  ╚════════════════════════════════════════════════════════════
+2026-03-19 06:57:25  
+2026-03-19 07:04:34  
+[update 0071] winner found after 1 simulation round(s)  (dist 0.089s | collect 428.31s)
+2026-03-19 07:04:34  [update 0071] per-player GAE in 0.0201s
+2026-03-19 07:05:41  [update 0071] PPO update done in 64.00s
+2026-03-19 07:05:41    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00068.pt
+2026-03-19 07:05:41    [ckpt] saved → checkpoints_win_reward\policy_update_00071.pt  (keeping last 3)
+2026-03-19 07:05:41  
+2026-03-19 07:05:41  ╔══ update 0071 ════════════════════════════════════════════
+2026-03-19 07:05:41  ║  Wall time     : 495.4s  (dist 0.09s | collect 428.31s | GAE 0.0201s | PPO 64.00s)
+2026-03-19 07:05:41  ║  Simul rounds  : 1
+2026-03-19 07:05:41  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-19 07:05:41  ║  Win rate      : 1.000
+2026-03-19 07:05:41  ║  Avg ep length : 32768.0 steps
+2026-03-19 07:05:41  ║  Avg reward/ep : 20.0000
+2026-03-19 07:05:41  ║  p_loss        : 0.0038
+2026-03-19 07:05:41  ║  v_loss        : 0.1153
+2026-03-19 07:05:41  ║  entropy       : 1.7355
+2026-03-19 07:05:41  ╚════════════════════════════════════════════════════════════
+2026-03-19 07:05:41  
+2026-03-19 07:12:24  
+[update 0072] winner found after 1 simulation round(s)  (dist 0.086s | collect 402.49s)
+2026-03-19 07:12:24  [update 0072] per-player GAE in 0.0207s
+2026-03-19 07:13:15  [update 0072] PPO update done in 48.93s
+2026-03-19 07:13:16    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00069.pt
+2026-03-19 07:13:16    [ckpt] saved → checkpoints_win_reward\policy_update_00072.pt  (keeping last 3)
+2026-03-19 07:13:16  
+2026-03-19 07:13:16  ╔══ update 0072 ════════════════════════════════════════════
+2026-03-19 07:13:16  ║  Wall time     : 454.7s  (dist 0.09s | collect 402.49s | GAE 0.0207s | PPO 48.93s)
+2026-03-19 07:13:16  ║  Simul rounds  : 1
+2026-03-19 07:13:16  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-19 07:13:16  ║  Win rate      : 1.000
+2026-03-19 07:13:16  ║  Avg ep length : 32768.0 steps
+2026-03-19 07:13:16  ║  Avg reward/ep : 20.0000
+2026-03-19 07:13:16  ║  p_loss        : 0.0092
+2026-03-19 07:13:16  ║  v_loss        : 0.2886
+2026-03-19 07:13:16  ║  entropy       : 1.1568
+2026-03-19 07:13:16  ╚════════════════════════════════════════════════════════════
+2026-03-19 07:13:16  
+2026-03-19 07:19:40  
+[update 0073] winner found after 1 simulation round(s)  (dist 0.084s | collect 384.25s)
+2026-03-19 07:19:40  [update 0073] per-player GAE in 0.0212s
+2026-03-19 07:21:40  [update 0073] PPO update done in 117.43s
+2026-03-19 07:21:41    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00070.pt
+2026-03-19 07:21:41    [ckpt] saved → checkpoints_win_reward\policy_update_00073.pt  (keeping last 3)
+2026-03-19 07:21:41  
+2026-03-19 07:21:41  ╔══ update 0073 ════════════════════════════════════════════
+2026-03-19 07:21:41  ║  Wall time     : 504.9s  (dist 0.08s | collect 384.25s | GAE 0.0212s | PPO 117.43s)
+2026-03-19 07:21:41  ║  Simul rounds  : 1
+2026-03-19 07:21:41  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 07:21:41  ║  Win rate      : 1.000
+2026-03-19 07:21:41  ║  Avg ep length : 16384.0 steps
+2026-03-19 07:21:41  ║  Avg reward/ep : 20.0000
+2026-03-19 07:21:41  ║  p_loss        : 0.0025
+2026-03-19 07:21:41  ║  v_loss        : 0.2795
+2026-03-19 07:21:41  ║  entropy       : 1.6790
+2026-03-19 07:21:41  ╚════════════════════════════════════════════════════════════
+2026-03-19 07:21:41  
+2026-03-19 07:28:15  
+[update 0074] winner found after 1 simulation round(s)  (dist 0.088s | collect 394.37s)
+2026-03-19 07:28:15  [update 0074] per-player GAE in 0.0212s
+2026-03-19 07:29:24  [update 0074] PPO update done in 66.01s
+2026-03-19 07:29:24    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00071.pt
+2026-03-19 07:29:24    [ckpt] saved → checkpoints_win_reward\policy_update_00074.pt  (keeping last 3)
+2026-03-19 07:29:24  
+2026-03-19 07:29:24  ╔══ update 0074 ════════════════════════════════════════════
+2026-03-19 07:29:24  ║  Wall time     : 463.7s  (dist 0.09s | collect 394.37s | GAE 0.0212s | PPO 66.01s)
+2026-03-19 07:29:24  ║  Simul rounds  : 1
+2026-03-19 07:29:24  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 07:29:24  ║  Win rate      : 1.000
+2026-03-19 07:29:24  ║  Avg ep length : 16384.0 steps
+2026-03-19 07:29:24  ║  Avg reward/ep : 20.0000
+2026-03-19 07:29:24  ║  p_loss        : 0.0033
+2026-03-19 07:29:24  ║  v_loss        : 0.2679
+2026-03-19 07:29:24  ║  entropy       : 1.2497
+2026-03-19 07:29:24  ╚════════════════════════════════════════════════════════════
+2026-03-19 07:29:24  
+2026-03-19 07:35:58  
+[update 0075] winner found after 1 simulation round(s)  (dist 0.083s | collect 393.45s)
+2026-03-19 07:35:58  [update 0075] per-player GAE in 0.0211s
+2026-03-19 07:36:42  [update 0075] PPO update done in 41.11s
+2026-03-19 07:36:42    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00072.pt
+2026-03-19 07:36:42    [ckpt] saved → checkpoints_win_reward\policy_update_00075.pt  (keeping last 3)
+2026-03-19 07:36:42  
+2026-03-19 07:36:42  ╔══ update 0075 ════════════════════════════════════════════
+2026-03-19 07:36:42  ║  Wall time     : 437.6s  (dist 0.08s | collect 393.45s | GAE 0.0211s | PPO 41.11s)
+2026-03-19 07:36:42  ║  Simul rounds  : 1
+2026-03-19 07:36:42  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 07:36:42  ║  Win rate      : 1.000
+2026-03-19 07:36:42  ║  Avg ep length : 16384.0 steps
+2026-03-19 07:36:42  ║  Avg reward/ep : 20.0000
+2026-03-19 07:36:42  ║  p_loss        : 0.0046
+2026-03-19 07:36:42  ║  v_loss        : 0.2678
+2026-03-19 07:36:42  ║  entropy       : 1.3521
+2026-03-19 07:36:42  ╚════════════════════════════════════════════════════════════
+2026-03-19 07:36:42  
+2026-03-19 07:43:23  
+[update 0076] winner found after 1 simulation round(s)  (dist 0.078s | collect 401.45s)
+2026-03-19 07:43:23  [update 0076] per-player GAE in 0.0203s
+2026-03-19 07:45:03  [update 0076] PPO update done in 97.43s
+2026-03-19 07:45:04    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00073.pt
+2026-03-19 07:45:04    [ckpt] saved → checkpoints_win_reward\policy_update_00076.pt  (keeping last 3)
+2026-03-19 07:45:04  
+2026-03-19 07:45:04  ╔══ update 0076 ════════════════════════════════════════════
+2026-03-19 07:45:04  ║  Wall time     : 501.9s  (dist 0.08s | collect 401.45s | GAE 0.0203s | PPO 97.43s)
+2026-03-19 07:45:04  ║  Simul rounds  : 1
+2026-03-19 07:45:04  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 07:45:04  ║  Win rate      : 1.000
+2026-03-19 07:45:04  ║  Avg ep length : 16384.0 steps
+2026-03-19 07:45:04  ║  Avg reward/ep : 20.0000
+2026-03-19 07:45:04  ║  p_loss        : 0.0097
+2026-03-19 07:45:04  ║  v_loss        : 0.2307
+2026-03-19 07:45:04  ║  entropy       : 1.4008
+2026-03-19 07:45:04  ╚════════════════════════════════════════════════════════════
+2026-03-19 07:45:04  
+2026-03-19 07:51:42  
+[update 0077] winner found after 1 simulation round(s)  (dist 0.149s | collect 398.39s)
+2026-03-19 07:51:42  [update 0077] per-player GAE in 0.0212s
+2026-03-19 07:52:19  [update 0077] PPO update done in 33.47s
+2026-03-19 07:52:19    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00074.pt
+2026-03-19 07:52:19    [ckpt] saved → checkpoints_win_reward\policy_update_00077.pt  (keeping last 3)
+2026-03-19 07:52:19  
+2026-03-19 07:52:19  ╔══ update 0077 ════════════════════════════════════════════
+2026-03-19 07:52:19  ║  Wall time     : 435.0s  (dist 0.15s | collect 398.39s | GAE 0.0212s | PPO 33.47s)
+2026-03-19 07:52:19  ║  Simul rounds  : 1
+2026-03-19 07:52:19  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-19 07:52:19  ║  Win rate      : 1.000
+2026-03-19 07:52:19  ║  Avg ep length : 32768.0 steps
+2026-03-19 07:52:19  ║  Avg reward/ep : 20.0000
+2026-03-19 07:52:19  ║  p_loss        : 0.0046
+2026-03-19 07:52:19  ║  v_loss        : 0.1099
+2026-03-19 07:52:19  ║  entropy       : 1.1267
+2026-03-19 07:52:19  ╚════════════════════════════════════════════════════════════
+2026-03-19 07:52:19  
+2026-03-19 07:58:53  
+[update 0078] winner found after 1 simulation round(s)  (dist 0.084s | collect 394.28s)
+2026-03-19 07:58:53  [update 0078] per-player GAE in 0.0206s
+2026-03-19 07:59:30  [update 0078] PPO update done in 34.30s
+2026-03-19 07:59:30    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00075.pt
+2026-03-19 07:59:30    [ckpt] saved → checkpoints_win_reward\policy_update_00078.pt  (keeping last 3)
+2026-03-19 07:59:30  
+2026-03-19 07:59:30  ╔══ update 0078 ════════════════════════════════════════════
+2026-03-19 07:59:30  ║  Wall time     : 431.4s  (dist 0.08s | collect 394.28s | GAE 0.0206s | PPO 34.30s)
+2026-03-19 07:59:30  ║  Simul rounds  : 1
+2026-03-19 07:59:30  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-19 07:59:30  ║  Win rate      : 1.000
+2026-03-19 07:59:30  ║  Avg ep length : 32768.0 steps
+2026-03-19 07:59:30  ║  Avg reward/ep : 20.0000
+2026-03-19 07:59:30  ║  p_loss        : 0.0096
+2026-03-19 07:59:30  ║  v_loss        : 0.0653
+2026-03-19 07:59:30  ║  entropy       : 1.7665
+2026-03-19 07:59:30  ╚════════════════════════════════════════════════════════════
+2026-03-19 07:59:30  
+2026-03-19 08:06:22  [update 0079] no conquest in round 1 — re-simulating …
+2026-03-19 08:12:57  
+[update 0079] winner found after 2 simulation round(s)  (dist 0.260s | collect 804.30s)
+2026-03-19 08:12:57  [update 0079] per-player GAE in 0.0231s
+2026-03-19 08:13:46  [update 0079] PPO update done in 46.19s
+2026-03-19 08:13:46    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00076.pt
+2026-03-19 08:13:46    [ckpt] saved → checkpoints_win_reward\policy_update_00079.pt  (keeping last 3)
+2026-03-19 08:13:46  
+2026-03-19 08:13:46  ╔══ update 0079 ════════════════════════════════════════════
+2026-03-19 08:13:46  ║  Wall time     : 856.2s  (dist 0.26s | collect 804.30s | GAE 0.0231s | PPO 46.19s)
+2026-03-19 08:13:46  ║  Simul rounds  : 2
+2026-03-19 08:13:46  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-19 08:13:46  ║  Win rate      : 1.000
+2026-03-19 08:13:46  ║  Avg ep length : 32768.0 steps
+2026-03-19 08:13:46  ║  Avg reward/ep : 20.0000
+2026-03-19 08:13:46  ║  p_loss        : 0.0151
+2026-03-19 08:13:46  ║  v_loss        : 0.0564
+2026-03-19 08:13:46  ║  entropy       : 1.3823
+2026-03-19 08:13:46  ╚════════════════════════════════════════════════════════════
+2026-03-19 08:13:46  
+2026-03-19 08:20:38  
+[update 0080] winner found after 1 simulation round(s)  (dist 0.074s | collect 411.23s)
+2026-03-19 08:20:38  [update 0080] per-player GAE in 0.0205s
+2026-03-19 08:21:49  [update 0080] PPO update done in 68.89s
+2026-03-19 08:21:50    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00077.pt
+2026-03-19 08:21:50    [ckpt] saved → checkpoints_win_reward\policy_update_00080.pt  (keeping last 3)
+2026-03-19 08:21:50  
+2026-03-19 08:21:50  ╔══ update 0080 ════════════════════════════════════════════
+2026-03-19 08:21:50  ║  Wall time     : 483.2s  (dist 0.07s | collect 411.23s | GAE 0.0205s | PPO 68.89s)
+2026-03-19 08:21:50  ║  Simul rounds  : 1
+2026-03-19 08:21:50  ║  Games finished:      4  (conquest 4, timeout 0)
+2026-03-19 08:21:50  ║  Win rate      : 1.000
+2026-03-19 08:21:50  ║  Avg ep length : 8192.0 steps
+2026-03-19 08:21:50  ║  Avg reward/ep : 20.0000
+2026-03-19 08:21:50  ║  p_loss        : 0.0072
+2026-03-19 08:21:50  ║  v_loss        : 0.3870
+2026-03-19 08:21:50  ║  entropy       : 1.1004
+2026-03-19 08:21:50  ╚════════════════════════════════════════════════════════════
+2026-03-19 08:21:50  
+2026-03-19 08:28:41  
+[update 0081] winner found after 1 simulation round(s)  (dist 0.150s | collect 411.32s)
+2026-03-19 08:28:41  [update 0081] per-player GAE in 0.0219s
+2026-03-19 08:33:49  [update 0081] PPO update done in 304.17s
+2026-03-19 08:33:49    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00078.pt
+2026-03-19 08:33:49    [ckpt] saved → checkpoints_win_reward\policy_update_00081.pt  (keeping last 3)
+2026-03-19 08:33:49  
+2026-03-19 08:33:49  ╔══ update 0081 ════════════════════════════════════════════
+2026-03-19 08:33:49  ║  Wall time     : 719.4s  (dist 0.15s | collect 411.32s | GAE 0.0219s | PPO 304.17s)
+2026-03-19 08:33:49  ║  Simul rounds  : 1
+2026-03-19 08:33:49  ║  Games finished:      7  (conquest 7, timeout 0)
+2026-03-19 08:33:49  ║  Win rate      : 1.000
+2026-03-19 08:33:49  ║  Avg ep length : 4681.1 steps
+2026-03-19 08:33:49  ║  Avg reward/ep : 20.0000
+2026-03-19 08:33:49  ║  p_loss        : 0.0067
+2026-03-19 08:33:49  ║  v_loss        : 0.3869
+2026-03-19 08:33:49  ║  entropy       : 1.2622
+2026-03-19 08:33:49  ╚════════════════════════════════════════════════════════════
+2026-03-19 08:33:49  
+2026-03-19 08:40:39  
+[update 0082] winner found after 1 simulation round(s)  (dist 0.075s | collect 409.99s)
+2026-03-19 08:40:39  [update 0082] per-player GAE in 0.0234s
+2026-03-19 08:43:12  [update 0082] PPO update done in 149.72s
+2026-03-19 08:43:12    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00079.pt
+2026-03-19 08:43:12    [ckpt] saved → checkpoints_win_reward\policy_update_00082.pt  (keeping last 3)
+2026-03-19 08:43:12  
+2026-03-19 08:43:12  ╔══ update 0082 ════════════════════════════════════════════
+2026-03-19 08:43:12  ║  Wall time     : 563.1s  (dist 0.08s | collect 409.99s | GAE 0.0234s | PPO 149.72s)
+2026-03-19 08:43:12  ║  Simul rounds  : 1
+2026-03-19 08:43:12  ║  Games finished:     10  (conquest 10, timeout 0)
+2026-03-19 08:43:12  ║  Win rate      : 1.000
+2026-03-19 08:43:12  ║  Avg ep length : 3276.8 steps
+2026-03-19 08:43:12  ║  Avg reward/ep : 20.0000
+2026-03-19 08:43:12  ║  p_loss        : 0.0090
+2026-03-19 08:43:12  ║  v_loss        : 0.4608
+2026-03-19 08:43:12  ║  entropy       : 1.2152
+2026-03-19 08:43:12  ╚════════════════════════════════════════════════════════════
+2026-03-19 08:43:12  
+2026-03-19 08:50:14  
+[update 0083] winner found after 1 simulation round(s)  (dist 0.077s | collect 422.09s)
+2026-03-19 08:50:14  [update 0083] per-player GAE in 0.0216s
+2026-03-19 08:53:22  [update 0083] PPO update done in 184.42s
+2026-03-19 08:53:22    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00080.pt
+2026-03-19 08:53:22    [ckpt] saved → checkpoints_win_reward\policy_update_00083.pt  (keeping last 3)
+2026-03-19 08:53:22  
+2026-03-19 08:53:22  ╔══ update 0083 ════════════════════════════════════════════
+2026-03-19 08:53:22  ║  Wall time     : 610.3s  (dist 0.08s | collect 422.09s | GAE 0.0216s | PPO 184.42s)
+2026-03-19 08:53:22  ║  Simul rounds  : 1
+2026-03-19 08:53:22  ║  Games finished:      8  (conquest 8, timeout 0)
+2026-03-19 08:53:22  ║  Win rate      : 1.000
+2026-03-19 08:53:22  ║  Avg ep length : 4096.0 steps
+2026-03-19 08:53:22  ║  Avg reward/ep : 20.0000
+2026-03-19 08:53:22  ║  p_loss        : 0.0119
+2026-03-19 08:53:22  ║  v_loss        : 0.3233
+2026-03-19 08:53:22  ║  entropy       : 1.3564
+2026-03-19 08:53:22  ╚════════════════════════════════════════════════════════════
+2026-03-19 08:53:22  
+2026-03-19 08:59:50  
+[update 0084] winner found after 1 simulation round(s)  (dist 0.080s | collect 387.08s)
+2026-03-19 08:59:50  [update 0084] per-player GAE in 0.0219s
+2026-03-19 09:05:27  [update 0084] PPO update done in 334.45s
+2026-03-19 09:05:28    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00081.pt
+2026-03-19 09:05:28    [ckpt] saved → checkpoints_win_reward\policy_update_00084.pt  (keeping last 3)
+2026-03-19 09:05:28  
+2026-03-19 09:05:28  ╔══ update 0084 ════════════════════════════════════════════
+2026-03-19 09:05:28  ║  Wall time     : 725.3s  (dist 0.08s | collect 387.08s | GAE 0.0219s | PPO 334.45s)
+2026-03-19 09:05:28  ║  Simul rounds  : 1
+2026-03-19 09:05:28  ║  Games finished:     10  (conquest 10, timeout 0)
+2026-03-19 09:05:28  ║  Win rate      : 1.000
+2026-03-19 09:05:28  ║  Avg ep length : 3276.8 steps
+2026-03-19 09:05:28  ║  Avg reward/ep : 20.0000
+2026-03-19 09:05:28  ║  p_loss        : 0.0069
+2026-03-19 09:05:28  ║  v_loss        : 0.3376
+2026-03-19 09:05:28  ║  entropy       : 1.4607
+2026-03-19 09:05:28  ╚════════════════════════════════════════════════════════════
+2026-03-19 09:05:28  
+2026-03-19 09:11:55  
+[update 0085] winner found after 1 simulation round(s)  (dist 0.073s | collect 386.90s)
+2026-03-19 09:11:55  [update 0085] per-player GAE in 0.0233s
+2026-03-19 09:17:02  [update 0085] PPO update done in 304.76s
+2026-03-19 09:17:03    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00082.pt
+2026-03-19 09:17:03    [ckpt] saved → checkpoints_win_reward\policy_update_00085.pt  (keeping last 3)
+2026-03-19 09:17:03  
+2026-03-19 09:17:03  ╔══ update 0085 ════════════════════════════════════════════
+2026-03-19 09:17:03  ║  Wall time     : 695.2s  (dist 0.07s | collect 386.90s | GAE 0.0233s | PPO 304.76s)
+2026-03-19 09:17:03  ║  Simul rounds  : 1
+2026-03-19 09:17:03  ║  Games finished:      9  (conquest 9, timeout 0)
+2026-03-19 09:17:03  ║  Win rate      : 1.000
+2026-03-19 09:17:03  ║  Avg ep length : 3640.9 steps
+2026-03-19 09:17:03  ║  Avg reward/ep : 20.0000
+2026-03-19 09:17:03  ║  p_loss        : 0.0095
+2026-03-19 09:17:03  ║  v_loss        : 0.1991
+2026-03-19 09:17:03  ║  entropy       : 1.5584
+2026-03-19 09:17:03  ╚════════════════════════════════════════════════════════════
+2026-03-19 09:17:03  
+2026-03-19 09:23:43  
+[update 0086] winner found after 1 simulation round(s)  (dist 0.128s | collect 400.35s)
+2026-03-19 09:23:43  [update 0086] per-player GAE in 0.0197s
+2026-03-19 09:27:45  [update 0086] PPO update done in 238.12s
+2026-03-19 09:27:45    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00083.pt
+2026-03-19 09:27:45    [ckpt] saved → checkpoints_win_reward\policy_update_00086.pt  (keeping last 3)
+2026-03-19 09:27:45  
+2026-03-19 09:27:45  ╔══ update 0086 ════════════════════════════════════════════
+2026-03-19 09:27:45  ║  Wall time     : 642.1s  (dist 0.13s | collect 400.35s | GAE 0.0197s | PPO 238.12s)
+2026-03-19 09:27:45  ║  Simul rounds  : 1
+2026-03-19 09:27:45  ║  Games finished:      8  (conquest 8, timeout 0)
+2026-03-19 09:27:45  ║  Win rate      : 1.000
+2026-03-19 09:27:45  ║  Avg ep length : 4096.0 steps
+2026-03-19 09:27:45  ║  Avg reward/ep : 20.0000
+2026-03-19 09:27:45  ║  p_loss        : 0.0090
+2026-03-19 09:27:45  ║  v_loss        : 0.3020
+2026-03-19 09:27:45  ║  entropy       : 1.3345
+2026-03-19 09:27:45  ╚════════════════════════════════════════════════════════════
+2026-03-19 09:27:45  
+2026-03-19 09:34:17  
+[update 0087] winner found after 1 simulation round(s)  (dist 0.076s | collect 391.81s)
+2026-03-19 09:34:17  [update 0087] per-player GAE in 0.0217s
+2026-03-19 09:38:02  [update 0087] PPO update done in 221.90s
+2026-03-19 09:38:02    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00084.pt
+2026-03-19 09:38:02    [ckpt] saved → checkpoints_win_reward\policy_update_00087.pt  (keeping last 3)
+2026-03-19 09:38:02  
+2026-03-19 09:38:02  ╔══ update 0087 ════════════════════════════════════════════
+2026-03-19 09:38:02  ║  Wall time     : 616.9s  (dist 0.08s | collect 391.81s | GAE 0.0217s | PPO 221.90s)
+2026-03-19 09:38:02  ║  Simul rounds  : 1
+2026-03-19 09:38:02  ║  Games finished:      9  (conquest 8, timeout 1)
+2026-03-19 09:38:02  ║  Win rate      : 0.889
+2026-03-19 09:38:02  ║  Avg ep length : 3640.9 steps
+2026-03-19 09:38:02  ║  Avg reward/ep : 17.7778
+2026-03-19 09:38:02  ║  p_loss        : 0.0091
+2026-03-19 09:38:02  ║  v_loss        : 0.5085
+2026-03-19 09:38:02  ║  entropy       : 1.7224
+2026-03-19 09:38:02  ╚════════════════════════════════════════════════════════════
+2026-03-19 09:38:02  
+2026-03-19 09:44:40  
+[update 0088] winner found after 1 simulation round(s)  (dist 0.156s | collect 397.44s)
+2026-03-19 09:44:40  [update 0088] per-player GAE in 0.0207s
+2026-03-19 09:46:12  [update 0088] PPO update done in 89.55s
+2026-03-19 09:46:12    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00085.pt
+2026-03-19 09:46:12    [ckpt] saved → checkpoints_win_reward\policy_update_00088.pt  (keeping last 3)
+2026-03-19 09:46:12  
+2026-03-19 09:46:12  ╔══ update 0088 ════════════════════════════════════════════
+2026-03-19 09:46:12  ║  Wall time     : 490.4s  (dist 0.16s | collect 397.44s | GAE 0.0207s | PPO 89.55s)
+2026-03-19 09:46:12  ║  Simul rounds  : 1
+2026-03-19 09:46:12  ║  Games finished:      3  (conquest 3, timeout 0)
+2026-03-19 09:46:12  ║  Win rate      : 1.000
+2026-03-19 09:46:12  ║  Avg ep length : 10922.7 steps
+2026-03-19 09:46:12  ║  Avg reward/ep : 20.0000
+2026-03-19 09:46:12  ║  p_loss        : 0.0068
+2026-03-19 09:46:12  ║  v_loss        : 0.2753
+2026-03-19 09:46:12  ║  entropy       : 1.4158
+2026-03-19 09:46:12  ╚════════════════════════════════════════════════════════════
+2026-03-19 09:46:12  
+2026-03-19 09:52:40  
+[update 0089] winner found after 1 simulation round(s)  (dist 0.088s | collect 387.29s)
+2026-03-19 09:52:40  [update 0089] per-player GAE in 0.0243s
+2026-03-19 09:56:59  [update 0089] PPO update done in 256.14s
+2026-03-19 09:57:00    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00086.pt
+2026-03-19 09:57:00    [ckpt] saved → checkpoints_win_reward\policy_update_00089.pt  (keeping last 3)
+2026-03-19 09:57:00  
+2026-03-19 09:57:00  ╔══ update 0089 ════════════════════════════════════════════
+2026-03-19 09:57:00  ║  Wall time     : 647.3s  (dist 0.09s | collect 387.29s | GAE 0.0243s | PPO 256.14s)
+2026-03-19 09:57:00  ║  Simul rounds  : 1
+2026-03-19 09:57:00  ║  Games finished:      6  (conquest 6, timeout 0)
+2026-03-19 09:57:00  ║  Win rate      : 1.000
+2026-03-19 09:57:00  ║  Avg ep length : 5461.3 steps
+2026-03-19 09:57:00  ║  Avg reward/ep : 20.0000
+2026-03-19 09:57:00  ║  p_loss        : 0.0018
+2026-03-19 09:57:00  ║  v_loss        : 0.3113
+2026-03-19 09:57:00  ║  entropy       : 1.3632
+2026-03-19 09:57:00  ╚════════════════════════════════════════════════════════════
+2026-03-19 09:57:00  
+2026-03-19 10:03:46  
+[update 0090] winner found after 1 simulation round(s)  (dist 0.074s | collect 406.00s)
+2026-03-19 10:03:46  [update 0090] per-player GAE in 0.0214s
+2026-03-19 10:07:35  [update 0090] PPO update done in 226.02s
+2026-03-19 10:07:36    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00087.pt
+2026-03-19 10:07:36    [ckpt] saved → checkpoints_win_reward\policy_update_00090.pt  (keeping last 3)
+2026-03-19 10:07:36  
+2026-03-19 10:07:36  ╔══ update 0090 ════════════════════════════════════════════
+2026-03-19 10:07:36  ║  Wall time     : 636.0s  (dist 0.07s | collect 406.00s | GAE 0.0214s | PPO 226.02s)
+2026-03-19 10:07:36  ║  Simul rounds  : 1
+2026-03-19 10:07:36  ║  Games finished:     10  (conquest 10, timeout 0)
+2026-03-19 10:07:36  ║  Win rate      : 1.000
+2026-03-19 10:07:36  ║  Avg ep length : 3276.8 steps
+2026-03-19 10:07:36  ║  Avg reward/ep : 20.0000
+2026-03-19 10:07:36  ║  p_loss        : 0.0060
+2026-03-19 10:07:36  ║  v_loss        : 0.3749
+2026-03-19 10:07:36  ║  entropy       : 1.2388
+2026-03-19 10:07:36  ╚════════════════════════════════════════════════════════════
+2026-03-19 10:07:36  
+2026-03-19 10:14:25  
+[update 0091] winner found after 1 simulation round(s)  (dist 0.075s | collect 408.94s)
+2026-03-19 10:14:25  [update 0091] per-player GAE in 0.0212s
+2026-03-19 10:17:39  [update 0091] PPO update done in 191.25s
+2026-03-19 10:17:39    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00088.pt
+2026-03-19 10:17:39    [ckpt] saved → checkpoints_win_reward\policy_update_00091.pt  (keeping last 3)
+2026-03-19 10:17:39  
+2026-03-19 10:17:39  ╔══ update 0091 ════════════════════════════════════════════
+2026-03-19 10:17:39  ║  Wall time     : 603.6s  (dist 0.07s | collect 408.94s | GAE 0.0212s | PPO 191.25s)
+2026-03-19 10:17:39  ║  Simul rounds  : 1
+2026-03-19 10:17:39  ║  Games finished:      5  (conquest 5, timeout 0)
+2026-03-19 10:17:39  ║  Win rate      : 1.000
+2026-03-19 10:17:39  ║  Avg ep length : 6553.6 steps
+2026-03-19 10:17:39  ║  Avg reward/ep : 20.0000
+2026-03-19 10:17:39  ║  p_loss        : 0.0093
+2026-03-19 10:17:39  ║  v_loss        : 0.1313
+2026-03-19 10:17:39  ║  entropy       : 1.6003
+2026-03-19 10:17:39  ╚════════════════════════════════════════════════════════════
+2026-03-19 10:17:39  
+2026-03-19 10:24:27  
+[update 0092] winner found after 1 simulation round(s)  (dist 0.088s | collect 407.82s)
+2026-03-19 10:24:27  [update 0092] per-player GAE in 0.0223s
+2026-03-19 10:26:06  [update 0092] PPO update done in 95.91s
+2026-03-19 10:26:06    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00089.pt
+2026-03-19 10:26:06    [ckpt] saved → checkpoints_win_reward\policy_update_00092.pt  (keeping last 3)
+2026-03-19 10:26:06  
+2026-03-19 10:26:06  ╔══ update 0092 ════════════════════════════════════════════
+2026-03-19 10:26:06  ║  Wall time     : 507.2s  (dist 0.09s | collect 407.82s | GAE 0.0223s | PPO 95.91s)
+2026-03-19 10:26:06  ║  Simul rounds  : 1
+2026-03-19 10:26:06  ║  Games finished:      5  (conquest 5, timeout 0)
+2026-03-19 10:26:06  ║  Win rate      : 1.000
+2026-03-19 10:26:06  ║  Avg ep length : 6553.6 steps
+2026-03-19 10:26:06  ║  Avg reward/ep : 20.0000
+2026-03-19 10:26:06  ║  p_loss        : 0.0064
+2026-03-19 10:26:06  ║  v_loss        : 0.5101
+2026-03-19 10:26:06  ║  entropy       : 1.3048
+2026-03-19 10:26:06  ╚════════════════════════════════════════════════════════════
+2026-03-19 10:26:06  
+2026-03-19 10:32:59  
+[update 0093] winner found after 1 simulation round(s)  (dist 0.081s | collect 412.32s)
+2026-03-19 10:32:59  [update 0093] per-player GAE in 0.0230s
+2026-03-19 10:35:15  [update 0093] PPO update done in 133.36s
+2026-03-19 10:35:16    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00090.pt
+2026-03-19 10:35:16    [ckpt] saved → checkpoints_win_reward\policy_update_00093.pt  (keeping last 3)
+2026-03-19 10:35:16  
+2026-03-19 10:35:16  ╔══ update 0093 ════════════════════════════════════════════
+2026-03-19 10:35:16  ║  Wall time     : 549.2s  (dist 0.08s | collect 412.32s | GAE 0.0230s | PPO 133.36s)
+2026-03-19 10:35:16  ║  Simul rounds  : 1
+2026-03-19 10:35:16  ║  Games finished:      7  (conquest 6, timeout 1)
+2026-03-19 10:35:16  ║  Win rate      : 0.857
+2026-03-19 10:35:16  ║  Avg ep length : 4681.1 steps
+2026-03-19 10:35:16  ║  Avg reward/ep : 17.1429
+2026-03-19 10:35:16  ║  p_loss        : 0.0071
+2026-03-19 10:35:16  ║  v_loss        : 0.2643
+2026-03-19 10:35:16  ║  entropy       : 1.4601
+2026-03-19 10:35:16  ╚════════════════════════════════════════════════════════════
+2026-03-19 10:35:16  
+2026-03-19 10:42:12  
+[update 0094] winner found after 1 simulation round(s)  (dist 0.092s | collect 416.52s)
+2026-03-19 10:42:12  [update 0094] per-player GAE in 0.0234s
+2026-03-19 10:43:34  [update 0094] PPO update done in 79.28s
+2026-03-19 10:43:34    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00091.pt
+2026-03-19 10:43:34    [ckpt] saved → checkpoints_win_reward\policy_update_00094.pt  (keeping last 3)
+2026-03-19 10:43:34  
+2026-03-19 10:43:34  ╔══ update 0094 ════════════════════════════════════════════
+2026-03-19 10:43:34  ║  Wall time     : 498.9s  (dist 0.09s | collect 416.52s | GAE 0.0234s | PPO 79.28s)
+2026-03-19 10:43:34  ║  Simul rounds  : 1
+2026-03-19 10:43:34  ║  Games finished:      3  (conquest 1, timeout 2)
+2026-03-19 10:43:34  ║  Win rate      : 0.333
+2026-03-19 10:43:34  ║  Avg ep length : 10922.7 steps
+2026-03-19 10:43:34  ║  Avg reward/ep : 6.6667
+2026-03-19 10:43:34  ║  p_loss        : 0.0059
+2026-03-19 10:43:34  ║  v_loss        : 0.5540
+2026-03-19 10:43:34  ║  entropy       : 1.3902
+2026-03-19 10:43:34  ╚════════════════════════════════════════════════════════════
+2026-03-19 10:43:34  
+2026-03-19 10:49:59  
+[update 0095] winner found after 1 simulation round(s)  (dist 0.160s | collect 384.08s)
+2026-03-19 10:49:59  [update 0095] per-player GAE in 0.0209s
+2026-03-19 10:52:40  [update 0095] PPO update done in 158.18s
+2026-03-19 10:52:40    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00092.pt
+2026-03-19 10:52:40    [ckpt] saved → checkpoints_win_reward\policy_update_00095.pt  (keeping last 3)
+2026-03-19 10:52:40  
+2026-03-19 10:52:40  ╔══ update 0095 ════════════════════════════════════════════
+2026-03-19 10:52:40  ║  Wall time     : 546.0s  (dist 0.16s | collect 384.08s | GAE 0.0209s | PPO 158.18s)
+2026-03-19 10:52:40  ║  Simul rounds  : 1
+2026-03-19 10:52:40  ║  Games finished:      5  (conquest 4, timeout 1)
+2026-03-19 10:52:40  ║  Win rate      : 0.800
+2026-03-19 10:52:40  ║  Avg ep length : 6553.6 steps
+2026-03-19 10:52:40  ║  Avg reward/ep : 16.0000
+2026-03-19 10:52:40  ║  p_loss        : 0.0087
+2026-03-19 10:52:40  ║  v_loss        : 0.2550
+2026-03-19 10:52:40  ║  entropy       : 1.6433
+2026-03-19 10:52:40  ╚════════════════════════════════════════════════════════════
+2026-03-19 10:52:40  
+2026-03-19 10:59:42  
+[update 0096] winner found after 1 simulation round(s)  (dist 0.151s | collect 421.12s)
+2026-03-19 10:59:42  [update 0096] per-player GAE in 0.0218s
+2026-03-19 11:01:26  [update 0096] PPO update done in 101.69s
+2026-03-19 11:01:26    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00093.pt
+2026-03-19 11:01:26    [ckpt] saved → checkpoints_win_reward\policy_update_00096.pt  (keeping last 3)
+2026-03-19 11:01:26  
+2026-03-19 11:01:26  ╔══ update 0096 ════════════════════════════════════════════
+2026-03-19 11:01:26  ║  Wall time     : 525.9s  (dist 0.15s | collect 421.12s | GAE 0.0218s | PPO 101.69s)
+2026-03-19 11:01:26  ║  Simul rounds  : 1
+2026-03-19 11:01:26  ║  Games finished:      7  (conquest 4, timeout 3)
+2026-03-19 11:01:26  ║  Win rate      : 0.571
+2026-03-19 11:01:26  ║  Avg ep length : 4681.1 steps
+2026-03-19 11:01:26  ║  Avg reward/ep : 11.4286
+2026-03-19 11:01:26  ║  p_loss        : 0.0100
+2026-03-19 11:01:26  ║  v_loss        : 0.4198
+2026-03-19 11:01:26  ║  entropy       : 1.7065
+2026-03-19 11:01:26  ╚════════════════════════════════════════════════════════════
+2026-03-19 11:01:26  
+2026-03-19 11:08:31  
+[update 0097] winner found after 1 simulation round(s)  (dist 0.092s | collect 424.98s)
+2026-03-19 11:08:31  [update 0097] per-player GAE in 0.0214s
+2026-03-19 11:09:40  [update 0097] PPO update done in 65.88s
+2026-03-19 11:09:40    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00094.pt
+2026-03-19 11:09:40    [ckpt] saved → checkpoints_win_reward\policy_update_00097.pt  (keeping last 3)
+2026-03-19 11:09:40  
+2026-03-19 11:09:40  ╔══ update 0097 ════════════════════════════════════════════
+2026-03-19 11:09:40  ║  Wall time     : 494.0s  (dist 0.09s | collect 424.98s | GAE 0.0214s | PPO 65.88s)
+2026-03-19 11:09:40  ║  Simul rounds  : 1
+2026-03-19 11:09:40  ║  Games finished:      1  (conquest 1, timeout 0)
+2026-03-19 11:09:40  ║  Win rate      : 1.000
+2026-03-19 11:09:40  ║  Avg ep length : 32768.0 steps
+2026-03-19 11:09:40  ║  Avg reward/ep : 20.0000
+2026-03-19 11:09:40  ║  p_loss        : -0.0002
+2026-03-19 11:09:40  ║  v_loss        : 0.4299
+2026-03-19 11:09:40  ║  entropy       : 1.8636
+2026-03-19 11:09:40  ╚════════════════════════════════════════════════════════════
+2026-03-19 11:09:40  
+2026-03-19 11:16:46  
+[update 0098] winner found after 1 simulation round(s)  (dist 0.081s | collect 425.74s)
+2026-03-19 11:16:46  [update 0098] per-player GAE in 0.0228s
+2026-03-19 11:18:38  [update 0098] PPO update done in 108.73s
+2026-03-19 11:18:38    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00095.pt
+2026-03-19 11:18:38    [ckpt] saved → checkpoints_win_reward\policy_update_00098.pt  (keeping last 3)
+2026-03-19 11:18:38  
+2026-03-19 11:18:38  ╔══ update 0098 ════════════════════════════════════════════
+2026-03-19 11:18:38  ║  Wall time     : 537.8s  (dist 0.08s | collect 425.74s | GAE 0.0228s | PPO 108.73s)
+2026-03-19 11:18:38  ║  Simul rounds  : 1
+2026-03-19 11:18:38  ║  Games finished:      4  (conquest 4, timeout 0)
+2026-03-19 11:18:38  ║  Win rate      : 1.000
+2026-03-19 11:18:38  ║  Avg ep length : 8192.0 steps
+2026-03-19 11:18:38  ║  Avg reward/ep : 22.5000
+2026-03-19 11:18:38  ║  p_loss        : 0.0077
+2026-03-19 11:18:38  ║  v_loss        : 0.2935
+2026-03-19 11:18:38  ║  entropy       : 1.2213
+2026-03-19 11:18:38  ╚════════════════════════════════════════════════════════════
+2026-03-19 11:18:38  
+2026-03-19 11:25:42  [update 0099] no conquest in round 1 — re-simulating …
+2026-03-19 11:32:52  
+[update 0099] winner found after 2 simulation round(s)  (dist 0.188s | collect 850.56s)
+2026-03-19 11:32:52  [update 0099] per-player GAE in 0.0246s
+2026-03-19 11:34:23  [update 0099] PPO update done in 88.64s
+2026-03-19 11:34:24    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00096.pt
+2026-03-19 11:34:24    [ckpt] saved → checkpoints_win_reward\policy_update_00099.pt  (keeping last 3)
+2026-03-19 11:34:24  
+2026-03-19 11:34:24  ╔══ update 0099 ════════════════════════════════════════════
+2026-03-19 11:34:24  ║  Wall time     : 945.5s  (dist 0.19s | collect 850.56s | GAE 0.0246s | PPO 88.64s)
+2026-03-19 11:34:24  ║  Simul rounds  : 2
+2026-03-19 11:34:24  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 11:34:24  ║  Win rate      : 1.000
+2026-03-19 11:34:24  ║  Avg ep length : 16384.0 steps
+2026-03-19 11:34:24  ║  Avg reward/ep : 20.0000
+2026-03-19 11:34:24  ║  p_loss        : 0.0010
+2026-03-19 11:34:24  ║  v_loss        : 0.2189
+2026-03-19 11:34:24  ║  entropy       : 1.3723
+2026-03-19 11:34:24  ╚════════════════════════════════════════════════════════════
+2026-03-19 11:34:24  
+2026-03-19 11:41:30  
+[update 0100] winner found after 1 simulation round(s)  (dist 0.091s | collect 426.56s)
+2026-03-19 11:41:30  [update 0100] per-player GAE in 0.0206s
+2026-03-19 11:43:21  [update 0100] PPO update done in 107.52s
+2026-03-19 11:43:21    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00097.pt
+2026-03-19 11:43:21    [ckpt] saved → checkpoints_win_reward\policy_update_00100.pt  (keeping last 3)
+2026-03-19 11:43:21  
+2026-03-19 11:43:21  ╔══ update 0100 ════════════════════════════════════════════
+2026-03-19 11:43:21  ║  Wall time     : 537.3s  (dist 0.09s | collect 426.56s | GAE 0.0206s | PPO 107.52s)
+2026-03-19 11:43:21  ║  Simul rounds  : 1
+2026-03-19 11:43:21  ║  Games finished:      6  (conquest 5, timeout 1)
+2026-03-19 11:43:21  ║  Win rate      : 0.833
+2026-03-19 11:43:21  ║  Avg ep length : 5461.3 steps
+2026-03-19 11:43:21  ║  Avg reward/ep : 16.6667
+2026-03-19 11:43:21  ║  p_loss        : 0.0050
+2026-03-19 11:43:21  ║  v_loss        : 0.6515
+2026-03-19 11:43:21  ║  entropy       : 1.3935
+2026-03-19 11:43:21  ╚════════════════════════════════════════════════════════════
+2026-03-19 11:43:21  
+2026-03-19 11:50:27  
+[update 0101] winner found after 1 simulation round(s)  (dist 0.075s | collect 425.53s)
+2026-03-19 11:50:27  [update 0101] per-player GAE in 0.0255s
+2026-03-19 11:52:32  [update 0101] PPO update done in 122.03s
+2026-03-19 11:52:32    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00098.pt
+2026-03-19 11:52:32    [ckpt] saved → checkpoints_win_reward\policy_update_00101.pt  (keeping last 3)
+2026-03-19 11:52:32  
+2026-03-19 11:52:32  ╔══ update 0101 ════════════════════════════════════════════
+2026-03-19 11:52:32  ║  Wall time     : 551.1s  (dist 0.08s | collect 425.53s | GAE 0.0255s | PPO 122.03s)
+2026-03-19 11:52:32  ║  Simul rounds  : 1
+2026-03-19 11:52:32  ║  Games finished:      8  (conquest 8, timeout 0)
+2026-03-19 11:52:32  ║  Win rate      : 1.000
+2026-03-19 11:52:32  ║  Avg ep length : 4096.0 steps
+2026-03-19 11:52:32  ║  Avg reward/ep : 20.0000
+2026-03-19 11:52:32  ║  p_loss        : 0.0080
+2026-03-19 11:52:32  ║  v_loss        : 0.6033
+2026-03-19 11:52:32  ║  entropy       : 1.2673
+2026-03-19 11:52:32  ╚════════════════════════════════════════════════════════════
+2026-03-19 11:52:32  
+2026-03-19 11:59:31  
+[update 0102] winner found after 1 simulation round(s)  (dist 0.155s | collect 418.59s)
+2026-03-19 11:59:31  [update 0102] per-player GAE in 0.0233s
+2026-03-19 12:00:45  [update 0102] PPO update done in 71.22s
+2026-03-19 12:00:45    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00099.pt
+2026-03-19 12:00:45    [ckpt] saved → checkpoints_win_reward\policy_update_00102.pt  (keeping last 3)
+2026-03-19 12:00:45  
+2026-03-19 12:00:45  ╔══ update 0102 ════════════════════════════════════════════
+2026-03-19 12:00:45  ║  Wall time     : 493.1s  (dist 0.15s | collect 418.59s | GAE 0.0233s | PPO 71.22s)
+2026-03-19 12:00:45  ║  Simul rounds  : 1
+2026-03-19 12:00:45  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 12:00:45  ║  Win rate      : 1.000
+2026-03-19 12:00:45  ║  Avg ep length : 16384.0 steps
+2026-03-19 12:00:45  ║  Avg reward/ep : 20.0000
+2026-03-19 12:00:45  ║  p_loss        : 0.0060
+2026-03-19 12:00:45  ║  v_loss        : 0.2632
+2026-03-19 12:00:45  ║  entropy       : 1.6977
+2026-03-19 12:00:45  ╚════════════════════════════════════════════════════════════
+2026-03-19 12:00:45  
+2026-03-19 12:07:12  
+[update 0103] winner found after 1 simulation round(s)  (dist 0.144s | collect 386.64s)
+2026-03-19 12:07:12  [update 0103] per-player GAE in 0.0257s
+2026-03-19 12:07:46  [update 0103] PPO update done in 31.42s
+2026-03-19 12:07:47    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00100.pt
+2026-03-19 12:07:47    [ckpt] saved → checkpoints_win_reward\policy_update_00103.pt  (keeping last 3)
+2026-03-19 12:07:47  
+2026-03-19 12:07:47  ╔══ update 0103 ════════════════════════════════════════════
+2026-03-19 12:07:47  ║  Wall time     : 421.3s  (dist 0.14s | collect 386.64s | GAE 0.0257s | PPO 31.42s)
+2026-03-19 12:07:47  ║  Simul rounds  : 1
+2026-03-19 12:07:47  ║  Games finished:      2  (conquest 1, timeout 1)
+2026-03-19 12:07:47  ║  Win rate      : 0.500
+2026-03-19 12:07:47  ║  Avg ep length : 16384.0 steps
+2026-03-19 12:07:47  ║  Avg reward/ep : 10.0000
+2026-03-19 12:07:47  ║  p_loss        : 0.0019
+2026-03-19 12:07:47  ║  v_loss        : 0.3568
+2026-03-19 12:07:47  ║  entropy       : 1.1231
+2026-03-19 12:07:47  ╚════════════════════════════════════════════════════════════
+2026-03-19 12:07:47  
+2026-03-19 12:14:57  [update 0104] no conquest in round 1 — re-simulating …
+2026-03-19 12:22:11  
+[update 0104] winner found after 2 simulation round(s)  (dist 0.272s | collect 861.91s)
+2026-03-19 12:22:11  [update 0104] per-player GAE in 0.0317s
+2026-03-19 12:23:08  [update 0104] PPO update done in 54.02s
+2026-03-19 12:23:09    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00101.pt
+2026-03-19 12:23:09    [ckpt] saved → checkpoints_win_reward\policy_update_00104.pt  (keeping last 3)
+2026-03-19 12:23:09  
+2026-03-19 12:23:09  ╔══ update 0104 ════════════════════════════════════════════
+2026-03-19 12:23:09  ║  Wall time     : 922.0s  (dist 0.27s | collect 861.91s | GAE 0.0317s | PPO 54.02s)
+2026-03-19 12:23:09  ║  Simul rounds  : 2
+2026-03-19 12:23:09  ║  Games finished:      3  (conquest 1, timeout 2)
+2026-03-19 12:23:09  ║  Win rate      : 0.333
+2026-03-19 12:23:09  ║  Avg ep length : 10922.7 steps
+2026-03-19 12:23:09  ║  Avg reward/ep : 6.6667
+2026-03-19 12:23:09  ║  p_loss        : 0.0113
+2026-03-19 12:23:09  ║  v_loss        : 0.1393
+2026-03-19 12:23:09  ║  entropy       : 1.1537
+2026-03-19 12:23:09  ╚════════════════════════════════════════════════════════════
+2026-03-19 12:23:09  
+2026-03-19 12:29:57  [update 0105] no conquest in round 1 — re-simulating …
+2026-03-19 12:36:51  
+[update 0105] winner found after 2 simulation round(s)  (dist 0.328s | collect 819.47s)
+2026-03-19 12:36:51  [update 0105] per-player GAE in 0.0218s
+2026-03-19 12:37:30  [update 0105] PPO update done in 35.70s
+2026-03-19 12:37:30    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00102.pt
+2026-03-19 12:37:30    [ckpt] saved → checkpoints_win_reward\policy_update_00105.pt  (keeping last 3)
+2026-03-19 12:37:30  
+2026-03-19 12:37:30  ╔══ update 0105 ════════════════════════════════════════════
+2026-03-19 12:37:30  ║  Wall time     : 861.3s  (dist 0.33s | collect 819.47s | GAE 0.0218s | PPO 35.70s)
+2026-03-19 12:37:30  ║  Simul rounds  : 2
+2026-03-19 12:37:30  ║  Games finished:      2  (conquest 2, timeout 0)
+2026-03-19 12:37:30  ║  Win rate      : 1.000
+2026-03-19 12:37:30  ║  Avg ep length : 16384.0 steps
+2026-03-19 12:37:30  ║  Avg reward/ep : 20.0000
+2026-03-19 12:37:30  ║  p_loss        : 0.0067
+2026-03-19 12:37:30  ║  v_loss        : 0.2558
+2026-03-19 12:37:30  ║  entropy       : 1.2825
+2026-03-19 12:37:30  ╚════════════════════════════════════════════════════════════
+2026-03-19 12:37:30  
+2026-03-19 12:44:18  [update 0106] no conquest in round 1 — re-simulating …
+2026-03-19 12:51:27  
+[update 0106] winner found after 2 simulation round(s)  (dist 0.201s | collect 833.63s)
+2026-03-19 12:51:27  [update 0106] per-player GAE in 0.0211s
+2026-03-19 12:52:04  [update 0106] PPO update done in 35.15s
+2026-03-19 12:52:05    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00103.pt
+2026-03-19 12:52:05    [ckpt] saved → checkpoints_win_reward\policy_update_00106.pt  (keeping last 3)
+2026-03-19 12:52:05  
+2026-03-19 12:52:05  ╔══ update 0106 ════════════════════════════════════════════
+2026-03-19 12:52:05  ║  Wall time     : 874.7s  (dist 0.20s | collect 833.63s | GAE 0.0211s | PPO 35.15s)
+2026-03-19 12:52:05  ║  Simul rounds  : 2
+2026-03-19 12:52:05  ║  Games finished:      2  (conquest 1, timeout 1)
+2026-03-19 12:52:05  ║  Win rate      : 0.500
+2026-03-19 12:52:05  ║  Avg ep length : 16384.0 steps
+2026-03-19 12:52:05  ║  Avg reward/ep : 10.0000
+2026-03-19 12:52:05  ║  p_loss        : 0.0081
+2026-03-19 12:52:05  ║  v_loss        : 0.2841
+2026-03-19 12:52:05  ║  entropy       : 1.6519
+2026-03-19 12:52:05  ╚════════════════════════════════════════════════════════════
+2026-03-19 12:52:05  
+2026-03-19 12:59:17  
+[update 0107] winner found after 1 simulation round(s)  (dist 0.167s | collect 432.73s)
+2026-03-19 12:59:18  [update 0107] per-player GAE in 0.0215s
+2026-03-19 13:00:38  [update 0107] PPO update done in 77.94s
+2026-03-19 13:00:39    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00104.pt
+2026-03-19 13:00:39    [ckpt] saved → checkpoints_win_reward\policy_update_00107.pt  (keeping last 3)
+2026-03-19 13:00:39  
+2026-03-19 13:00:39  ╔══ update 0107 ════════════════════════════════════════════
+2026-03-19 13:00:39  ║  Wall time     : 514.1s  (dist 0.17s | collect 432.73s | GAE 0.0215s | PPO 77.94s)
+2026-03-19 13:00:39  ║  Simul rounds  : 1
+2026-03-19 13:00:39  ║  Games finished:      5  (conquest 2, timeout 3)
+2026-03-19 13:00:39  ║  Win rate      : 0.400
+2026-03-19 13:00:39  ║  Avg ep length : 6553.6 steps
+2026-03-19 13:00:39  ║  Avg reward/ep : 8.0000
+2026-03-19 13:00:39  ║  p_loss        : 0.0051
+2026-03-19 13:00:39  ║  v_loss        : 0.2610
+2026-03-19 13:00:39  ║  entropy       : 1.6928
+2026-03-19 13:00:39  ╚════════════════════════════════════════════════════════════
+2026-03-19 13:00:39  
+2026-03-19 13:07:37  
+[update 0108] winner found after 1 simulation round(s)  (dist 0.148s | collect 417.81s)
+2026-03-19 13:07:37  [update 0108] per-player GAE in 0.0213s
+2026-03-19 13:08:11  [update 0108] PPO update done in 31.73s
+2026-03-19 13:08:11    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00105.pt
+2026-03-19 13:08:11    [ckpt] saved → checkpoints_win_reward\policy_update_00108.pt  (keeping last 3)
+2026-03-19 13:08:11  
+2026-03-19 13:08:11  ╔══ update 0108 ════════════════════════════════════════════
+2026-03-19 13:08:11  ║  Wall time     : 452.7s  (dist 0.15s | collect 417.81s | GAE 0.0213s | PPO 31.73s)
+2026-03-19 13:08:11  ║  Simul rounds  : 1
+2026-03-19 13:08:11  ║  Games finished:      3  (conquest 1, timeout 2)
+2026-03-19 13:08:11  ║  Win rate      : 0.333
+2026-03-19 13:08:11  ║  Avg ep length : 10922.7 steps
+2026-03-19 13:08:11  ║  Avg reward/ep : 6.6667
+2026-03-19 13:08:11  ║  p_loss        : 0.0019
+2026-03-19 13:08:11  ║  v_loss        : 0.3100
+2026-03-19 13:08:11  ║  entropy       : 1.2198
+2026-03-19 13:08:11  ╚════════════════════════════════════════════════════════════
+2026-03-19 13:08:11  
+2026-03-19 13:15:11  [update 0109] no conquest in round 1 — re-simulating …
+2026-03-19 13:22:14  
+[update 0109] winner found after 2 simulation round(s)  (dist 0.335s | collect 840.04s)
+2026-03-19 13:22:14  [update 0109] per-player GAE in 0.0212s
+2026-03-19 13:24:04  [update 0109] PPO update done in 107.03s
+2026-03-19 13:24:05    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00106.pt
+2026-03-19 13:24:05    [ckpt] saved → checkpoints_win_reward\policy_update_00109.pt  (keeping last 3)
+2026-03-19 13:24:05  
+2026-03-19 13:24:05  ╔══ update 0109 ════════════════════════════════════════════
+2026-03-19 13:24:05  ║  Wall time     : 953.3s  (dist 0.34s | collect 840.04s | GAE 0.0212s | PPO 107.03s)
+2026-03-19 13:24:05  ║  Simul rounds  : 2
+2026-03-19 13:24:05  ║  Games finished:      5  (conquest 2, timeout 3)
+2026-03-19 13:24:05  ║  Win rate      : 0.400
+2026-03-19 13:24:05  ║  Avg ep length : 6553.6 steps
+2026-03-19 13:24:05  ║  Avg reward/ep : 8.0000
+2026-03-19 13:24:05  ║  p_loss        : 0.0009
+2026-03-19 13:24:05  ║  v_loss        : 0.3945
+2026-03-19 13:24:05  ║  entropy       : 1.5518
+2026-03-19 13:24:05  ╚════════════════════════════════════════════════════════════
+2026-03-19 13:24:05  
+2026-03-19 13:31:01  
+[update 0110] winner found after 1 simulation round(s)  (dist 0.078s | collect 416.06s)
+2026-03-19 13:31:01  [update 0110] per-player GAE in 0.0222s
+2026-03-19 13:34:56  [update 0110] PPO update done in 231.62s
+2026-03-19 13:34:56    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00107.pt
+2026-03-19 13:34:56    [ckpt] saved → checkpoints_win_reward\policy_update_00110.pt  (keeping last 3)
+2026-03-19 13:34:56  
+2026-03-19 13:34:56  ╔══ update 0110 ════════════════════════════════════════════
+2026-03-19 13:34:56  ║  Wall time     : 651.8s  (dist 0.08s | collect 416.06s | GAE 0.0222s | PPO 231.62s)
+2026-03-19 13:34:56  ║  Simul rounds  : 1
+2026-03-19 13:34:56  ║  Games finished:      8  (conquest 6, timeout 2)
+2026-03-19 13:34:56  ║  Win rate      : 0.750
+2026-03-19 13:34:56  ║  Avg ep length : 4096.0 steps
+2026-03-19 13:34:56  ║  Avg reward/ep : 15.0000
+2026-03-19 13:34:56  ║  p_loss        : 0.0043
+2026-03-19 13:34:56  ║  v_loss        : 0.2888
+2026-03-19 13:34:56  ║  entropy       : 1.5223
+2026-03-19 13:34:56  ╚════════════════════════════════════════════════════════════
+2026-03-19 13:34:56  
+2026-03-19 13:42:05  
+[update 0111] winner found after 1 simulation round(s)  (dist 0.150s | collect 428.12s)
+2026-03-19 13:42:05  [update 0111] per-player GAE in 0.0208s
+2026-03-19 13:43:01  [update 0111] PPO update done in 53.52s
+2026-03-19 13:43:01    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00108.pt
+2026-03-19 13:43:01    [ckpt] saved → checkpoints_win_reward\policy_update_00111.pt  (keeping last 3)
+2026-03-19 13:43:01  
+2026-03-19 13:43:01  ╔══ update 0111 ════════════════════════════════════════════
+2026-03-19 13:43:01  ║  Wall time     : 484.9s  (dist 0.15s | collect 428.12s | GAE 0.0208s | PPO 53.52s)
+2026-03-19 13:43:01  ║  Simul rounds  : 1
+2026-03-19 13:43:01  ║  Games finished:      5  (conquest 3, timeout 2)
+2026-03-19 13:43:01  ║  Win rate      : 0.600
+2026-03-19 13:43:01  ║  Avg ep length : 6553.6 steps
+2026-03-19 13:43:01  ║  Avg reward/ep : 12.0000
+2026-03-19 13:43:01  ║  p_loss        : 0.0023
+2026-03-19 13:43:01  ║  v_loss        : 0.3992
+2026-03-19 13:43:01  ║  entropy       : 1.2637
+2026-03-19 13:43:01  ╚════════════════════════════════════════════════════════════
+2026-03-19 13:43:01  
+2026-03-19 13:49:47  
+[update 0112] winner found after 1 simulation round(s)  (dist 0.082s | collect 405.35s)
+2026-03-19 13:49:47  [update 0112] per-player GAE in 0.0203s
+2026-03-19 13:53:56  [update 0112] PPO update done in 245.91s
+2026-03-19 13:53:57    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00109.pt
+2026-03-19 13:53:57    [ckpt] saved → checkpoints_win_reward\policy_update_00112.pt  (keeping last 3)
+2026-03-19 13:53:57  
+2026-03-19 13:53:57  ╔══ update 0112 ════════════════════════════════════════════
+2026-03-19 13:53:57  ║  Wall time     : 655.2s  (dist 0.08s | collect 405.35s | GAE 0.0203s | PPO 245.91s)
+2026-03-19 13:53:57  ║  Simul rounds  : 1
+2026-03-19 13:53:57  ║  Games finished:      7  (conquest 6, timeout 1)
+2026-03-19 13:53:57  ║  Win rate      : 0.857
+2026-03-19 13:53:57  ║  Avg ep length : 4681.1 steps
+2026-03-19 13:53:57  ║  Avg reward/ep : 17.1429
+2026-03-19 13:53:57  ║  p_loss        : 0.0027
+2026-03-19 13:53:57  ║  v_loss        : 0.2458
+2026-03-19 13:53:57  ║  entropy       : 1.6510
+2026-03-19 13:53:57  ╚════════════════════════════════════════════════════════════
+2026-03-19 13:53:57  
+2026-03-19 14:00:54  
+[update 0113] winner found after 1 simulation round(s)  (dist 0.082s | collect 416.87s)
+2026-03-19 14:00:54  [update 0113] per-player GAE in 0.0229s
+2026-03-19 14:02:02  [update 0113] PPO update done in 65.32s
+2026-03-19 14:02:02    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00110.pt
+2026-03-19 14:02:02    [ckpt] saved → checkpoints_win_reward\policy_update_00113.pt  (keeping last 3)
+2026-03-19 14:02:02  
+2026-03-19 14:02:02  ╔══ update 0113 ════════════════════════════════════════════
+2026-03-19 14:02:02  ║  Wall time     : 485.6s  (dist 0.08s | collect 416.87s | GAE 0.0229s | PPO 65.32s)
+2026-03-19 14:02:02  ║  Simul rounds  : 1
+2026-03-19 14:02:02  ║  Games finished:      4  (conquest 3, timeout 1)
+2026-03-19 14:02:02  ║  Win rate      : 0.750
+2026-03-19 14:02:02  ║  Avg ep length : 8192.0 steps
+2026-03-19 14:02:02  ║  Avg reward/ep : 15.0000
+2026-03-19 14:02:02  ║  p_loss        : 0.0087
+2026-03-19 14:02:02  ║  v_loss        : 0.4426
+2026-03-19 14:02:02  ║  entropy       : 1.5585
+2026-03-19 14:02:02  ╚════════════════════════════════════════════════════════════
+2026-03-19 14:02:02  
+2026-03-19 14:08:43  
+[update 0114] winner found after 1 simulation round(s)  (dist 0.148s | collect 400.25s)
+2026-03-19 14:08:43  [update 0114] per-player GAE in 0.0222s
+2026-03-19 14:09:15  [update 0114] PPO update done in 30.04s
+2026-03-19 14:09:16    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00111.pt
+2026-03-19 14:09:16    [ckpt] saved → checkpoints_win_reward\policy_update_00114.pt  (keeping last 3)
+2026-03-19 14:09:16  
+2026-03-19 14:09:16  ╔══ update 0114 ════════════════════════════════════════════
+2026-03-19 14:09:16  ║  Wall time     : 433.4s  (dist 0.15s | collect 400.25s | GAE 0.0222s | PPO 30.04s)
+2026-03-19 14:09:16  ║  Simul rounds  : 1
+2026-03-19 14:09:16  ║  Games finished:      4  (conquest 2, timeout 2)
+2026-03-19 14:09:16  ║  Win rate      : 0.500
+2026-03-19 14:09:16  ║  Avg ep length : 8192.0 steps
+2026-03-19 14:09:16  ║  Avg reward/ep : 10.0000
+2026-03-19 14:09:16  ║  p_loss        : 0.0051
+2026-03-19 14:09:16  ║  v_loss        : 0.4178
+2026-03-19 14:09:16  ║  entropy       : 1.3308
+2026-03-19 14:09:16  ╚════════════════════════════════════════════════════════════
+2026-03-19 14:09:16  
+2026-03-19 14:15:52  
+[update 0115] winner found after 1 simulation round(s)  (dist 0.157s | collect 396.18s)
+2026-03-19 14:15:52  [update 0115] per-player GAE in 0.0227s
+2026-03-19 14:17:00  [update 0115] PPO update done in 64.91s
+2026-03-19 14:17:00    [ckpt] removed old checkpoint: checkpoints_win_reward\policy_update_00112.pt
+2026-03-19 14:17:00    [ckpt] saved → checkpoints_win_reward\policy_update_00115.pt  (keeping last 3)
+2026-03-19 14:17:00  
+2026-03-19 14:17:00  ╔══ update 0115 ════════════════════════════════════════════
+2026-03-19 14:17:00  ║  Wall time     : 464.6s  (dist 0.16s | collect 396.18s | GAE 0.0227s | PPO 64.91s)
+2026-03-19 14:17:00  ║  Simul rounds  : 1
+2026-03-19 14:17:00  ║  Games finished:      3  (conquest 2, timeout 1)
+2026-03-19 14:17:00  ║  Win rate      : 0.667
+2026-03-19 14:17:00  ║  Avg ep length : 10922.7 steps
+2026-03-19 14:17:00  ║  Avg reward/ep : 13.3333
+2026-03-19 14:17:00  ║  p_loss        : 0.0083
+2026-03-19 14:17:00  ║  v_loss        : 0.0609
+2026-03-19 14:17:00  ║  entropy       : 1.5703
+2026-03-19 14:17:00  ╚════════════════════════════════════════════════════════════
+2026-03-19 14:17:00  

@@ -82,7 +82,7 @@ class Game(object):
                 
                 if o_unit_tile.city != None:
                     o_unit_tile.city.unit = unit
-                    self._apply_unit_def_bonus(unit)
+                    self._apply_unit_def_bonus(unit) # You had to change to .value for the enum!
                 else:
                     unit.def_bonus = DefenseBonus.NoBonus
                 if unit_tile.city != None:
@@ -218,7 +218,9 @@ class Game(object):
 
 
     def _apply_unit_def_bonus(self, unit):
-        if unit.tile.city.player_id == self.player_go_id: # players unit on his own city
+        if unit.tile.city.player_id == None:
+            unit.def_bonus = DefenseBonus.NoBonus
+        elif unit.tile.city.player_id.value == self.player_go_id: # players unit on his own city
             unit.def_bonus = DefenseBonus.Shield
         else:
             unit.def_bonus = DefenseBonus.NoBonus # in normal map generation this is not even possible to reach here
@@ -297,7 +299,7 @@ class Game(object):
         Calculate the resulting hp of both units and returns the result to be handled in the apply_action function
         """
         attackForce = unit.atk_stat * (unit.current_hp / unit.hp)
-        defenseForce = o_unit.def_stat * (o_unit.current_hp / o_unit.hp) * o_unit.def_bonus 
+        defenseForce = o_unit.def_stat * (o_unit.current_hp / o_unit.hp) * o_unit.def_bonus.value 
         totalDamage = attackForce + defenseForce 
         attackResult = math.ceil((attackForce / totalDamage) * unit.atk_stat * 4.5) 
         defenseResult = math.ceil((defenseForce / totalDamage) * o_unit.def_stat * 4.5)

@@ -65,7 +65,7 @@ class TrainConfig:
     """
 
     # ── Checkpoint / resume ───────────────────────────────────────────────────
-    pretrained_ckpt: str = ""   # path to .pt; "" = train from scratch
+    pretrained_ckpt: str = ".\checkpoints_training\policy_update_00353.pt"   # path to .pt; "" = train from scratch
     start_update:    int = 0    # first update index (set > 0 when resuming)
 
     # ── Encoder ───────────────────────────────────────────────────────────────
@@ -90,7 +90,7 @@ class TrainConfig:
 
     # ── Parallelism ───────────────────────────────────────────────────────────
     n_processes:        int = 16
-    n_envs_per_process: int = 4
+    n_envs_per_process: int = 8
 
     # ── Environment ───────────────────────────────────────────────────────────
     board_config_dict: dict = field(default_factory=lambda: {
@@ -107,8 +107,8 @@ class TrainConfig:
     n_steps: int = 256
 
     # ── PPO epochs & batching ─────────────────────────────────────────────────
-    n_epochs:       int   = 2
-    n_minibatches:  int   = 64   # determines cfg.minibatch_size
+    n_epochs:       int   = 3
+    n_minibatches:  int   = 128   # determines cfg.minibatch_size
     # Fraction ∈ (0,1]: what share of the assembled minibatches to train on
     # per epoch.  Reduces PPO update time without wasting simulation data.
     train_fraction: float = 0.1
