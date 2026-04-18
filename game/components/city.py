@@ -1,39 +1,36 @@
-
+from dataclasses import dataclass, field
 from game.enums import CityType, PlayerId
 
 
-
-class City(object):
+@dataclass
+class City:
     """
-    City object. If instantiated with player_id = None it is an unclaimed village. Treat village and city different by checking for player_id.
-    hi
+    City/village data. Held by a Tile; does not reference the tile or any unit.
+    Unit occupancy: read tile.unit (tile is the authority).
+    Unit count tracking: maintained via current_n_units (units trained at this city).
     """
-    def __init__(self, player_id: PlayerId, tile_id: Int, is_capital=False, unit=None):
-        if player_id == None:
-            self.lvl = CityType.village
-        else:
-            self.lvl = CityType.city
+    tile_id: int
+    player_id: PlayerId | None  # None = unclaimed village
+    is_capital: bool = False
+    under_siege: bool = False
+    current_n_units: int = 0
+    lvl: CityType = field(init=False)
 
-        self.player_id = player_id
-        self.tile_id = tile_id
-        self.is_capital = is_capital
-        self.unit = unit
-        self.under_seige = False
-        self.max_unit_cap = 3
-        self.current_n_units = 1
+    def __post_init__(self):
+        self.lvl = CityType.village if self.player_id is None else CityType.city
 
-    def capture(self, new_player_id: PlayerId):
+    @property
+    def max_unit_cap(self) -> int:
+        return {CityType.village: 0, CityType.city: 3, CityType.lvl2_city: 6}[self.lvl]
+
+    def capture(self, new_player_id: PlayerId) -> None:
         self.player_id = new_player_id
-        self.current_n_units = 1
         self.lvl = CityType.city
+        self.current_n_units = 1
+        self.under_siege = False
 
-    def seiging(self):
-        # no income
-        pass
-
-    def upgrade(self):
+    def upgrade(self) -> None:
         self.lvl = CityType.lvl2_city
 
-    
-
-
+    def seiging(self) -> None:
+        pass  # reserved for income mechanics

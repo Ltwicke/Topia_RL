@@ -108,130 +108,147 @@ class EnvWrapper(object):
         return (done, reward)
 
 
+    def _player_unit_ids(self) -> list:
+        """Ordered list of unit_ids for the current player (stable mask index -> unit_id)."""
+        return list(self.game.players[self.game.player_go_id].units_under_control.keys())
+
+    def _visible_enemy_units(self) -> list:
+        """Enemy units visible in the current player's partial graph (fixes info leakage)."""
+        player = self.game.players[self.game.player_go_id]
+        opp_id = (self.game.player_go_id + 1) % 2
+        return [
+            self.game.game_board.board[tid].unit
+            for tid in player.uncovered_tile_ids
+            if self.game.game_board.board[tid].unit is not None
+            and int(self.game.game_board.board[tid].unit.player_id) == opp_id
+        ]
+
     def _translate_action(self, action):
         """
-        action is a simple list of integer indices, specific to each possible action type, for example:
-        action = [0, 2, 55] --> Move (0) unit (2) to tile (55)
-        action = [2, 0, 1] ---> Create (2) in city (0) a rider (1)
-        action = [4] ---> current player ends his turn
-        -----
-        Returns: translated_action = {"type": blabla, "unit": blabla, ...} A PYTHON DICT
+        action is a simple list of integer indices, specific to each possible action type:
+        action = [0, pos, tile_id] --> MoveUnit: unit at position pos in player's unit list, to tile_id
+        action = [1, pos, def_pos]  --> Attack: unit at pos attacks visible enemy at def_pos
+        action = [2, city_idx, unit_type] --> CreateUnit
+        action = [3, pos]           --> CaptureCity
+        action = [4]                --> EndTurn
+        Returns: translated_action dict with unit_id keys for game.py
         """
         player = self.game.players[self.game.player_go_id]
+        player_unit_ids = self._player_unit_ids()
         translated_action = {}
         action_type = ActionTypes(action[0])
         translated_action["type"] = action_type
-    
+
         if action_type == ActionTypes.MoveUnit:
-            translated_action["unit"] = action[1]
+            uid = player_unit_ids[action[1]]
+            translated_action["unit_id"] = uid
             translated_action["target_id"] = action[2]
-            
-            ## i have to recalculate the path...
-            unit = player.units_under_control[action[1]]
+            unit = player.units_under_control[uid]
             path_in_ids = [self.game.game_board.tup_to_int[x] for x in self.game.calc_movement_target_and_shortest_path(unit, target_tile=action[2])]
             translated_action["path"] = path_in_ids
-    
+
         elif action_type == ActionTypes.Attack:
-            translated_action["unit"] = action[1]
-            translated_action["o_unit_index"] = action[2]
-    
+            translated_action["unit_id"] = player_unit_ids[action[1]]
+            visible_enemies = self._visible_enemy_units()
+            translated_action["o_unit_id"] = visible_enemies[action[2]].unit_id
+
         elif action_type == ActionTypes.CreateUnit:
             translated_action["city"] = action[1]
             translated_action["unit_type"] = UnitType(action[2])
-    
+
         elif action_type == ActionTypes.CaptureCity:
-            translated_action["unit"] = action[1]
-    
+            translated_action["unit_id"] = player_unit_ids[action[1]]
+
         elif action_type == ActionTypes.EndTurn:
-            pass # do nothing here atm
-    
-        
+            pass
+
         return translated_action
         
 
 
     def get_action_mask(self):
         """
-        Another big one; gets all possible actions and subactions at any time
+        Gets all possible actions and subactions at any time.
+        Player units are indexed by position in units_under_control.items() order.
+        Attack targets are visible enemy units only (no info leakage about hidden units).
         """
         player = self.game.players[self.game.player_go_id]
         opponent = self.game.players[(self.game.player_go_id + 1) % 2]
         num_actions = len(ActionTypes)
-        num_units_player = len(player.units_under_control)
-        num_units_opponent = len(opponent.units_under_control)
+        player_units = list(player.units_under_control.values())  # positional list for mask indexing
+        num_units_player = len(player_units)
+        visible_enemies = self._visible_enemy_units()  # only enemies visible in partial graph
         num_cities_player = len(player.cities_under_control)
-    
-        valid_actions = [ ## the order is hard-coded...
+
+        valid_actions = [
             np.zeros((num_actions,)),
-            np.zeros((num_units_player, self.n_tiles)), #move unit
-            np.zeros((num_units_player, num_units_opponent)), # attack enemy unit
-            np.zeros((num_cities_player, N_UNIT_TYPES)), #create unit
-            np.zeros((num_units_player,)), # capture village/ seige city
-            
+            np.zeros((num_units_player, self.n_tiles)),           # move unit
+            np.zeros((num_units_player, len(visible_enemies))),   # attack (visible enemies only)
+            np.zeros((num_cities_player, N_UNIT_TYPES)),          # create unit
+            np.zeros((num_units_player,)),                        # capture city
         ]
-    
+
         # move unit
         unit_can_move = np.zeros((num_units_player,))
-        for unit_id, unit in enumerate(player.units_under_control):
-            can_move_bool = (unit.turn_state in (UnitState.ready, UnitState.escaping) and self._get_valid_move_locations(unit, greedy_search=True))
-            if can_move_bool:
-                unit_can_move[unit_id] = 1
-    
-        if sum(unit_can_move) > 0: # there is a unit that can move
+        for pos, unit in enumerate(player_units):
+            if unit.turn_state in (UnitState.ready, UnitState.escaping) and self._get_valid_move_locations(unit, greedy_search=True):
+                unit_can_move[pos] = 1
+
+        if unit_can_move.sum() > 0:
             valid_actions[0][ActionTypes.MoveUnit] = 1.0
-            for unit_id, unit_valid in enumerate(unit_can_move):
-                if unit_valid == 1: # the specific unit can move; set the rows with possible targets
-                    target_tile_ids = self._get_valid_move_locations(player.units_under_control[unit_id]) # here is a problem for riders in escape...
-                    valid_actions[1][unit_id][target_tile_ids] = 1.0 # smart indexing
-    
-        # attack
-        ## PART 1: Which units are eligible to attack (decide, wether action is possible)
+            for pos, can_move in enumerate(unit_can_move):
+                if can_move:
+                    target_tile_ids = self._get_valid_move_locations(player_units[pos])
+                    valid_actions[1][pos][target_tile_ids] = 1.0
+
+        # attack — only against visible enemies, no info leakage
         unit_can_hit = np.zeros((num_units_player,))
-        for unit_id, unit in enumerate(player.units_under_control):
-            surrounding_unit_player_ids = [self.game.game_board.board[id].unit.player_id for id in self.game.tiles_in_range(unit.tile.id, unit.attack_range) \
-                                           if self.game.game_board.board[id].unit != None]
-        
-            can_hit_bool = (unit.turn_state in (UnitState.ready, UnitState.can_hit) and opponent.player_id in surrounding_unit_player_ids)    
-            if can_hit_bool:
-                unit_can_hit[unit_id] = 1
-        
-        if num_units_player == 0 or num_units_opponent == 0:
-            unit_can_hit = np.zeros(1) # if there is no defender to attack; skip this action
-    
-        ## PART 2: given a unit can attack, which unit can attack which defenders?
-        if sum(unit_can_hit) > 0:
+        for pos, unit in enumerate(player_units):
+            surrounding_player_ids = [
+                self.game.game_board.board[tid].unit.player_id
+                for tid in self.game.tiles_in_range(unit.tile.id, unit.attack_range)
+                if self.game.game_board.board[tid].unit is not None
+            ]
+            if unit.turn_state in (UnitState.ready, UnitState.can_hit) and opponent.player_id in surrounding_player_ids:
+                unit_can_hit[pos] = 1
+
+        if num_units_player == 0 or len(visible_enemies) == 0:
+            unit_can_hit = np.zeros(1)
+
+        if unit_can_hit.sum() > 0:
             valid_actions[0][ActionTypes.Attack] = 1.0
-            for attacker_id, can_hit in enumerate(unit_can_hit):
-                if can_hit == 1: # the specific unit can hit
-                    unit = player.units_under_control[attacker_id]
-                    reachable_tiles = self.game.tiles_in_range(unit.tile.id, unit.attack_range) # where can the specifics units attack reach
-                    for defender_id, defender in enumerate(opponent.units_under_control):
-                        if defender.tile.id in reachable_tiles:
-                            valid_actions[2][attacker_id][defender_id] = 1.0 # means: defender is in range of attacker
-    
+            for attacker_pos, can_hit in enumerate(unit_can_hit):
+                if can_hit:
+                    reachable = self.game.tiles_in_range(player_units[attacker_pos].tile.id, player_units[attacker_pos].attack_range)
+                    for def_pos, defender in enumerate(visible_enemies):
+                        if defender.tile.id in reachable:
+                            valid_actions[2][attacker_pos][def_pos] = 1.0
+
         # create unit
-        can_create_unit = np.array([1 if ((city.current_n_units < city.max_unit_cap) and city.unit == None) \
-                                    else 0 for city in player.cities_under_control])
-        if sum(can_create_unit) > 0: #TODO: include unit cost here too
+        can_create_unit = np.array([
+            1 if (city.current_n_units < city.max_unit_cap
+                  and self.game.game_board.board[city.tile_id].unit is None) else 0
+            for city in player.cities_under_control
+        ])
+        if can_create_unit.sum() > 0:
             valid_actions[0][ActionTypes.CreateUnit] = 1.0
             for city_id, city_valid in enumerate(can_create_unit):
-                if city_valid == 1: #the city can hold more units
-                    valid_actions[3][city_id] = np.ones((N_UNIT_TYPES,)) ## TODO: this will be dependent on current stars
-                
+                if city_valid:
+                    valid_actions[3][city_id] = np.ones((N_UNIT_TYPES,))
+
         # capture city
         can_capture_city = np.zeros((num_units_player,))
-        for unit_id, unit in enumerate(player.units_under_control):
+        for pos, unit in enumerate(player_units):
             city = unit.tile.city
-            if city != None:
-                city_bool = ((city.player_id != player.player_id or city.player_id == None) and unit.turn_state == UnitState.ready)
-                if city_bool:
-                    can_capture_city[unit_id] = 1
-                
-        if sum(can_capture_city) > 0:
+            if city is not None:
+                if (city.player_id != player.player_id or city.player_id is None) and unit.turn_state == UnitState.ready:
+                    can_capture_city[pos] = 1
+
+        if can_capture_city.sum() > 0:
             valid_actions[0][ActionTypes.CaptureCity] = 1.0
-            for unit_id, unit_valid in enumerate(can_capture_city):
-                if unit_valid == 1:
-                    valid_actions[4][unit_id] = 1.0
+            for pos, unit_valid in enumerate(can_capture_city):
+                if unit_valid:
+                    valid_actions[4][pos] = 1.0
     
         # end turn
         #if sum(valid_actions[0]) == 0: # if there is nothing more to do TODO: Change this once the RL actually learns
@@ -384,8 +401,8 @@ class EnvWrapper(object):
             elif atype == ActionTypes.Attack:
 
                 opponent = self.game.players[(self.game.player_go_id + 1) % 2]
-                uid = t_act["unit"]
-                oid = t_act["o_unit_index"]
+                uid = t_act["unit_id"]
+                oid = t_act["o_unit_id"]
                 ax0, ay0 = tile_center(player.units_under_control[uid].tile.id)
                 ax1, ay1 = tile_center(opponent.units_under_control[oid].tile.id)
                 mx, my   = (ax0 + ax1) / 2, (ay0 + ay1) / 2
@@ -393,7 +410,7 @@ class EnvWrapper(object):
                 draw_sword(mx, my, angle)
     
             elif atype == ActionTypes.CaptureCity:
-                uid = t_act["unit"]
+                uid = t_act["unit_id"]
                 cx, cy = tile_center(player.units_under_control[uid].tile.id)
                 ax.add_patch(Rectangle((cx - 0.22, cy + 0.02), 0.44, 0.12,
                               facecolor='gold', edgecolor='darkorange',
@@ -639,7 +656,7 @@ class EnvWrapper(object):
             elif atype == ActionTypes.Attack:
                 pass
                 #opponent = self.game.players[(self.game.player_go_id + 1) % 2]
-                #uid = t_act["unit"]
+                #uid = t_act["unit_id"]
                 #oid = t_act["o_unit_index"]
                 #ax0, ay0 = tile_center(player.units_under_control[uid].tile.id)
                 #ax1, ay1 = tile_center(opponent.units_under_control[oid].tile.id)
@@ -649,7 +666,7 @@ class EnvWrapper(object):
             
     
             elif atype == ActionTypes.CaptureCity:
-                uid = t_act["unit"]
+                uid = t_act["unit_id"]
                 cx, cy = tile_center(player.units_under_control[uid].tile.id)
                 ax.add_patch(Rectangle((cx - 0.22, cy + 0.02), 0.44, 0.12,
                               facecolor='gold', edgecolor='darkorange',

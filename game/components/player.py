@@ -27,9 +27,9 @@ class Player(object):
         """
 
         self.partial_graph = np.empty(shape=board.board_graph.shape)
-        
+
         self.uncovered_tile_ids = set()
-        self.units_under_control = [] ## these are only POINTERS to the unit classes (they are inside the tile class instances)
+        self.units_under_control: dict = {}  # unit_id -> Unit
         self.cities_under_control = []
         self.stars = None
         self.spt = None
@@ -51,7 +51,7 @@ class Player(object):
         ## collect starting unit:
         unit = board.board[self.capital_id].unit
         unit.set_ready() # only at the start of the game!
-        self.units_under_control.append(unit)
+        self.units_under_control[unit.unit_id] = unit
         self.cities_under_control.append(board.board[self.capital_id].city)
 
         ## stars per turn based on capital:

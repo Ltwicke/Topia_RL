@@ -1,0 +1,9 @@
+Project_development_book.txt
+Check_metrics_and_loss_curves.ipynb
+Run_different_policies_against_each_other.ipynb
+/visual_examples
+/old
+/RL/logs
+/RL/checkpoints_training
+/RL/checkpoints_win_reward
+/RL/.ipynb_checkpoints

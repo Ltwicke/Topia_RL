@@ -1,4 +1,5 @@
 # Here will be the entire logic for the game, which will then be wrapped in env for the RL task
+import random
 import numpy as np
 import math
 import networkx as nx
@@ -24,14 +25,24 @@ class Game(object):
             )
 
     def reset_game(self):
-        self.game_board.initialize()
+        self._used_unit_ids: set[int] = set()
+        self.game_board.initialize(self)
         self.game_board.create_board_graph_from_board_state(self.all_tile_ids)
-                                                            
+
         for player in self.players:
             player.reset(self.game_board)
 
         self.player_go_id = 0
         self.turn = 0
+
+    def _new_unit_id(self) -> int:
+        """Generate a random integer ID (0-9999) unique for this game session.
+        IDs are never removed from _used_unit_ids, so dead units' IDs are never recycled."""
+        uid = random.randint(0, 9999)
+        while uid in self._used_unit_ids:
+            uid = random.randint(0, 9999)
+        self._used_unit_ids.add(uid)
+        return uid
 
 
     def apply_action(self, action: dict, return_message=False):
@@ -45,7 +56,7 @@ class Game(object):
         message["action_type"] = action["type"] # stores ActionTypes
 
         if action["type"] == ActionTypes.MoveUnit:
-            unit = player.units_under_control[action["unit"]]
+            unit = player.units_under_control[action["unit_id"]]
             
             self.move_unit(unit, action["target_id"])
 
@@ -62,8 +73,8 @@ class Game(object):
 
 
         elif action["type"] == ActionTypes.Attack:
-            unit = player.units_under_control[action["unit"]]  ## "unit" is an integer here
-            o_unit = opponent.units_under_control[action["o_unit_index"]]
+            unit = player.units_under_control[action["unit_id"]]
+            o_unit = opponent.units_under_control[action["o_unit_id"]]
             unit_tile = unit.tile
             o_unit_tile = o_unit.tile
 
@@ -81,16 +92,13 @@ class Game(object):
                 unit.tile = o_unit_tile
                 
                 if o_unit_tile.city != None:
-                    o_unit_tile.city.unit = unit
                     self._apply_unit_def_bonus(unit) # You had to change to .value for the enum!
                 else:
                     unit.def_bonus = DefenseBonus.NoBonus
-                if unit_tile.city != None:
-                    unit_tile.city.unit = None # because unit leaves city      
 
                 self.apply_unit_vision(unit, attack_path)
 
-                del opponent.units_under_control[action["o_unit_index"]] ## remove defender pointer from opponent
+                del opponent.units_under_control[action["o_unit_id"]] ## remove defender pointer from opponent
                 o_unit.city.current_n_units -= 1
 
                 self.advance_unit_turn_state(unit, action)
@@ -104,10 +112,8 @@ class Game(object):
 
             if unit_result_hp <= 0: ## attacker vanishes due to defender
                 unit_tile.unit = None ## Delete unit pointer from tile
-                if unit_tile.city != None:
-                    unit_tile.city.unit = None
 
-                del player.units_under_control[action["unit"]] # remove unit pointer from player
+                del player.units_under_control[action["unit_id"]] # remove unit pointer from player
                 unit.city.current_n_units -= 1
                 o_unit.current_hp = o_unit_result_hp ## set new hp
                 
@@ -131,33 +137,34 @@ class Game(object):
             #assert city.unit == None, "the city is not empty" ## Unecessary, because createUnit can only be selected, if conditions apply!
             city_tile = self.game_board.board[city.tile_id]
 
+            new_uid = self._new_unit_id()
             if action["unit_type"] == UnitType.Warrior:
                 unit = Warrior(
-                    player_id=self.player_go_id,
+                    player_id=PlayerId(self.player_go_id),
                     city=city,
-                    tile=city_tile
+                    tile=city_tile,
+                    unit_id=new_uid,
                 )
-
             elif action["unit_type"] == UnitType.Rider:
                 unit = Rider(
-                    player_id=self.player_go_id,
+                    player_id=PlayerId(self.player_go_id),
                     city=city,
-                    tile=city_tile
+                    tile=city_tile,
+                    unit_id=new_uid,
                 )
-                
+
             city_tile.unit = unit ## on city TILE
-            city.unit = unit # on city object... THIS NEEDS FIXING IN GENERAL
             city.current_n_units += 1
 
             unit.def_bonus = DefenseBonus.Shield
-            
-            player.units_under_control.append(unit)
+
+            player.units_under_control[unit.unit_id] = unit
 
             message["unit_type"] = action["unit_type"]
 
         
         elif action["type"] == ActionTypes.CaptureCity:
-            unit = player.units_under_control[action["unit"]]  ## "unit" is an integer here
+            unit = player.units_under_control[action["unit_id"]]
             unit_tile = unit.tile
             former_unit_city = unit.city
             city = unit_tile.city
@@ -184,7 +191,7 @@ class Game(object):
             self.turn += self.player_go_id % 2 # 0 1 0 1 0 1 0 1 ...
             self.player_go_id = (self.player_go_id + 1) % 2
 
-            for unit in self.players[self.player_go_id].units_under_control:
+            for unit in self.players[self.player_go_id].units_under_control.values():
                 unit.set_ready() # set turn state to ready
 
             ## player_go_id gets his stars for the turn
@@ -239,7 +246,7 @@ class Game(object):
 
         cant_step_on = partial_graph[:,0] == 0 # True if its not a field tile
         hidden_nodes = (partial_graph[:,0:3] == 0).all(axis=-1) # True if tile is not uncovered yet
-        occupied = (partial_graph[:, 10:25] != 0.0).any(axis=-1) # True if any unit on tile TODO: Currently also blocks own units to jump over, this is WRONG!
+        occupied = (partial_graph[:, 10:26] != 0.0).any(axis=-1) # True if any unit on tile TODO: Currently also blocks own units to jump over, this is WRONG!
         ## TODO: Enemy zone of control: Remove all nodes, where enemy units are adjacent
 
         invalid_mask = cant_step_on | hidden_nodes | occupied

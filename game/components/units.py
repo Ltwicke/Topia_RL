@@ -1,13 +1,13 @@
-## this instantiates the units as classes
-## you can also train your polymorphism here
-
 from game.enums import DefenseBonus, PlayerId, UnitState, UnitType
+
 
 class Unit(object):
     """
-    Base class for all other units.
+    Base class for all units. unit_id is a random integer (0-9999) assigned by
+    Game._new_unit_id(), guaranteed unique and never recycled within a game session.
     """
-    def __init__(self, player_id: PlayerId, city: City, tile: Tile):
+    def __init__(self, player_id: PlayerId, city, tile, unit_id: int):
+        self.unit_id = unit_id
         self.player_id = player_id
         self.city = city
         self.tile = tile
@@ -24,7 +24,6 @@ class Unit(object):
         self.vision_range = 1
         self.attack_range = 1
 
-        ## on creation: 
         self.turn_state = UnitState.idle
         self.current_hp = None
 
@@ -35,17 +34,9 @@ class Unit(object):
         return f"{self.unit_type.name} ({self.current_hp}/{self.hp}) in state {self.turn_state.name}"
 
 
-
-
-
-
-
 class Warrior(Unit):
-    """
-    Warrior
-    """
-    def __init__(self, player_id: PlayerId, city: City, tile: Tile):
-        super().__init__(player_id, city, tile)
+    def __init__(self, player_id: PlayerId, city, tile, unit_id: int):
+        super().__init__(player_id, city, tile, unit_id)
 
         self.unit_type = UnitType.Warrior
 
@@ -56,15 +47,10 @@ class Warrior(Unit):
 
         self.current_hp = 10
 
-    
- 
 
 class Rider(Unit):
-    """
-    Rider
-    """
-    def __init__(self, player_id: PlayerId, city: City, tile: Tile):
-        super().__init__(player_id, city, tile)
+    def __init__(self, player_id: PlayerId, city, tile, unit_id: int):
+        super().__init__(player_id, city, tile, unit_id)
 
         self.unit_type = UnitType.Rider
 
@@ -74,7 +60,3 @@ class Rider(Unit):
         self.mvpts = 2
 
         self.current_hp = 10
-
-
-
-

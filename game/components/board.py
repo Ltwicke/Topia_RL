@@ -50,9 +50,10 @@ class Board(object):
 
         self.initialize()
 
-    def initialize(self):
+    def initialize(self, game=None):
         """This function creates an empty board based on the creation logic.
-        It does not create the graph yet, the graph is steadily created from the board from the enum objects in a one-hot-encoded way."""
+        It does not create the graph yet, the graph is steadily created from the board from the enum objects in a one-hot-encoded way.
+        game is passed to allow unique unit ID generation via game._new_unit_id()."""
         board_matrix = board_generating_logic(self.board_size, self.board_type, self.n_players)
         capital_assign_counter = 0
 
@@ -76,10 +77,10 @@ class Board(object):
             field_type = TileType(design_vec[0])
 
             if (design_vec[1] and not design_vec[2]):
-                city = City(None, ind, is_capital=False)
+                city = City(player_id=None, tile_id=ind, is_capital=False)
 
             elif (design_vec[1] and design_vec[2]):
-                city = City(PlayerId(capital_assign_counter), ind, is_capital=True)
+                city = City(player_id=PlayerId(capital_assign_counter), tile_id=ind, is_capital=True)
                 self.capital_tile_ids[PlayerId(capital_assign_counter).value] = ind
                 capital_assign_counter += 1 ## assign next capital to next player
 
@@ -94,15 +95,17 @@ class Board(object):
             
             self.board.append(tile)
 
-        ## place starting units: 
+        ## place starting units:
         for player_id, capital_id in self.capital_tile_ids.items():
+            uid = game._new_unit_id() if game is not None else player_id
             unit = Warrior(
                 player_id=PlayerId(player_id),
                 city=self.board[capital_id].city,
-                tile=self.board[capital_id]
+                tile=self.board[capital_id],
+                unit_id=uid,
                 )
             self.board[capital_id].unit = unit
-            self.board[capital_id].city.unit = unit
+            self.board[capital_id].city.current_n_units = 1
 
 
     def create_board_graph_from_board_state(self, active_tile_inds):
