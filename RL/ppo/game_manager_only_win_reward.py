@@ -82,8 +82,8 @@ class TrainConfig:
     """
 
     # ── Checkpoint / resume ───────────────────────────────────────────────────
-    pretrained_ckpt: str = r".\checkpoints_win_reward\policy_update_00029.pt"
-    start_update:    int = 30
+    pretrained_ckpt: str = r".\checkpoints_win_reward\policy_update_00378.pt"
+    start_update:    int = 379
 
     # ── Encoder ───────────────────────────────────────────────────────────────
     encoder_hidden_dim: int = 64
@@ -107,7 +107,7 @@ class TrainConfig:
 
     # ── Parallelism ───────────────────────────────────────────────────────────
     n_processes:        int = 16
-    n_envs_per_process: int = 8
+    n_envs_per_process: int = 4
 
     # ── Environment ───────────────────────────────────────────────────────────
     board_config_dict: dict = field(default_factory=lambda: {
@@ -117,18 +117,18 @@ class TrainConfig:
     player_tribes:      list  = field(
         default_factory=lambda: [Tribes.Omaji, Tribes.Imperius]
     )
-    max_turns_per_game: int   = 1000
+    max_turns_per_game: int   = 9999
     # Narrowed from (10, 16) to increase conquest frequency per rollout.
-    board_size_range:   tuple = (11,11)
+    board_size_range:   tuple = (11,14)
 
     # ── Rollout ───────────────────────────────────────────────────────────────
-    n_steps: int = 256
+    n_steps: int = 512
 
     # ── PPO epochs & batching ─────────────────────────────────────────────────
-    n_epochs: int = 4
+    n_epochs: int = 5
     # Direct minibatch size.  The number of minibatches per epoch is
     # batch_size // minibatch_size (computed dynamically, drop_last=True).
-    minibatch_size: int = 128
+    minibatch_size: int = 256
 
     # ── Win / loss rewards ────────────────────────────────────────────────────
     # Winner's terminal step receives +1.0.
@@ -150,7 +150,7 @@ class TrainConfig:
 
     # ── Optimiser ─────────────────────────────────────────────────────────────
     # Lower than dense-reward run to preserve learned tactics.
-    lr: float = 4e-5
+    lr: float = 8e-5
 
     # ── Training loop ─────────────────────────────────────────────────────────
     n_updates:     int = 500

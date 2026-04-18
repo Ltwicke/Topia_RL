@@ -503,6 +503,23 @@ Next steps: game_manager and ask subreddit!
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 15.03. 14:42 Uhr
 
 
@@ -541,10 +558,6 @@ To drive this giant task of advancing the game simulation (which literally means
 
 
 
-
-
-
-
     The tactics to be observed (including how)                          .       The things that need to be implemented into the game
                                                                         .       
      #################################                                  .      - include currency income based on city level (also add city levels)
@@ -573,23 +586,11 @@ To drive this giant task of advancing the game simulation (which literally means
     C) Using roads (number of roads built per game)                     .      - Add road mechanic and where roads can be built. This will also need
                                                                         .        its own decision head I suppose...
     D) Explorer shaping (look at rendered games)                        .      - Add explorer dynamics based on gully video
-    E) Efficient exploring in general (avg. uncovered tiles per turn)   .      - Nothing to add here
+    E) Efficient exploring in general (avg. uncovered tiles per turn)   .      - Nothing to add here WRONG: Add positional encoding 0.0 to 1.0 to 0.0
                                                                         .
                                                                         .
                                                                         .
                                                                         .
-                                                                        .
-                                                                        .
-                                                                        .
-                                                                        .
-                                                                        .
-                                                                        .
-                                                                        .
-                                                                        .
-
-
-
-
 
 
 The first step is to think about how the new node dimensions should be ordered. I think that one hot encoding still will be the way to go over having a toggle dimension between players, because the network can learn it much easier. 
@@ -666,9 +667,133 @@ Good luck with that kiddo, here is where the good separate from the decent. Dont
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 16.03. 16:47 Uhr
 
 unit.def_bonus was fixed, although there needs to be logic for units with no fortify...
+
+
+
+
+
+
+??.03. ?? Uhr
+
+Writing this from the future, because I have started training with a new paradigm; NO dense rewards. The goal is now to train the agent, which already knows the basic techniques of the game to be more goal oriented;
+This is done by removing the dense rewards, which also makes the critic score the board position in regards of the big reward penalty for ending a turn; it only predicts the value up until the end of the turn. 
+Instead, I want a critic that asserts the board position in terms of how likely it is that it will WIN. For this, I want to train it with no dense rewards.
+
+This appears to be known as reward curriculum in RL (Schrittweise anpassung der rewards) and seeks to make training more efficient.
+
+However, this also includes some important design choices; First, it is not so easy to simulate a lot of episodes with a winner. Therefore, the agents must be good enough to generate some winning trajectories from the first stage of the reward curriculum. Only then can you move to remove the dense rewards. 
+
+Second, from the simulated episodes, there will only be very few winning trajectories (because we are in a self-play on-policy setting, when the agent impoves in winning, it simultaneously improves in not loosing. Therefore, the win/ tie ratio will be pretty stable. 
+---> Later, we can soften this up, by having dynamic rewards based on the income the players has, how many units he has/ how many cities and points he has. Then, every trajectory can be used. 
+
+As of right now, I discard all trajectories which have no winner, because they would just produce 0 gradients (because there are no rewards), RIGHT???(???)
+
+In order to get meaningful trajectories out of this, one also has to increase the episoded length, so that the agent can win, even when not playing optimally yet.
+
+Additionally, I only trained on the smallest map type (11x11), so that the chance of a win is higher, it will also be very interesting to see, if this can be transferred to a bigger map. 
+
+Very interesting will be:
+
+- Let the dense reward agent play against the no dense reward (kinda unfair, given that the second one is based on the first one, but still interesting to see, if this improves the agents win rate.
+For this, I need an interface, where I can pick different policies for player 1 and player 2. This should be fairly easy. 
+
+
+Finally, what should also be of importance at this stage of the game and training; How good are humans performing against the trained agent. 
+This will be a bit more cumbersome, given that for this I need to implement a way to decide for the actions myself. Maybe this decision interface can be built from the action_mask, but I still need a way to visually translate the tile indices and more importantly, the unit ids into something a human can pick.
+---> This will be a long prompting session and you should make sure to separate this from the RL and game codebases, so that they stay clean and consice.
+
+
+
+Now back to the present:
+
+23.03. 13:40 Uhr
+
+Looking at the first trained agents with the reward curriculum and adding some interesting games to the visual_examples file.
+
+
+
+
+
+
+29.03. 00:12 Uhr
+
+I coded up a new GameManager in a jupyter notebook file that allows to have different policies play against each other. 
+--> Im also adding some games to the visual examples file (or maybe make a second one, because they get quite big already)
+
+With this, I will be able to collect data, how much the policies improve during training. For this, I can have the game manager simulate a bunch of games with two different policies as the players and collect valuable information, such as n_wins from each player, length of games, number of unit types, etc. 
+There is a lot that can be collected, most likely from the info dicts from each action. 
+
+Now, I need a vision on how to visualize these findings in order to identify, which stats I actually want to save out. We are still at the very base version of the game, so only combat and unit creation is easily observable. 
+
+Are there ways to observe "tactics" as defined in the table above w.o. looking at the renderings? This would also be highly interesting.
+For example: Exploring speed could be found by some kind of derivative of the size of uncovered_tiles in the player class. 
+
+
+
+
+
+
+30.03. 00:56 Uhr
+
+I have created now some plots for the collected data in the jupyter notebook file named "Run_different_policies_against_each_other.ipynb". 
+It turns out that there is really a lot still to do in terms of training because the I have the best agent play against the worst and while the tendencies are as was expected, the win rate is still pretty low with 2/3 of all games drawing in time and the best agent actually looses sometimes against the worst (only 50 updated in with dense rewards).
+
+This is surprising and I really hope that this is not a lesson about how data hungry a PPO is, because then it is pretty unlikely to be trainable on my laptop. I have approx simulated and trained on around 500*32 games in the dense setting and then only a couple of 100 more in the reward curriculum. This sums up to no more than 20k games as an upper limit, which could just be too low.
+Potentially, a successfull training (see settlers of catan) from scratch requires more like 500k-5M games, which just is not really feasible for this laptop. I would need more computing power to get there in reasonable time...
+
+What I have to do now is to read literature. Literature about trainig RL pipelines for complex games like chess or other stategy games and get a feeling for how many simulation and ppo runs are necessary to even approach novice level of play.
+I could also think about renting some computational recources at some point, but for this, I want the best training setup figured out obviously. Another idea is to use my big brain and come up with another training method that speeds up training. 
+This could be by including human data, if I somehow get it into the framework, or by leveraging LRMs, but this also costs money, so it is on par with buying comp recources.
+
+
+
+TASK: Figure out the top 3 papers (you already have 2 to be honest; one is referenced in the catan blog, the other one is this large summary paper about RL for strategy games) about PPO of complex strategy games. Read them paying focus on how much training is required and about the hyperparameter choices. 
+
+TASK2: There are some hyperparams chosen by claude.ai during creation of the ppo modules. CHECK THEM!!! Among them are the running mean and any ppo parameter choices. Make sure to cross-check them with the literature youre reading.
+
+
+Have fun, remember, thats the point of this!
+
+
+
+
+30.03. 13:56 Uhr
+
+Made the plots a little bit better, but then hit my claude.ai usage limit apparently after having to restart the prompt 3 times, because the reasoning just froze. I expect high demand worldwide atm, so I have to just sit it out I guess...
+
+I can read some of the papers in the meantime.
+
+
+16:22 Uhr:
+
+I just thought of a good idea to test the tactical mechanics, that can only be observed from rendered games; 
+Build a set of puzzle examples, that seek to observe the tactical mechanics outlined in the table further above;
+
+For example, DASH DANCING: Have a simple partial graph PRE-DEFINED set up, where there is a warrior in front of an enemy 5HP warrior and behind there is fog of war. You can then simply run 2-10 decisions quickly to find, whether the model does DASH DANCING or not. 
+The very same can be done for RIDER LEAPFROGGING, VET ASSIGNING, ROAD MECHANICS etc. (ROAD MECHANICS could be a city that can be seiged with using riders& roads)
+For maximum efficiency, these may be included into the training pipeline and tested every 10 updates or so. Maybe sample multiple times to, to get an average as opposed to one singular decision. 
+
+TODO: Build these pre-defined game states. This can only be done, once the advanced version of the game stands, so this is a TODO for after this TODO...
+Make these situations look like real-world game situations, and introduce robustness for example by randomizing the "leftover/ irrelevant" partial graph in some way...
+
+
+
+
+
 
 
 
