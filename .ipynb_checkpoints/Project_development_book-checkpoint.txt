@@ -639,12 +639,12 @@ Now, now, this is quite a lot to swallow.
 Lets move this up step by step. Here are the next things to do and how cool or uncool they are:
 
 1. Very uncool: Prepare the entire codebase to be dynamically programmed to introduce new mechanics that will 
-    a) change the node dimensions 
+    a) change the node dimensions DONE (19.04.)
     b) introduce new units/ city levels to the game 
     c) introduce new mechanics to the game (roads) 
     d) introduce new observables to the game (income, score, ...)
 
-    This also includes git management, adding new branches
+    This also includes git management, adding new branches DONE (Version 2.0)
 
 
 2. Very cool: Add the new mechanics (ZoC, income by city, city upgrades and explorer, new units, roads increase movement, ...)
@@ -902,5 +902,64 @@ This file lays down some important design choices for the todos that should be e
 
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+Now, we continue with manual changes to add new features:
+
+1. New city upgrades, stars per turn and costs of everything
+
+New city enums:
+
+class CityType(IntEnum):
+    village = 0
+    lvl1 = 1
+    lvl2_workshop = 2
+    lvl2_explorer = 3
+    lvl3_resources = 4
+    lvl3_wall = 5
+    lvl4_popgrwth = 6
+    lvl4_bordergwth = 7
+    lvl5_su = 8
+    lvl5_park = 9
+    lvl6_su = 10
+    lvl6_park = 11
+    lvl7_su = 12
+    lvl7_park = 13
+    lvl8plus = 14
+
+
+New city featurization:
+
+It needs to keep track of the choices, therefore we simply do:
+
+0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 
+0 1 0 1 0 1 1 0 1 0 0 0 0 0 0      = city lvl5 with explorer, resources,  bordergrwth and superunit
+
+0 1 1 0 0 1 0 1 0 1 1 0 1 0 1      = city lvl8plus with 1 park and 2 superunits chosen (keep this for global board, conceal for partial graph)
+
+v c w e w r b p s p s p s p p
+i i o x a e o o u a         l
+l t r p l s r p p r         u 
+l y k l l o d u e k         s
+a   s o   u e l r 
+g   h r   r r a u
+e   o e   c   t n
+    p r   e   i i
+          s   o t
+              n
+
+
+
+
+
+
+
+
+
+
 
 

@@ -31,16 +31,17 @@ def test_city_max_unit_cap_is_three():
 
 def test_upgrade_increases_max_unit_cap():
     c = City(tile_id=0, player_id=PlayerId.P1)
+    cap_before = c.max_unit_cap
     c.upgrade()
-    assert c.lvl == CityType.lvl2_city
-    assert c.max_unit_cap == 6
+    assert c.lvl == CityType.lvl2_workshop
+    assert c.max_unit_cap > cap_before
 
 
 def test_capture_changes_owner_and_sets_city_lvl():
     c = City(tile_id=0, player_id=None)
     c.capture(PlayerId.P1)
     assert c.player_id == PlayerId.P1
-    assert c.lvl == CityType.city
+    assert c.lvl == CityType.lvl1
 
 
 def test_capture_clears_siege():

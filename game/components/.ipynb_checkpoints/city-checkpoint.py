@@ -1,39 +1,90 @@
-
+from dataclasses import dataclass, field
 from game.enums import CityType, PlayerId
 
 
 
-class City(object):
-    """
-    City object. If instantiated with player_id = None it is an unclaimed village. Treat village and city different by checking for player_id.
-    hi
-    """
-    def __init__(self, player_id: PlayerId, tile_id: Int, is_capital=False, unit=None):
-        if player_id == None:
-            self.lvl = CityType.village
-        else:
-            self.lvl = CityType.city
+_CITY_UPGRADE_COST = {
+    CityType.lvl2_workshop :    5,
+    CityType.lvl2_explorer :    5,
+    CityType.lvl3_resources :   8,
+    CityType.lvl3_wall :        8,
+    CityType.lvl4_popgrwth :    12,
+    CityType.lvl4_bordergrwth : 12,
+    CityType.lvl5_su :          16,
+    CityType.lvl5_park :        16,
+    CityType.lvl6_su :          18,
+    CityType.lvl6_park :        18,
+    CityType.lvl7_su :          22,
+    CityType.lvl7_park :        22,
+    CityType.lvl8plus :         30,
+}
 
-        self.player_id = player_id
-        self.tile_id = tile_id
-        self.is_capital = is_capital
-        self.unit = unit
-        self.under_seige = False
-        self.max_unit_cap = 3
-        self.current_n_units = 1
 
-    def capture(self, new_player_id: PlayerId):
+_CITY_UPGRADES = {
+    CityType.lvl1 :             (CityType.lvl2_workshop, CityType.lvl2_explorer),
+    CityType.lvl2_workshop :    (CityType.lvl3_resources, CityType.lvl3_wall),
+    CityType.lvl2_explorer :    (CityType.lvl3_resources, CityType.lvl3_wall),
+    CityType.lvl3_resources :   (CityType.lvl4_popgrwth, CityType.lvl4_bordergrwth),
+    CityType.lvl3_wall :        (CityType.lvl4_popgrwth, CityType.lvl4_bordergrwth),
+    CityType.lvl4_popgrwth :    (CityType.lvl5_su, CityType.lvl5_park),
+    CityType.lvl4_bordergrwth : (CityType.lvl5_su, CityType.lvl5_park),
+    CityType.lvl5_su :          (CityType.lvl6_su, CityType.lvl6_park),
+    CityType.lvl5_park :        (CityType.lvl6_su, CityType.lvl6_park),
+    CityType.lvl6_su :          (CityType.lvl7_su, CityType.lvl7_park),
+    CityType.lvl6_park :        (CityType.lvl7_su, CityType.lvl7_park),
+    CityType.lvl7_su :          (CityType.lvl8plus, CityType.lvl8plus),
+    CityType.lvl7_park :        (CityType.lvl8plus, CityType.lvl8plus),
+    CityType.lvl8plus :         (CityType.lvl8plus, CityType.lvl8plus),
+}
+
+@dataclass
+class City:
+    """
+    City/village data. Held by a Tile; does not reference the tile or any unit.
+    Unit occupancy: read tile.unit (tile is the authority).
+    Unit count tracking: maintained via current_n_units (units trained at this city).
+    """
+    tile_id: int
+    player_id: PlayerId | None  # None = unclaimed village
+    is_capital: bool = False
+    under_siege: bool = False
+    current_n_units: int = 0
+    lvl: CityType = field(init=False)
+
+    def __post_init__(self):
+        self.lvl = CityType.village if self.player_id is None else CityType.lvl1
+        self.times_upgraded = 0
+        self.choices = []
+
+    @property
+    def max_unit_cap(self) -> int:
+        return self.times_upgraded + 2
+
+    @property
+    def city_stars_per_turn(self) -> int:
+        spt = 1
+        spt += self.times_upgraded
+        if self.times_upgraded > 0:
+            if self.choices[1] == 0: # workshop
+                spt += 1
+        if self.time_upgraded > 3: # 4th choice is the first option to get park
+            spt += np.sum(self.choices[4:]) # sum up all the choices == 1, bc. this is park
+        return spt
+            
+
+    def capture(self, new_player_id: PlayerId) -> None:
+        if self.lvl == CityType.village: # if a village is captured, make it to a lvl1 
+            self.lvl = CityType.lvl1
         self.player_id = new_player_id
         self.current_n_units = 1
-        self.lvl = CityType.city
+        self.under_siege = False
 
-    def seiging(self):
-        # no income
-        pass
+    def upgrade(self, choice) -> None:
+        new_lvl = _CITY_UPGRADES[self.lvl][choice]
+        self.lvl = new_lvl
+        self.times_upgraded += 1
+        self.choices.append(choice)
 
-    def upgrade(self):
-        self.lvl = CityType.lvl2_city
-
-    
-
-
+    def seiging(self) -> None:
+        ## useless function, just modify city attribute directly...
+        self.under_siege = True

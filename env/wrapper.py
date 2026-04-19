@@ -189,6 +189,10 @@ class EnvWrapper(object):
             np.zeros((num_units_player, len(visible_enemies))),   # attack (visible enemies only)
             np.zeros((num_cities_player, N_UNIT_TYPES)),          # create unit
             np.zeros((num_units_player,)),                        # capture city
+            np.zeros((num_units_player,)),                        # heal unit
+            np.zeros((num_cities_player, 2)),                     # upgrade city
+            np.zeros((self.n_tiles,)),                            # place road
+            np.zeros((num_units_player,)),                        # upgrade unit to veteran
         ]
 
         # move unit

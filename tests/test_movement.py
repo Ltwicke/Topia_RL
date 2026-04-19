@@ -6,6 +6,7 @@ Movement tests — verify the new three-phase movement algorithm:
   4. Zone of control: ZoC tiles are valid one-step destinations but block transit beyond them
   5. Road mechanic: Dijkstra respects edge weights; weight=0.5 edges extend range
 """
+import random
 import numpy as np
 import pytest
 
@@ -20,6 +21,7 @@ TRIBES = [Tribes.Omaji, Tribes.Yaddak]
 @pytest.fixture
 def fresh_env():
     np.random.seed(42)
+    random.seed(42)
     env = EnvWrapper(BOARD_CONFIG, TRIBES)
     env.reset()
     return env

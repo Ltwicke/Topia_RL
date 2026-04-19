@@ -24,9 +24,9 @@ def fresh_env():
 # Structural / sum tests
 # ---------------------------------------------------------------------------
 
-def test_mask_has_five_components(fresh_env):
+def test_mask_has_correct_components(fresh_env):
     mask = fresh_env.get_action_mask()
-    assert len(mask) == 5
+    assert len(mask) == len(ActionTypes)
 
 
 def test_end_turn_always_valid(fresh_env):

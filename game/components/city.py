@@ -2,6 +2,41 @@ from dataclasses import dataclass, field
 from game.enums import CityType, PlayerId
 
 
+
+_CITY_UPGRADE_COST = {
+    CityType.lvl2_workshop :    5,
+    CityType.lvl2_explorer :    5,
+    CityType.lvl3_resources :   8,
+    CityType.lvl3_wall :        8,
+    CityType.lvl4_popgrwth :    12,
+    CityType.lvl4_bordergrwth : 12,
+    CityType.lvl5_su :          16,
+    CityType.lvl5_park :        16,
+    CityType.lvl6_su :          18,
+    CityType.lvl6_park :        18,
+    CityType.lvl7_su :          22,
+    CityType.lvl7_park :        22,
+    CityType.lvl8plus :         30,
+}
+
+
+_CITY_UPGRADES = {
+    CityType.lvl1 :             (CityType.lvl2_workshop, CityType.lvl2_explorer),
+    CityType.lvl2_workshop :    (CityType.lvl3_resources, CityType.lvl3_wall),
+    CityType.lvl2_explorer :    (CityType.lvl3_resources, CityType.lvl3_wall),
+    CityType.lvl3_resources :   (CityType.lvl4_popgrwth, CityType.lvl4_bordergrwth),
+    CityType.lvl3_wall :        (CityType.lvl4_popgrwth, CityType.lvl4_bordergrwth),
+    CityType.lvl4_popgrwth :    (CityType.lvl5_su, CityType.lvl5_park),
+    CityType.lvl4_bordergrwth : (CityType.lvl5_su, CityType.lvl5_park),
+    CityType.lvl5_su :          (CityType.lvl6_su, CityType.lvl6_park),
+    CityType.lvl5_park :        (CityType.lvl6_su, CityType.lvl6_park),
+    CityType.lvl6_su :          (CityType.lvl7_su, CityType.lvl7_park),
+    CityType.lvl6_park :        (CityType.lvl7_su, CityType.lvl7_park),
+    CityType.lvl7_su :          (CityType.lvl8plus, CityType.lvl8plus),
+    CityType.lvl7_park :        (CityType.lvl8plus, CityType.lvl8plus),
+    CityType.lvl8plus :         (CityType.lvl8plus, CityType.lvl8plus),
+}
+
 @dataclass
 class City:
     """
@@ -17,20 +52,41 @@ class City:
     lvl: CityType = field(init=False)
 
     def __post_init__(self):
-        self.lvl = CityType.village if self.player_id is None else CityType.city
+        self.lvl = CityType.village if self.player_id is None else CityType.lvl1
+        self.times_upgraded = 0
+        self.choices = []
 
     @property
     def max_unit_cap(self) -> int:
-        return {CityType.village: 0, CityType.city: 3, CityType.lvl2_city: 6}[self.lvl]
+        if self.player_id is None:  # village
+            return 0
+        return self.times_upgraded + 3
+
+    @property
+    def city_stars_per_turn(self) -> int:
+        spt = 1
+        spt += self.times_upgraded
+        if self.times_upgraded > 0:
+            if self.choices[1] == 0: # workshop
+                spt += 1
+        if self.times_upgraded > 3: # 4th choice is the first option to get park
+            spt += np.sum(self.choices[4:]) # sum up all the choices == 1, bc. this is park
+        return spt
+            
 
     def capture(self, new_player_id: PlayerId) -> None:
+        if self.lvl == CityType.village: # if a village is captured, make it to a lvl1 
+            self.lvl = CityType.lvl1
         self.player_id = new_player_id
-        self.lvl = CityType.city
         self.current_n_units = 1
         self.under_siege = False
 
-    def upgrade(self) -> None:
-        self.lvl = CityType.lvl2_city
+    def upgrade(self, choice=0) -> None:
+        new_lvl = _CITY_UPGRADES[self.lvl][choice]
+        self.lvl = new_lvl
+        self.times_upgraded += 1
+        self.choices.append(choice)
 
     def seiging(self) -> None:
-        pass  # reserved for income mechanics
+        ## useless function, just modify city attribute directly...
+        self.under_siege = True

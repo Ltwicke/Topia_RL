@@ -90,8 +90,12 @@ class Board(object):
                 unit=unit,
                 player_controls=player_control
                 )
-            
+            if city is not None:
+                tile.has_road = True
+
             self.board.append(tile)
+
+        self._update_road_edge_weights()
 
         ## place starting units:
         for player_id, capital_id in self.capital_tile_ids.items():
@@ -105,6 +109,14 @@ class Board(object):
             self.board[capital_id].unit = unit
             self.board[capital_id].city.current_n_units = 1
 
+
+    def _update_road_edge_weights(self):
+        """Set edge weight to 0.5 where both endpoints have has_road, else 1.0."""
+        for u, v in self.movement_topology_graph.edges():
+            u_id = self.tup_to_int[u]
+            v_id = self.tup_to_int[v]
+            w = 0.5 if (self.board[u_id].has_road and self.board[v_id].has_road) else 1.0
+            self.movement_topology_graph[u][v]['weight'] = w
 
     def create_board_graph_from_board_state(self, active_tile_inds):
         """

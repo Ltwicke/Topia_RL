@@ -1,12 +1,49 @@
 # Here will be the entire logic for the game, which will then be wrapped in env for the RL task
+import random
 import numpy as np
 import math
 import networkx as nx
 
-from game.enums import UnitType, TileType, BoardType, PlayerId, TileStatus, Tribes, ActionTypes, UnitState, DefenseBonus
+from game.enums import (
+    UnitType, TileType, BoardType, PlayerId, TileStatus, Tribes, ActionTypes, UnitState, DefenseBonus,
+    OWN_TYPE_SLICE, OPP_TYPE_SLICE, _TILE_TYPE_START,
+)
 from game.components.board import Board
 from game.components.player import Player
-from game.components.units import Warrior, Rider
+from game.components.units import Warrior, Rider, Knight, Giant, Archer, Catapult, Sword
+
+
+_TURN_STATE_TRANSITIONS = [
+    # (unit_type, from_state, action_type, enemy_adjacent, new_state)
+    (UnitType.Warrior, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Warrior, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit),
+    (UnitType.Warrior, None,               ActionTypes.Attack,   None,  UnitState.idle),
+    ## ARCHER
+    (UnitType.Archer, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Archer, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit), 
+    (UnitType.Archer, None,               ActionTypes.Attack,   None,  UnitState.idle),
+    ## SWORDSMAN
+    (UnitType.Sword, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Sword, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit),
+    (UnitType.Sword, None,               ActionTypes.Attack,   None,  UnitState.idle),
+    ## KNIGHT
+    (UnitType.Knight, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Knight, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit),
+    (UnitType.Knight, UnitState.can_hit,  ActionTypes.Attack,   True,  UnitState.can_hit), # TODO: needs logic to only can attack, when the enemy unit was killed
+    ## CATAPULT
+    (UnitType.Catapult, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Catapult, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.idle),
+    (UnitType.Catapult, None,               ActionTypes.Attack,   None,  UnitState.idle),
+    ## GIANT
+    (UnitType.Giant, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Giant, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.idle),
+    (UnitType.Giant, None,               ActionTypes.Attack,   None,  UnitState.idle),
+    ## RIDER
+    (UnitType.Rider, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Rider, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit),
+    (UnitType.Rider, UnitState.escaping, ActionTypes.MoveUnit, None,  UnitState.idle),
+    (UnitType.Rider, None,               ActionTypes.Attack,   None,  UnitState.escaping),
+]
 
 
 class Game(object):
@@ -24,14 +61,24 @@ class Game(object):
             )
 
     def reset_game(self):
-        self.game_board.initialize()
+        self._used_unit_ids: set[int] = set()
+        self.game_board.initialize(self)
         self.game_board.create_board_graph_from_board_state(self.all_tile_ids)
-                                                            
+
         for player in self.players:
             player.reset(self.game_board)
 
         self.player_go_id = 0
         self.turn = 0
+
+    def _new_unit_id(self) -> int:
+        """Generate a random integer ID (0-9999) unique for this game session.
+        IDs are never removed from _used_unit_ids, so dead units' IDs are never recycled."""
+        uid = random.randint(0, 9999)
+        while uid in self._used_unit_ids:
+            uid = random.randint(0, 9999)
+        self._used_unit_ids.add(uid)
+        return uid
 
 
     def apply_action(self, action: dict, return_message=False):
@@ -45,7 +92,7 @@ class Game(object):
         message["action_type"] = action["type"] # stores ActionTypes
 
         if action["type"] == ActionTypes.MoveUnit:
-            unit = player.units_under_control[action["unit"]]
+            unit = player.units_under_control[action["unit_id"]]
             
             self.move_unit(unit, action["target_id"])
 
@@ -62,8 +109,8 @@ class Game(object):
 
 
         elif action["type"] == ActionTypes.Attack:
-            unit = player.units_under_control[action["unit"]]  ## "unit" is an integer here
-            o_unit = opponent.units_under_control[action["o_unit_index"]]
+            unit = player.units_under_control[action["unit_id"]]
+            o_unit = opponent.units_under_control[action["o_unit_id"]]
             unit_tile = unit.tile
             o_unit_tile = o_unit.tile
 
@@ -81,16 +128,13 @@ class Game(object):
                 unit.tile = o_unit_tile
                 
                 if o_unit_tile.city != None:
-                    o_unit_tile.city.unit = unit
                     self._apply_unit_def_bonus(unit) # You had to change to .value for the enum!
                 else:
                     unit.def_bonus = DefenseBonus.NoBonus
-                if unit_tile.city != None:
-                    unit_tile.city.unit = None # because unit leaves city      
 
                 self.apply_unit_vision(unit, attack_path)
 
-                del opponent.units_under_control[action["o_unit_index"]] ## remove defender pointer from opponent
+                del opponent.units_under_control[action["o_unit_id"]] ## remove defender pointer from opponent
                 o_unit.city.current_n_units -= 1
 
                 self.advance_unit_turn_state(unit, action)
@@ -104,10 +148,8 @@ class Game(object):
 
             if unit_result_hp <= 0: ## attacker vanishes due to defender
                 unit_tile.unit = None ## Delete unit pointer from tile
-                if unit_tile.city != None:
-                    unit_tile.city.unit = None
 
-                del player.units_under_control[action["unit"]] # remove unit pointer from player
+                del player.units_under_control[action["unit_id"]] # remove unit pointer from player
                 unit.city.current_n_units -= 1
                 o_unit.current_hp = o_unit_result_hp ## set new hp
                 
@@ -131,33 +173,35 @@ class Game(object):
             #assert city.unit == None, "the city is not empty" ## Unecessary, because createUnit can only be selected, if conditions apply!
             city_tile = self.game_board.board[city.tile_id]
 
-            if action["unit_type"] == UnitType.Warrior:
-                unit = Warrior(
-                    player_id=self.player_go_id,
-                    city=city,
-                    tile=city_tile
-                )
+            new_uid = self._new_unit_id()
+            _UNIT_CLASSES = {
+                UnitType.Warrior:  Warrior,
+                UnitType.Rider:    Rider,
+                UnitType.Knight:   Knight,
+                UnitType.Giant:    Giant,
+                UnitType.Archer:   Archer,
+                UnitType.Catapult: Catapult,
+                UnitType.Sword:    Sword,
+            }
+            unit = _UNIT_CLASSES[action["unit_type"]](
+                player_id=PlayerId(self.player_go_id),
+                city=city,
+                tile=city_tile,
+                unit_id=new_uid,
+            )
 
-            elif action["unit_type"] == UnitType.Rider:
-                unit = Rider(
-                    player_id=self.player_go_id,
-                    city=city,
-                    tile=city_tile
-                )
-                
             city_tile.unit = unit ## on city TILE
-            city.unit = unit # on city object... THIS NEEDS FIXING IN GENERAL
             city.current_n_units += 1
 
-            unit.def_bonus = DefenseBonus.Shield
-            
-            player.units_under_control.append(unit)
+            unit.def_bonus = DefenseBonus.Shield # or wall, depending on city
+
+            player.units_under_control[unit.unit_id] = unit
 
             message["unit_type"] = action["unit_type"]
 
         
         elif action["type"] == ActionTypes.CaptureCity:
-            unit = player.units_under_control[action["unit"]]  ## "unit" is an integer here
+            unit = player.units_under_control[action["unit_id"]]
             unit_tile = unit.tile
             former_unit_city = unit.city
             city = unit_tile.city
@@ -177,17 +221,31 @@ class Game(object):
 
             unit.turn_state = UnitState.idle
 
-            unit.def_bonus = DefenseBonus.Shield
+            unit.def_bonus = DefenseBonus.Shield # TODO: or wall, depending on city upgrade
+
+        elif action["type"] == ActionTypes.HealUnit:
+            pass
+
+        elif action["type"] == ActionTypes.UpgradeCity:
+            pass
+
+        elif action["type"] == ActionTypes.PlaceRoad:
+            pass
+
+        elif action["type"] == ActionTypes.Upgrade2Vet:
+            pass
             
 
         elif action["type"] == ActionTypes.EndTurn:
             self.turn += self.player_go_id % 2 # 0 1 0 1 0 1 0 1 ...
             self.player_go_id = (self.player_go_id + 1) % 2
+            new_player = self.players[self.player_go_id] # after ending the turn
 
-            for unit in self.players[self.player_go_id].units_under_control:
+            for unit in self.players[self.player_go_id].units_under_control.values():
                 unit.set_ready() # set turn state to ready
 
             ## player_go_id gets his stars for the turn
+            new_player.stars += new_player.current_stars_per_turn 
 
         ## Create a new board_graph AND players partial graph:
         self.game_board.create_board_graph_from_board_state(self.all_tile_ids)
@@ -210,13 +268,6 @@ class Game(object):
         return target_tiles_indices # INCLUDING loc_ind
 
 
-    def _has_reachable_node(self, G, source, cutoff):
-        for u, v in nx.bfs_edges(G, source, depth_limit=cutoff):
-            # if there is a single edge found:
-            return 1 
-        return 0
-
-
     def _apply_unit_def_bonus(self, unit):
         if unit.tile.city.player_id == None:
             unit.def_bonus = DefenseBonus.NoBonus
@@ -227,39 +278,91 @@ class Game(object):
             
     
     def calc_movement_target_and_shortest_path(self, unit, target_tile=None, greedy_search=False):
-        """Given the unit.mvpts and unit.tile.id, calculate all valid target ids and the shortest (valid) path to them.
-        The road mechanic may be introduced by modifying edges between nodes to be different from trivial.
-        TODO: Make this calculation a two step process; currently, i remove all nodes where a unit is standing on. While this is correct,
-        that no other unit can walk onto the specific tile, its incorrect, because riders for example can jump over it. Therefore, nodes
-        need to be removed for final target location but NOT for path finding!
+        """Calculate valid movement destinations and shortest paths for unit.
+
+        Transit rules:
+          - Hidden tiles and non-field tiles block ALL movement through them.
+          - Enemy-occupied tiles and their ZoC neighbors block transit (unit must stop before).
+          - Friendly-occupied tiles are passable as intermediate nodes.
+          - ZoC tiles (adjacent to enemies) can be stopping destinations but not transit nodes.
+
+        Road mechanic: edge weight < 1.0 reduces movement cost; Dijkstra respects weights.
         """
-        G = self.game_board.movement_topology_graph.copy() # copy the graph structure for every function call
+        partial_graph = self.players[unit.player_id].partial_graph
 
-        partial_graph = self.players[unit.player_id].partial_graph 
+        # Phase 0 — classify tiles
+        cant_step_on   = partial_graph[:, _TILE_TYPE_START] == 0               # not a field (hidden tiles are also 0)
+        own_occupied   = (partial_graph[:, OWN_TYPE_SLICE] != 0).any(axis=-1)
+        enemy_occupied = (partial_graph[:, OPP_TYPE_SLICE] != 0).any(axis=-1)
+        any_occupied   = own_occupied | enemy_occupied
+        destination_blocked = cant_step_on | any_occupied
 
-        cant_step_on = partial_graph[:,0] == 0 # True if its not a field tile
-        hidden_nodes = (partial_graph[:,0:3] == 0).all(axis=-1) # True if tile is not uncovered yet
-        occupied = (partial_graph[:, 10:25] != 0.0).any(axis=-1) # True if any unit on tile TODO: Currently also blocks own units to jump over, this is WRONG!
-        ## TODO: Enemy zone of control: Remove all nodes, where enemy units are adjacent
+        # Phase 1 — ZoC set: tiles adjacent to (or occupied by) visible enemy units
+        enemy_tile_ids = set(np.argwhere(enemy_occupied).flatten())
+        zoc_ids: set[int] = set(enemy_tile_ids)
+        for eid in enemy_tile_ids:
+            for nbr in self.game_board.movement_topology_graph.neighbors(
+                    self.game_board.int_to_tup[eid]):
+                zoc_ids.add(self.game_board.tup_to_int[nbr])
 
-        invalid_mask = cant_step_on | hidden_nodes | occupied
-        nodes_to_remove = [self.game_board.int_to_tup[index] for index in np.argwhere(invalid_mask).flatten()]
-        unit_location_node = self.game_board.int_to_tup[unit.tile.id]
+        # Phase 2 — build transit graph
+        G = self.game_board.movement_topology_graph.copy()
+        zoc_arr = np.zeros(len(partial_graph), dtype=bool)
+        for i in zoc_ids:
+            zoc_arr[i] = True
 
-        if unit_location_node in nodes_to_remove:
-            nodes_to_remove.remove(unit_location_node) # this shit still throws errors, bc unit location node is not part of it
-  
+        transit_blocked = cant_step_on | enemy_occupied | zoc_arr
+        nodes_to_remove = [self.game_board.int_to_tup[i]
+                           for i in np.argwhere(transit_blocked).flatten()]
+        unit_loc = self.game_board.int_to_tup[unit.tile.id]
+        if unit_loc in nodes_to_remove:
+            nodes_to_remove.remove(unit_loc)
         G.remove_nodes_from(nodes_to_remove)
 
+        if unit_loc not in G:
+            return False if greedy_search else ({} if target_tile is None else [])
+
+        # Phase 3 — Dijkstra (respects road edge weights)
+        lengths, paths = nx.single_source_dijkstra(
+            G, unit_loc, cutoff=unit.mvpts, weight='weight')
+
         if greedy_search:
-            return self._has_reachable_node(G, unit_location_node, unit.mvpts)
+            if any(not destination_blocked[self.game_board.tup_to_int[n]]
+                   for n in lengths if n != unit_loc):
+                return True
+            # also check ZoC tiles reachable as one-step stopping points
+            for node, cost in lengths.items():
+                for nbr in self.game_board.movement_topology_graph.neighbors(node):
+                    nbr_id = self.game_board.tup_to_int[nbr]
+                    if nbr_id not in zoc_ids or destination_blocked[nbr_id]:
+                        continue
+                    step = self.game_board.movement_topology_graph \
+                               .get_edge_data(node, nbr).get('weight', 1.0)
+                    if cost + step <= unit.mvpts:
+                        return True
+            return False
 
-        paths_dict = nx.single_source_shortest_path(G, unit_location_node, cutoff=unit.mvpts)
+        # Extend: ZoC tiles reachable as stopping destinations (one step from transit nodes)
+        for node, cost in list(lengths.items()):
+            for nbr in self.game_board.movement_topology_graph.neighbors(node):
+                nbr_id = self.game_board.tup_to_int[nbr]
+                if nbr_id not in zoc_ids or destination_blocked[nbr_id]:
+                    continue
+                step = self.game_board.movement_topology_graph \
+                           .get_edge_data(node, nbr).get('weight', 1.0)
+                if cost + step <= unit.mvpts and nbr not in lengths:
+                    lengths[nbr] = cost + step
+                    paths[nbr] = paths[node] + [nbr]
 
-        if target_tile != None:
-            return paths_dict[self.game_board.int_to_tup[target_tile]]
-        
-        return paths_dict
+        valid_paths = {
+            node: path for node, path in paths.items()
+            if node != unit_loc
+            and not destination_blocked[self.game_board.tup_to_int[node]]
+        }
+
+        if target_tile is not None:
+            return valid_paths[self.game_board.int_to_tup[target_tile]]
+        return valid_paths
         
 
     def move_unit(self, unit, target_tile_id):
@@ -310,50 +413,24 @@ class Game(object):
         return attackResult, defenseResult
 
 
-    def advance_unit_turn_state(self, unit, action):
-        """
-        This function includes all the logic about unit turn_states. This necessitates for the surrounding of the unit.
-        idle: the unit cannot do any action this turn anymore
-        ready: the unit has not done any action this turn
-        escaping: the unit cannot attack anymore, but can move
-        can_hit: the unit can attack, but cannot move.
-
-        TODO: This has to be reconsidered; There are too many situations that depend on factors outside of unit. OR include the action
-        and make it a little bit more ordered.
-        """
-        player = self.player_go_id # currently either 0 or 1
-        opponent = (player + 1) % 2 ## 1 + 1 % 2 = 0, 0 + 1 % 2 = 1 WORKS ONLY FOR 2 PLAYERS
-        surr_units = [
-                    self.game_board.board[id].unit.player_id for id in self.tiles_in_range(unit.tile.id, unit.attack_range) \
-                    if self.game_board.board[id].unit != None # no else statement? Does it default to None?
-                    ]
-        current_state = unit.turn_state
-        action_type = action["type"] # one of the enums
-
-        if unit.unit_type == UnitType.Warrior:
-            # some action has happened; e.g. warrior was moved, warrior attacked, now change turn_state on the unit:
-            if action_type == ActionTypes.MoveUnit: # only possible from ready state
-                if opponent in surr_units:
-                    unit.turn_state = UnitState.can_hit 
-                else:
-                    unit.turn_state = UnitState.idle
-            # action_type == Attack: 
-            elif action_type == ActionTypes.Attack:
-                unit.turn_state = UnitState.idle
-
-        elif unit.unit_type == UnitType.Rider:
-
-            if action_type == ActionTypes.MoveUnit:
-                if current_state == UnitState.ready:
-                    if opponent in surr_units:
-                        unit.turn_state = UnitState.can_hit # same here as above
-                    else:
-                        unit.turn_state = UnitState.idle
-                elif current_state == UnitState.escaping: # an escaping rider can only move, so we will be in this if
-                    unit.turn_state = UnitState.idle
-            # action_type == Attack
-            elif action_type == ActionTypes.Attack:
-                unit.turn_state = UnitState.escaping
+    def advance_unit_turn_state(self, unit, action, message):
+        opponent_id = (self.player_go_id + 1) % 2
+        enemy_adjacent = any(
+            self.game_board.board[tid].unit is not None
+            and self.game_board.board[tid].unit.player_id == opponent_id
+            for tid in self.tiles_in_range(unit.tile.id, unit.attack_range)
+        )
+        action_type = action["type"]
+        for ut, fs, at, ea, new_state in _TURN_STATE_TRANSITIONS: # why not make this a dictionary?
+            if (unit.unit_type == ut
+                    and (fs is None or unit.turn_state == fs)
+                    and action_type == at
+                    and (ea is None or enemy_adjacent == ea)):
+                unit.turn_state = new_state
+                return
+        raise ValueError(
+            f"No turn-state transition for {unit.unit_type}, {unit.turn_state}, {action_type}, {enemy_adjacent}"
+        )
 
 
 

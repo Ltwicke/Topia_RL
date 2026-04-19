@@ -12,7 +12,7 @@ This repository contains two interconnected projects:
 ## Project 1: Game simulator
 
 ### Components
-- `game/enums.py`: this file includes python Enum classes that hold the different features of the game. These classes will be used throughout the codebase to control the game simulator.
+- `game/enums.py`: this file includes python Enum classes that hold the different features of the game. These classes will be used throughout the codebase to control the game simulator. It also includes slices that are important for generating the partial graph for each player, which is the main observation input for the RL agents. 
 - `game/components`: this folder contains individual game object classes that have their own behaviour and can be created as an object during the game simulations.
 - `game/components/tile.py`: tile objects hold the universal information of the game board. It also includes transform_to_node_features function which featurizes the nodes for downstream tasks.
 - `game/components/player.py`: the player class holds all the information present to each individual player in the game. The players partial graph attribute is the basis of the observation module in the RL downstream task.

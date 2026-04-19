@@ -10,18 +10,39 @@ from game.enums import (
 )
 from game.components.board import Board
 from game.components.player import Player
-from game.components.units import Warrior, Rider
+from game.components.units import Warrior, Rider, Knight, Giant, Archer, Catapult, Sword
 
 
 _TURN_STATE_TRANSITIONS = [
     # (unit_type, from_state, action_type, enemy_adjacent, new_state)
-    (UnitType.Warrior, None,               ActionTypes.MoveUnit, False, UnitState.idle),
-    (UnitType.Warrior, None,               ActionTypes.MoveUnit, True,  UnitState.can_hit),
+    (UnitType.Warrior, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Warrior, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit),
     (UnitType.Warrior, None,               ActionTypes.Attack,   None,  UnitState.idle),
-    (UnitType.Rider,   UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
-    (UnitType.Rider,   UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit),
-    (UnitType.Rider,   UnitState.escaping, ActionTypes.MoveUnit, None,  UnitState.idle),
-    (UnitType.Rider,   None,               ActionTypes.Attack,   None,  UnitState.escaping),
+    ## ARCHER
+    (UnitType.Archer, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Archer, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit), 
+    (UnitType.Archer, None,               ActionTypes.Attack,   None,  UnitState.idle),
+    ## SWORDSMAN
+    (UnitType.Sword, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Sword, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit),
+    (UnitType.Sword, None,               ActionTypes.Attack,   None,  UnitState.idle),
+    ## KNIGHT
+    (UnitType.Knight, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Knight, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit),
+    (UnitType.Knight, UnitState.can_hit,  ActionTypes.Attack,   True,  UnitState.can_hit), # TODO: needs logic to only can attack, when the enemy unit was killed
+    ## CATAPULT
+    (UnitType.Catapult, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Catapult, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.idle),
+    (UnitType.Catapult, None,               ActionTypes.Attack,   None,  UnitState.idle),
+    ## GIANT
+    (UnitType.Giant, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Giant, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.idle),
+    (UnitType.Giant, None,               ActionTypes.Attack,   None,  UnitState.idle),
+    ## RIDER
+    (UnitType.Rider, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Rider, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit),
+    (UnitType.Rider, UnitState.escaping, ActionTypes.MoveUnit, None,  UnitState.idle),
+    (UnitType.Rider, None,               ActionTypes.Attack,   None,  UnitState.escaping),
 ]
 
 
@@ -153,25 +174,26 @@ class Game(object):
             city_tile = self.game_board.board[city.tile_id]
 
             new_uid = self._new_unit_id()
-            if action["unit_type"] == UnitType.Warrior:
-                unit = Warrior(
-                    player_id=PlayerId(self.player_go_id),
-                    city=city,
-                    tile=city_tile,
-                    unit_id=new_uid,
-                )
-            elif action["unit_type"] == UnitType.Rider:
-                unit = Rider(
-                    player_id=PlayerId(self.player_go_id),
-                    city=city,
-                    tile=city_tile,
-                    unit_id=new_uid,
-                )
+            _UNIT_CLASSES = {
+                UnitType.Warrior:  Warrior,
+                UnitType.Rider:    Rider,
+                UnitType.Knight:   Knight,
+                UnitType.Giant:    Giant,
+                UnitType.Archer:   Archer,
+                UnitType.Catapult: Catapult,
+                UnitType.Sword:    Sword,
+            }
+            unit = _UNIT_CLASSES[action["unit_type"]](
+                player_id=PlayerId(self.player_go_id),
+                city=city,
+                tile=city_tile,
+                unit_id=new_uid,
+            )
 
             city_tile.unit = unit ## on city TILE
             city.current_n_units += 1
 
-            unit.def_bonus = DefenseBonus.Shield
+            unit.def_bonus = DefenseBonus.Shield # or wall, depending on city
 
             player.units_under_control[unit.unit_id] = unit
 
@@ -199,17 +221,31 @@ class Game(object):
 
             unit.turn_state = UnitState.idle
 
-            unit.def_bonus = DefenseBonus.Shield
+            unit.def_bonus = DefenseBonus.Shield # TODO: or wall, depending on city upgrade
+
+        elif action["type"] == ActionTypes.HealUnit:
+            pass
+
+        elif action["type"] == ActionTypes.UpgradeCity:
+            pass
+
+        elif action["type"] == ActionTypes.PlaceRoad:
+            pass
+
+        elif action["type"] == ActionTypes.Upgrade2Vet:
+            pass
             
 
         elif action["type"] == ActionTypes.EndTurn:
             self.turn += self.player_go_id % 2 # 0 1 0 1 0 1 0 1 ...
             self.player_go_id = (self.player_go_id + 1) % 2
+            new_player = self.players[self.player_go_id] # after ending the turn
 
             for unit in self.players[self.player_go_id].units_under_control.values():
                 unit.set_ready() # set turn state to ready
 
             ## player_go_id gets his stars for the turn
+            new_player.stars += new_player.current_stars_per_turn 
 
         ## Create a new board_graph AND players partial graph:
         self.game_board.create_board_graph_from_board_state(self.all_tile_ids)
@@ -377,7 +413,7 @@ class Game(object):
         return attackResult, defenseResult
 
 
-    def advance_unit_turn_state(self, unit, action):
+    def advance_unit_turn_state(self, unit, action, message):
         opponent_id = (self.player_go_id + 1) % 2
         enemy_adjacent = any(
             self.game_board.board[tid].unit is not None
@@ -385,7 +421,7 @@ class Game(object):
             for tid in self.tiles_in_range(unit.tile.id, unit.attack_range)
         )
         action_type = action["type"]
-        for ut, fs, at, ea, new_state in _TURN_STATE_TRANSITIONS:
+        for ut, fs, at, ea, new_state in _TURN_STATE_TRANSITIONS: # why not make this a dictionary?
             if (unit.unit_type == ut
                     and (fs is None or unit.turn_state == fs)
                     and action_type == at

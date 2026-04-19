@@ -1,11 +1,22 @@
-## player.py will handle the partial board state, as well as stuff like stars per turn, unit move order etc. 
+from dataclasses import dataclass, field
 import numpy as np
 from copy import copy
 
-from game.enums import PlayerId, BoardType, Tribes
+from game.enums import PlayerId, BoardType, Tribes, PARTIAL_GRAPH_SWAPS
 from game.components.board import Board
 
 
+_SCORE_PER_CITY = {
+    
+}
+
+_SCORE_PER_UNIT = {
+    
+}
+
+
+
+@dataclass
 class Player(object):
     """
     All objects such as units and cities will be handled in the board class. The functions of the player are held minimal to better translate into RL.
@@ -31,8 +42,7 @@ class Player(object):
         self.uncovered_tile_ids = set()
         self.units_under_control: dict = {}  # unit_id -> Unit
         self.cities_under_control = []
-        self.stars = None
-        self.spt = None
+        self.stars = 5
 
         self.capital_id = board.capital_tile_ids[self.player_id.value]
         x, y = board.int_to_tup[self.capital_id]
@@ -56,6 +66,18 @@ class Player(object):
 
         ## stars per turn based on capital:
 
+    @property
+    def current_stars_per_turn(self) -> int:
+        spt = 0
+        for city in self.cities_under_control:
+            spt += city.city_stars_per_turn
+        return spt
+
+    @property
+    def current_score(self) -> int:
+        score = 0
+        
+
 
     def construct_partial_graph_2players(self, board):
         """
@@ -64,18 +86,16 @@ class Player(object):
         P1 view: P1 P2 P3 ...
         P2 view: P2 P1 P3 ...
         P3 view: P3 P1 P2 ...
-        BIG TODO: Need IntEnum class to store the starting dimensions of each thing and create logic to work with arbitrary amount of players.
+        BIG TODO: Need IntEnum class to store the starting dimensions of each thing.
         """
-        self.partial_graph = copy(board.board_graph) 
+        self.partial_graph = copy(board.board_graph)
 
-        # switch only for player P2:
-        if self.player_id.value == 1:  ## PlayerId.P2
-            self.partial_graph[:, [3, 4]] = self.partial_graph[:, [4, 3]]              ## player control [3:5]
-            self.partial_graph[:, [6, 7, 8, 9]] = self.partial_graph[:, [8, 9, 6, 7]] ## city blocks [6:10]
-            ## unit type blocks only [14:18] — state [10:14] is player-agnostic, never swapped
-            self.partial_graph[:, [14, 15, 16, 17]] = self.partial_graph[:, [16, 17, 14, 15]]
+        if self.player_id.value == 1:
+            for s0, s1 in PARTIAL_GRAPH_SWAPS:
+                tmp = self.partial_graph[:, s0].copy()
+                self.partial_graph[:, s0] = self.partial_graph[:, s1]
+                self.partial_graph[:, s1] = tmp
 
-        # conceal:
         self.partial_graph[~np.isin(np.arange(self.partial_graph.shape[0]), list(self.uncovered_tile_ids))] = 0
 
 
