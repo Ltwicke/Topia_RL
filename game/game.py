@@ -13,6 +13,18 @@ from game.components.player import Player
 from game.components.units import Warrior, Rider
 
 
+_TURN_STATE_TRANSITIONS = [
+    # (unit_type, from_state, action_type, enemy_adjacent, new_state)
+    (UnitType.Warrior, None,               ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Warrior, None,               ActionTypes.MoveUnit, True,  UnitState.can_hit),
+    (UnitType.Warrior, None,               ActionTypes.Attack,   None,  UnitState.idle),
+    (UnitType.Rider,   UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Rider,   UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit),
+    (UnitType.Rider,   UnitState.escaping, ActionTypes.MoveUnit, None,  UnitState.idle),
+    (UnitType.Rider,   None,               ActionTypes.Attack,   None,  UnitState.escaping),
+]
+
+
 class Game(object):
 
     def __init__(self, board_config={}, player_tribes=[], debug_mode=False):
@@ -366,49 +378,23 @@ class Game(object):
 
 
     def advance_unit_turn_state(self, unit, action):
-        """
-        This function includes all the logic about unit turn_states. This necessitates for the surrounding of the unit.
-        idle: the unit cannot do any action this turn anymore
-        ready: the unit has not done any action this turn
-        escaping: the unit cannot attack anymore, but can move
-        can_hit: the unit can attack, but cannot move.
-
-        TODO: This has to be reconsidered; There are too many situations that depend on factors outside of unit. OR include the action
-        and make it a little bit more ordered.
-        """
-        player = self.player_go_id # currently either 0 or 1
-        opponent = (player + 1) % 2 ## 1 + 1 % 2 = 0, 0 + 1 % 2 = 1 WORKS ONLY FOR 2 PLAYERS
-        surr_units = [
-                    self.game_board.board[id].unit.player_id for id in self.tiles_in_range(unit.tile.id, unit.attack_range) \
-                    if self.game_board.board[id].unit != None # no else statement? Does it default to None?
-                    ]
-        current_state = unit.turn_state
-        action_type = action["type"] # one of the enums
-
-        if unit.unit_type == UnitType.Warrior:
-            # some action has happened; e.g. warrior was moved, warrior attacked, now change turn_state on the unit:
-            if action_type == ActionTypes.MoveUnit: # only possible from ready state
-                if opponent in surr_units:
-                    unit.turn_state = UnitState.can_hit 
-                else:
-                    unit.turn_state = UnitState.idle
-            # action_type == Attack: 
-            elif action_type == ActionTypes.Attack:
-                unit.turn_state = UnitState.idle
-
-        elif unit.unit_type == UnitType.Rider:
-
-            if action_type == ActionTypes.MoveUnit:
-                if current_state == UnitState.ready:
-                    if opponent in surr_units:
-                        unit.turn_state = UnitState.can_hit # same here as above
-                    else:
-                        unit.turn_state = UnitState.idle
-                elif current_state == UnitState.escaping: # an escaping rider can only move, so we will be in this if
-                    unit.turn_state = UnitState.idle
-            # action_type == Attack
-            elif action_type == ActionTypes.Attack:
-                unit.turn_state = UnitState.escaping
+        opponent_id = (self.player_go_id + 1) % 2
+        enemy_adjacent = any(
+            self.game_board.board[tid].unit is not None
+            and self.game_board.board[tid].unit.player_id == opponent_id
+            for tid in self.tiles_in_range(unit.tile.id, unit.attack_range)
+        )
+        action_type = action["type"]
+        for ut, fs, at, ea, new_state in _TURN_STATE_TRANSITIONS:
+            if (unit.unit_type == ut
+                    and (fs is None or unit.turn_state == fs)
+                    and action_type == at
+                    and (ea is None or enemy_adjacent == ea)):
+                unit.turn_state = new_state
+                return
+        raise ValueError(
+            f"No turn-state transition for {unit.unit_type}, {unit.turn_state}, {action_type}, {enemy_adjacent}"
+        )
 
 
 
