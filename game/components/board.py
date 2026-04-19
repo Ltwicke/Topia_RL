@@ -3,13 +3,10 @@ import numpy as np
 import networkx as nx
 from random import sample
 
-from game.enums import UnitType, TileType, BoardType, PlayerId, TileStatus
+from game.enums import UnitType, TileType, BoardType, PlayerId, TileStatus, NODE_FEAT_DIM, N_PLAYERS
 from game.components.tile import Tile
 from game.components.city import City
 from game.components.units import Warrior
-
-NODE_FEAT_DIM = 26  ## this needs to be adjusted, when enums get bigger...
-N_PLAYERS = len(PlayerId)
 
 def board_generating_logic(board_size, board_type, n_players):
     """This function builds a plan how the graph should be created. This function will be moved to components or get its own file."""
@@ -47,6 +44,7 @@ class Board(object):
                 # Diagonale: Unten-Links
                 diagonals.append(((x + 1, y), (x, y + 1)))
         self.movement_topology_graph.add_edges_from(diagonals)
+        nx.set_edge_attributes(self.movement_topology_graph, 1.0, 'weight')
 
         self.initialize()
 

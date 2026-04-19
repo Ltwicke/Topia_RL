@@ -69,11 +69,11 @@ class Player(object):
         self.partial_graph = copy(board.board_graph) 
 
         # switch only for player P2:
-        if self.player_id.value == 1: ## PlayerId.P2
-            self.partial_graph[:, [3, 4]] = self.partial_graph[:, [4, 3]]               ## player control; switch only one column (3 and 4)
-            self.partial_graph[:, [6, 7, 8, 9]] = self.partial_graph[:, [8, 9, 6, 7]]   ## player city, switch two columns (switch 6,7 with 8,9)
-            self.partial_graph[:, [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]] = \
-            self.partial_graph[:, [18, 19, 20, 21, 22, 23, 24, 25, 10, 11, 12, 13, 14, 15, 16, 17]]     ## player unit, switch many more columns
+        if self.player_id.value == 1:  ## PlayerId.P2
+            self.partial_graph[:, [3, 4]] = self.partial_graph[:, [4, 3]]              ## player control [3:5]
+            self.partial_graph[:, [6, 7, 8, 9]] = self.partial_graph[:, [8, 9, 6, 7]] ## city blocks [6:10]
+            ## unit type blocks only [14:18] — state [10:14] is player-agnostic, never swapped
+            self.partial_graph[:, [14, 15, 16, 17]] = self.partial_graph[:, [16, 17, 14, 15]]
 
         # conceal:
         self.partial_graph[~np.isin(np.arange(self.partial_graph.shape[0]), list(self.uncovered_tile_ids))] = 0

@@ -86,9 +86,48 @@ class ActionTypes(IntEnum):
     Attack = 1
     CreateUnit = 2
     CaptureCity = 3
-    
+
     EndTurn = 4
-    
+
+
+# ---------------------------------------------------------------------------
+# Derived dimension constants
+# ---------------------------------------------------------------------------
+N_TILE_TYPES  = len(TileType)
+N_PLAYERS     = len(PlayerId)
+N_UNIT_TYPES  = len(UnitType)
+N_UNIT_STATES = len(UnitState)
+N_TILE_STATI  = len(TileStatus)
+N_CITY_TYPES  = len(CityType) - 1   # excludes village from the city one-hot
+
+# ---------------------------------------------------------------------------
+# Feature vector boundary integers
+# Layout: [tile_type | player_ctrl | city | unit_state | P0_type | P1_type]
+# ---------------------------------------------------------------------------
+_TILE_TYPE_START   = 0
+_PLAYER_CTRL_START = _TILE_TYPE_START   + N_TILE_TYPES                    # 3
+_CITY_START        = _PLAYER_CTRL_START + N_PLAYERS                       # 5
+_UNIT_START        = _CITY_START        + 1 + N_CITY_TYPES * N_PLAYERS    # 10
+_UNIT_TYPE_START   = _UNIT_START        + N_UNIT_STATES                   # 14
+NODE_FEAT_DIM      = _UNIT_TYPE_START   + N_UNIT_TYPES * N_PLAYERS        # 18
+
+# ---------------------------------------------------------------------------
+# Named slices into any node feature vector
+# ---------------------------------------------------------------------------
+TILE_TYPE_SLICE   = slice(_TILE_TYPE_START,   _PLAYER_CTRL_START)   # [0:3]
+PLAYER_CTRL_SLICE = slice(_PLAYER_CTRL_START, _CITY_START)          # [3:5]
+CITY_SLICE        = slice(_CITY_START,        _UNIT_START)           # [5:10]
+UNIT_STATE_SLICE  = slice(_UNIT_START,        _UNIT_TYPE_START)      # [10:14] — shared across players
+
+# partial_graph slices (after P2 swap: own player's type block is always first)
+OWN_TYPE_SLICE = slice(_UNIT_TYPE_START,                    _UNIT_TYPE_START + N_UNIT_TYPES)  # [14:16]
+OPP_TYPE_SLICE = slice(_UNIT_TYPE_START + N_UNIT_TYPES,     NODE_FEAT_DIM)                    # [16:18]
+
+
+def player_type_slice(player_idx: int) -> slice:
+    """Unit-type slice for player_idx in the raw board_graph (absolute order, no P2 swap)."""
+    s = _UNIT_TYPE_START + player_idx * N_UNIT_TYPES
+    return slice(s, s + N_UNIT_TYPES)
 
 
 

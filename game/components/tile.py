@@ -1,14 +1,10 @@
 import numpy as np
-from game.enums import TileType, TileStatus, PlayerId, UnitType, CityType, UnitState
+from game.enums import (
+    TileType, TileStatus, PlayerId, UnitType, CityType, UnitState,
+    N_UNIT_TYPES, N_PLAYERS, N_UNIT_STATES, N_TILE_TYPES, N_TILE_STATI, N_CITY_TYPES
+)
 from game.components.city import City
 from game.components.units import Warrior
-
-N_UNIT_TYPES = len(UnitType)
-N_PLAYERS = len(PlayerId)
-N_UNIT_STATES = len(UnitState)
-N_TILE_TYPES = len(TileType)
-N_TILE_STATI = len(TileStatus)
-N_CITY_TYPES = len(CityType) - 1 # because, village is treated seperately
 
 def one_hot_field_type(member: TileType):
     """member is an integer. Move to components file"""
@@ -46,22 +42,22 @@ def city_featurizer(city: City):
     return "should not get here"
 
 
-def unit_featurizer(unit: Unit):
+def unit_featurizer(unit):
     """
-    Again, the global order is P1 P2 P3 ...
+    New compact layout: [unit_state (4) | P0_type (2) | P1_type (2)] = 8 dims.
+    Unit state stores HP fraction in the active state slot; type is one-hot per player.
+    Since at most one unit can occupy a tile, state is player-agnostic.
     """
-    if unit == None:
-        return np.zeros(N_UNIT_TYPES * N_UNIT_STATES * N_PLAYERS)
-    
-    else: 
-        full_units_vec = [np.zeros(N_UNIT_TYPES * N_UNIT_STATES) for n in range(N_PLAYERS)] # for all players the full vector
+    if unit is None:
+        return np.zeros(N_UNIT_STATES + N_UNIT_TYPES * N_PLAYERS)
 
-        all_unit_state_vecs = [np.zeros(N_UNIT_STATES) for n in range(N_UNIT_TYPES)] # all possible states for all possible unit types
-        all_unit_state_vecs[unit.unit_type][unit.turn_state] = float(unit.current_hp / unit.hp) # specific unit type; warr = 0, rider = 1 ... and turn state
+    state_vec = np.zeros(N_UNIT_STATES)
+    state_vec[int(unit.turn_state)] = unit.current_hp / unit.hp
 
-        full_units_vec[unit.player_id] = np.hstack(all_unit_state_vecs)
+    type_vecs = [np.zeros(N_UNIT_TYPES) for _ in range(N_PLAYERS)]
+    type_vecs[int(unit.player_id)][int(unit.unit_type)] = 1.0
 
-        return np.hstack(full_units_vec)
+    return np.hstack([state_vec, *type_vecs])
 
 
 

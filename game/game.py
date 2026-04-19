@@ -4,7 +4,10 @@ import numpy as np
 import math
 import networkx as nx
 
-from game.enums import UnitType, TileType, BoardType, PlayerId, TileStatus, Tribes, ActionTypes, UnitState, DefenseBonus
+from game.enums import (
+    UnitType, TileType, BoardType, PlayerId, TileStatus, Tribes, ActionTypes, UnitState, DefenseBonus,
+    OWN_TYPE_SLICE, OPP_TYPE_SLICE, _TILE_TYPE_START,
+)
 from game.components.board import Board
 from game.components.player import Player
 from game.components.units import Warrior, Rider
@@ -217,13 +220,6 @@ class Game(object):
         return target_tiles_indices # INCLUDING loc_ind
 
 
-    def _has_reachable_node(self, G, source, cutoff):
-        for u, v in nx.bfs_edges(G, source, depth_limit=cutoff):
-            # if there is a single edge found:
-            return 1 
-        return 0
-
-
     def _apply_unit_def_bonus(self, unit):
         if unit.tile.city.player_id == None:
             unit.def_bonus = DefenseBonus.NoBonus
@@ -234,39 +230,91 @@ class Game(object):
             
     
     def calc_movement_target_and_shortest_path(self, unit, target_tile=None, greedy_search=False):
-        """Given the unit.mvpts and unit.tile.id, calculate all valid target ids and the shortest (valid) path to them.
-        The road mechanic may be introduced by modifying edges between nodes to be different from trivial.
-        TODO: Make this calculation a two step process; currently, i remove all nodes where a unit is standing on. While this is correct,
-        that no other unit can walk onto the specific tile, its incorrect, because riders for example can jump over it. Therefore, nodes
-        need to be removed for final target location but NOT for path finding!
+        """Calculate valid movement destinations and shortest paths for unit.
+
+        Transit rules:
+          - Hidden tiles and non-field tiles block ALL movement through them.
+          - Enemy-occupied tiles and their ZoC neighbors block transit (unit must stop before).
+          - Friendly-occupied tiles are passable as intermediate nodes.
+          - ZoC tiles (adjacent to enemies) can be stopping destinations but not transit nodes.
+
+        Road mechanic: edge weight < 1.0 reduces movement cost; Dijkstra respects weights.
         """
-        G = self.game_board.movement_topology_graph.copy() # copy the graph structure for every function call
+        partial_graph = self.players[unit.player_id].partial_graph
 
-        partial_graph = self.players[unit.player_id].partial_graph 
+        # Phase 0 — classify tiles
+        cant_step_on   = partial_graph[:, _TILE_TYPE_START] == 0               # not a field (hidden tiles are also 0)
+        own_occupied   = (partial_graph[:, OWN_TYPE_SLICE] != 0).any(axis=-1)
+        enemy_occupied = (partial_graph[:, OPP_TYPE_SLICE] != 0).any(axis=-1)
+        any_occupied   = own_occupied | enemy_occupied
+        destination_blocked = cant_step_on | any_occupied
 
-        cant_step_on = partial_graph[:,0] == 0 # True if its not a field tile
-        hidden_nodes = (partial_graph[:,0:3] == 0).all(axis=-1) # True if tile is not uncovered yet
-        occupied = (partial_graph[:, 10:26] != 0.0).any(axis=-1) # True if any unit on tile TODO: Currently also blocks own units to jump over, this is WRONG!
-        ## TODO: Enemy zone of control: Remove all nodes, where enemy units are adjacent
+        # Phase 1 — ZoC set: tiles adjacent to (or occupied by) visible enemy units
+        enemy_tile_ids = set(np.argwhere(enemy_occupied).flatten())
+        zoc_ids: set[int] = set(enemy_tile_ids)
+        for eid in enemy_tile_ids:
+            for nbr in self.game_board.movement_topology_graph.neighbors(
+                    self.game_board.int_to_tup[eid]):
+                zoc_ids.add(self.game_board.tup_to_int[nbr])
 
-        invalid_mask = cant_step_on | hidden_nodes | occupied
-        nodes_to_remove = [self.game_board.int_to_tup[index] for index in np.argwhere(invalid_mask).flatten()]
-        unit_location_node = self.game_board.int_to_tup[unit.tile.id]
+        # Phase 2 — build transit graph
+        G = self.game_board.movement_topology_graph.copy()
+        zoc_arr = np.zeros(len(partial_graph), dtype=bool)
+        for i in zoc_ids:
+            zoc_arr[i] = True
 
-        if unit_location_node in nodes_to_remove:
-            nodes_to_remove.remove(unit_location_node) # this shit still throws errors, bc unit location node is not part of it
-  
+        transit_blocked = cant_step_on | enemy_occupied | zoc_arr
+        nodes_to_remove = [self.game_board.int_to_tup[i]
+                           for i in np.argwhere(transit_blocked).flatten()]
+        unit_loc = self.game_board.int_to_tup[unit.tile.id]
+        if unit_loc in nodes_to_remove:
+            nodes_to_remove.remove(unit_loc)
         G.remove_nodes_from(nodes_to_remove)
 
+        if unit_loc not in G:
+            return False if greedy_search else ({} if target_tile is None else [])
+
+        # Phase 3 — Dijkstra (respects road edge weights)
+        lengths, paths = nx.single_source_dijkstra(
+            G, unit_loc, cutoff=unit.mvpts, weight='weight')
+
         if greedy_search:
-            return self._has_reachable_node(G, unit_location_node, unit.mvpts)
+            if any(not destination_blocked[self.game_board.tup_to_int[n]]
+                   for n in lengths if n != unit_loc):
+                return True
+            # also check ZoC tiles reachable as one-step stopping points
+            for node, cost in lengths.items():
+                for nbr in self.game_board.movement_topology_graph.neighbors(node):
+                    nbr_id = self.game_board.tup_to_int[nbr]
+                    if nbr_id not in zoc_ids or destination_blocked[nbr_id]:
+                        continue
+                    step = self.game_board.movement_topology_graph \
+                               .get_edge_data(node, nbr).get('weight', 1.0)
+                    if cost + step <= unit.mvpts:
+                        return True
+            return False
 
-        paths_dict = nx.single_source_shortest_path(G, unit_location_node, cutoff=unit.mvpts)
+        # Extend: ZoC tiles reachable as stopping destinations (one step from transit nodes)
+        for node, cost in list(lengths.items()):
+            for nbr in self.game_board.movement_topology_graph.neighbors(node):
+                nbr_id = self.game_board.tup_to_int[nbr]
+                if nbr_id not in zoc_ids or destination_blocked[nbr_id]:
+                    continue
+                step = self.game_board.movement_topology_graph \
+                           .get_edge_data(node, nbr).get('weight', 1.0)
+                if cost + step <= unit.mvpts and nbr not in lengths:
+                    lengths[nbr] = cost + step
+                    paths[nbr] = paths[node] + [nbr]
 
-        if target_tile != None:
-            return paths_dict[self.game_board.int_to_tup[target_tile]]
-        
-        return paths_dict
+        valid_paths = {
+            node: path for node, path in paths.items()
+            if node != unit_loc
+            and not destination_blocked[self.game_board.tup_to_int[node]]
+        }
+
+        if target_tile is not None:
+            return valid_paths[self.game_board.int_to_tup[target_tile]]
+        return valid_paths
         
 
     def move_unit(self, unit, target_tile_id):

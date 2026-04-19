@@ -7,10 +7,13 @@ from matplotlib.collections import PatchCollection
 import matplotlib.patches as mpatches
 
 from game.game import Game
-from game.enums import BoardType, Tribes, ActionTypes, UnitType, UnitState
-
-
-N_UNIT_TYPES = len(UnitType)
+from game.enums import (
+    BoardType, Tribes, ActionTypes, UnitType, UnitState,
+    NODE_FEAT_DIM, N_UNIT_TYPES, N_CITY_TYPES,
+    _TILE_TYPE_START, _PLAYER_CTRL_START, _CITY_START,
+    UNIT_STATE_SLICE, player_type_slice,
+    TileType,
+)
 
 
 class EnvWrapper(object):
@@ -260,24 +263,18 @@ class EnvWrapper(object):
         
 
     def _get_valid_move_locations(self, unit, greedy_search=False):
-    
-        unit_loc_key = self.game.game_board.int_to_tup[unit.tile.id]
+
         if greedy_search:
-            can_reach = self.game.calc_movement_target_and_shortest_path(unit, greedy_search=greedy_search)
-            return can_reach
-            
-        possible_targets_dict_w_path = self.game.calc_movement_target_and_shortest_path(unit)
-        possible_targets_dict_w_path.pop(unit_loc_key)
-        
-        target_tile_ids = [self.game.game_board.tup_to_int[x] for x in possible_targets_dict_w_path.keys()]
-    
-        return target_tile_ids
+            return self.game.calc_movement_target_and_shortest_path(unit, greedy_search=True)
+
+        valid_paths = self.game.calc_movement_target_and_shortest_path(unit)
+        return [self.game.game_board.tup_to_int[node] for node in valid_paths]
 
 
     def render(self, figsize=(10, 5), shared_fog=True, critic_value=None, translated_action=None):
         Nx, Ny = self.Nx, self.Ny
         state_graph = self.game.game_board.board_graph
-        state_grid  = state_graph.reshape(Nx, Ny, 26)
+        state_grid  = state_graph.reshape(Nx, Ny, NODE_FEAT_DIM)
     
         fig = plt.figure(figsize=figsize)
         gs  = fig.add_gridspec(1, 2, width_ratios=[Ny, 3.5], wspace=0.05)
@@ -328,59 +325,62 @@ class EnvWrapper(object):
                         facecolor='#707070', edgecolor='#404040', linewidth=0.5))
                     continue
     
-                if   tile[2] > 0: fc = '#00008B'
-                elif tile[1] > 0: fc = '#4169E1'
-                elif tile[0] > 0: fc = '#90EE90'
-                else:             fc = '#F5F5DC'
+                if   tile[_TILE_TYPE_START + int(TileType.deep_water)] > 0: fc = '#00008B'
+                elif tile[_TILE_TYPE_START + int(TileType.water)]      > 0: fc = '#4169E1'
+                elif tile[_TILE_TYPE_START + int(TileType.field)]      > 0: fc = '#90EE90'
+                else:                                                         fc = '#F5F5DC'
                 ax.add_patch(Rectangle((x, y), 1, 1,
                     facecolor=fc, edgecolor='black', linewidth=0.5))
-    
-                if tile[3] > 0:
+
+                if tile[_PLAYER_CTRL_START] > 0:
                     ax.add_patch(Rectangle((x, y), 1, 1,
                         facecolor='#ADD8E6', alpha=0.4, edgecolor='none'))
-                if tile[4] > 0:
+                if tile[_PLAYER_CTRL_START + 1] > 0:
                     ax.add_patch(Rectangle((x, y), 1, 1,
                         facecolor='#FFB6C1', alpha=0.4, edgecolor='none'))
-                if tile[5] > 0:
+                if tile[_CITY_START] > 0:
                     ax.add_patch(Circle((x+0.5, y+0.5), 0.15,
                         facecolor='#8B4513', edgecolor='black', linewidth=1))
-                if tile[6] > 0:
+                if tile[_CITY_START + 1] > 0:
                     ax.add_patch(Circle((x+0.5, y+0.5), 0.15,
                         facecolor='blue', edgecolor='black', linewidth=1))
-                if tile[8] > 0:
+                if tile[_CITY_START + 1 + N_CITY_TYPES] > 0:
                     ax.add_patch(Circle((x+0.5, y+0.5), 0.15,
                         facecolor='red', edgecolor='black', linewidth=1))
-    
+
         # ── Pass 2: units ─────────────────────────────────────────────────────
-        UNIT_STYLES = [
-            (10, 14, 'blue',  'darkblue', 'warrior'),
-            (14, 18, 'blue',  'darkblue', 'rider'),
-            (18, 22, 'red',   'darkred',  'warrior'),
-            (22, 26, 'red',   'darkred',  'rider'),
-        ]
+        _P0_TYPE = player_type_slice(0)
+        _P1_TYPE = player_type_slice(1)
         for i in range(Nx):
             for j in range(Ny):
                 tile    = state_grid[i, j]
                 tile_id = i * Ny + j
                 if tile_id not in uncovered:
                     continue
+                hp_val = tile[UNIT_STATE_SLICE].max()
+                if hp_val <= 0:
+                    continue
                 x, y = j, Nx - 1 - i
-    
-                for s, e, fc, ec, shape in UNIT_STYLES:
-                    if not np.any(tile[s:e] > 0):
-                        continue
-                    if shape == 'warrior':
-                        pts = np.array([[x+0.5,y+0.70],[x+0.40,y+0.30],[x+0.60,y+0.30]])
-                        ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec, linewidth=1.5))
-                        ax.add_patch(Circle((x+0.5, y+0.75), 0.08,
-                            facecolor=fc, edgecolor=ec, linewidth=1.5))
-                    else:
-                        ax.add_patch(Rectangle((x+0.35, y+0.35), 0.30, 0.25,
-                            facecolor=fc, edgecolor=ec, linewidth=1.5))
-                        pts = np.array([[x+0.50,y+0.75],[x+0.40,y+0.60],[x+0.60,y+0.60]])
-                        ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec, linewidth=1.5))
-                        ax.add_patch(Circle((x+0.65, y+0.70), 0.06,
-                            facecolor=fc, edgecolor=ec, linewidth=1.5))
+
+                if tile[_P0_TYPE].any():
+                    fc, ec = 'blue', 'darkblue'
+                    shape = 'warrior' if np.argmax(tile[_P0_TYPE]) == int(UnitType.Warrior) else 'rider'
+                else:
+                    fc, ec = 'red', 'darkred'
+                    shape = 'warrior' if np.argmax(tile[_P1_TYPE]) == int(UnitType.Warrior) else 'rider'
+
+                if shape == 'warrior':
+                    pts = np.array([[x+0.5,y+0.70],[x+0.40,y+0.30],[x+0.60,y+0.30]])
+                    ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec, linewidth=1.5))
+                    ax.add_patch(Circle((x+0.5, y+0.75), 0.08,
+                        facecolor=fc, edgecolor=ec, linewidth=1.5))
+                else:
+                    ax.add_patch(Rectangle((x+0.35, y+0.35), 0.30, 0.25,
+                        facecolor=fc, edgecolor=ec, linewidth=1.5))
+                    pts = np.array([[x+0.50,y+0.75],[x+0.40,y+0.60],[x+0.60,y+0.60]])
+                    ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec, linewidth=1.5))
+                    ax.add_patch(Circle((x+0.65, y+0.70), 0.06,
+                        facecolor=fc, edgecolor=ec, linewidth=1.5))
     
         # ── Pass 3: action overlays ───────────────────────────────────────────
         if translated_action is not None:
@@ -478,7 +478,7 @@ class EnvWrapper(object):
                           action=None, joint_probs=None, traj_actions=None):
         Nx, Ny = self.Nx, self.Ny
         state_graph = self.game.game_board.board_graph
-        state_grid  = state_graph.reshape(Nx, Ny, 26)
+        state_grid  = state_graph.reshape(Nx, Ny, NODE_FEAT_DIM)
     
         fig = plt.figure(figsize=figsize)
         gs  = fig.add_gridspec(1, 2, width_ratios=[Ny, 3.5], wspace=0.05)
@@ -560,82 +560,83 @@ class EnvWrapper(object):
                         facecolor='#707070', edgecolor='#404040', linewidth=0.5))
                     continue
     
-                if   tile[2] > 0: fc = '#00008B'
-                elif tile[1] > 0: fc = '#4169E1'
-                elif tile[0] > 0: fc = '#90EE90'
-                else:             fc = '#F5F5DC'
+                if   tile[_TILE_TYPE_START + int(TileType.deep_water)] > 0: fc = '#00008B'
+                elif tile[_TILE_TYPE_START + int(TileType.water)]      > 0: fc = '#4169E1'
+                elif tile[_TILE_TYPE_START + int(TileType.field)]      > 0: fc = '#90EE90'
+                else:                                                         fc = '#F5F5DC'
                 ax.add_patch(Rectangle((x, y), 1, 1,
                     facecolor=fc, edgecolor='black', linewidth=0.5))
-    
-                if tile[3] > 0:
+
+                if tile[_PLAYER_CTRL_START] > 0:
                     ax.add_patch(Rectangle((x, y), 1, 1,
                         facecolor='#ADD8E6', alpha=0.4, edgecolor='none'))
-                if tile[4] > 0:
+                if tile[_PLAYER_CTRL_START + 1] > 0:
                     ax.add_patch(Rectangle((x, y), 1, 1,
                         facecolor='#FFB6C1', alpha=0.4, edgecolor='none'))
-                if tile[5] > 0:
+                if tile[_CITY_START] > 0:
                     ax.add_patch(Circle((x+0.5, y+0.5), 0.15,
                         facecolor='#8B4513', edgecolor='black', linewidth=1))
-                if tile[6] > 0:
+                if tile[_CITY_START + 1] > 0:
                     ax.add_patch(Circle((x+0.5, y+0.5), 0.15,
                         facecolor='blue', edgecolor='black', linewidth=1))
-                if tile[8] > 0:
+                if tile[_CITY_START + 1 + N_CITY_TYPES] > 0:
                     ax.add_patch(Circle((x+0.5, y+0.5), 0.15,
                         facecolor='red', edgecolor='black', linewidth=1))
-    
+
                 if tile_id in prob_overlay:
                     alpha = np.clip(prob_overlay[tile_id], 0.0, 0.92)
                     ax.add_patch(Rectangle((x, y), 1, 1,
                         facecolor=pcolor_rgb, alpha=alpha,
                         edgecolor='none', zorder=3))
-    
+
         # ── Pass 2: units ─────────────────────────────────────────────────────
-        UNIT_STYLES = [
-            (10, 14, 'blue', 'darkblue', 'warrior'),
-            (14, 18, 'blue', 'darkblue', 'rider'),
-            (18, 22, 'red',  'darkred',  'warrior'),
-            (22, 26, 'red',  'darkred',  'rider'),
-        ]
+        _P0_TYPE = player_type_slice(0)
+        _P1_TYPE = player_type_slice(1)
         for i in range(Nx):
             for j in range(Ny):
                 tile    = state_grid[i, j]
                 tile_id = i * Ny + j
                 if tile_id not in uncovered:
                     continue
+                hp_val = tile[UNIT_STATE_SLICE].max()
+                if hp_val <= 0:
+                    continue
                 x, y = j, Nx - 1 - i
-    
-                for s, e, fc, ec, shape in UNIT_STYLES:
-                    hp_val = tile[s:e].max()
-                    if hp_val <= 0:
-                        continue
-    
-                    if shape == 'warrior':
-                        pts = np.array([[x+0.5, y+0.70],
-                                        [x+0.40, y+0.30],
-                                        [x+0.60, y+0.30]])
-                        ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec,
-                                             linewidth=1.5, zorder=4))
-                        ax.add_patch(Circle((x+0.5, y+0.75), 0.08, facecolor=fc,
-                                            edgecolor=ec, linewidth=1.5, zorder=4))
-                    else:
-                        ax.add_patch(Rectangle((x+0.35, y+0.35), 0.30, 0.25,
-                                               facecolor=fc, edgecolor=ec,
-                                               linewidth=1.5, zorder=4))
-                        pts = np.array([[x+0.50, y+0.75],
-                                        [x+0.40, y+0.60],
-                                        [x+0.60, y+0.60]])
-                        ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec,
-                                             linewidth=1.5, zorder=4))
-                        ax.add_patch(Circle((x+0.65, y+0.70), 0.06, facecolor=fc,
-                                            edgecolor=ec, linewidth=1.5, zorder=4))
-    
-                    # HP label at top-right of tile
-                    ax.text(x + 0.92, y + 0.82, f"{hp_val:.1f}",
-                            ha='right', va='top', fontsize=5.5,
-                            fontweight='bold', color='white',
-                            bbox=dict(boxstyle='round,pad=0.1', fc=ec,
-                                      ec='none', alpha=0.7),
-                            zorder=6)
+
+                if tile[_P0_TYPE].any():
+                    fc, ec = 'blue', 'darkblue'
+                    shape = 'warrior' if np.argmax(tile[_P0_TYPE]) == int(UnitType.Warrior) else 'rider'
+                else:
+                    fc, ec = 'red', 'darkred'
+                    shape = 'warrior' if np.argmax(tile[_P1_TYPE]) == int(UnitType.Warrior) else 'rider'
+
+                if shape == 'warrior':
+                    pts = np.array([[x+0.5, y+0.70],
+                                    [x+0.40, y+0.30],
+                                    [x+0.60, y+0.30]])
+                    ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec,
+                                         linewidth=1.5, zorder=4))
+                    ax.add_patch(Circle((x+0.5, y+0.75), 0.08, facecolor=fc,
+                                        edgecolor=ec, linewidth=1.5, zorder=4))
+                else:
+                    ax.add_patch(Rectangle((x+0.35, y+0.35), 0.30, 0.25,
+                                           facecolor=fc, edgecolor=ec,
+                                           linewidth=1.5, zorder=4))
+                    pts = np.array([[x+0.50, y+0.75],
+                                    [x+0.40, y+0.60],
+                                    [x+0.60, y+0.60]])
+                    ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec,
+                                         linewidth=1.5, zorder=4))
+                    ax.add_patch(Circle((x+0.65, y+0.70), 0.06, facecolor=fc,
+                                        edgecolor=ec, linewidth=1.5, zorder=4))
+
+                # HP label at top-right of tile
+                ax.text(x + 0.92, y + 0.82, f"{hp_val:.1f}",
+                        ha='right', va='top', fontsize=5.5,
+                        fontweight='bold', color='white',
+                        bbox=dict(boxstyle='round,pad=0.1', fc=ec,
+                                  ec='none', alpha=0.7),
+                        zorder=6)
     
         # ── Pass 3: action overlays ───────────────────────────────────────────
         if action is not None:

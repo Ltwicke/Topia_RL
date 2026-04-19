@@ -799,3 +799,64 @@ Make these situations look like real-world game situations, and introduce robust
 
 
 
+
+
+
+
+
+
+18.04. 01:09 Uhr:
+
+Planning my reentry into the project. After a long break, it is time to move further. For this, I will watch a yt video on how to use claude code in a foldered codebase.
+
+Something to keep in mind when starting to train the new game version; At the phd position they expect me to be an expert with all the derivatives
+of PPO (GPPO, TRPO, etc.), so its probably a good idea to try all of them out and get a feeling how each behaves. 
+
+Also, since I will be using RL on language models, maybe its a good idea to work further on the idea of including LLMs that analyze the boardstate into the project, maybe simultaneously with CFR...
+
+Finally, although this hurts a bit, maybe its a good idea to implement the PPO algorithm for the updated version fully by myself w.o. GenAI.
+I can use the old one as a template, which will be almost like cheating, bc. its the same, but build it up from the theory I know, so that I can see, where I have some understanding gaps.
+
+Work step by step with constant progress and you will be successful!
+
+Good luck!
+
+
+
+
+
+19.04. 11:40 Uhr
+
+
+OLD:
+
+
+0 1 2	3  4        5 6 7 8 9	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+1 0 0	0  1		0 0 0 0 0 	0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+		P1 P2		v P1--P2--	P1--------------P2-------------
+field	player		city 		W-------R-------W-------R------
+type	control		feats		i r e h i r e h i r e h i r e h
+								Units
+
+
+NEW:
+
+
+
+0 1 2	3  4        5 6 7 8 9	0 1 2 3 4 5 6 7
+1 0 0	0  1		0 0 0 0 0 	0 0 0 0 0 0 0 0
+		P1 P2		v P1--P2--	P1----------P2-
+field	player		city 		        W R W R
+type	control		feats		i r e h
+								Units
+
+
+Reason 1: We need to reduce the dimension, when adding more and more units. Now, the agent sees a tile and combines: Oh, I have a can_hit unit here. Oh this unit is also a knight.
+
+Reason 2: During each players turn, the opponent units can only be in state ready (or state "responsive" i guess)
+
+
+
+
+
+

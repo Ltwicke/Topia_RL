@@ -825,4 +825,38 @@ Good luck!
 
 
 
+19.04. 11:40 Uhr
+
+
+OLD:
+
+
+0 1 2	3  4        5 6 7 8 9	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+1 0 0	0  1		0 0 0 0 0 	0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+		P1 P2		v P1--P2--	P1--------------P2-------------
+field	player		city 		W-------R-------W-------R------
+type	control		feats		i r e h i r e h i r e h i r e h
+								Units
+
+
+NEW:
+
+
+
+0 1 2	3  4        5 6 7 8 9	0 1 2 3 4 5 6 7
+1 0 0	0  1		0 0 0 0 0 	0 0 0 0 0 0 0 0
+		P1 P2		v P1--P2--	P1----------P2-
+field	player		city 		        W R W R
+type	control		feats		i r e h
+								Units
+
+
+Reason 1: We need to reduce the dimension, when adding more and more units. Now, the agent sees a tile and combines: Oh, I have a can_hit unit here. Oh this unit is also a knight.
+
+Reason 2: During each players turn, the opponent units can only be in state ready (or state "responsive" i guess)
+
+
+
+
+
 
