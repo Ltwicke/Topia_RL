@@ -8,17 +8,19 @@ import matplotlib.patches as mpatches
 
 from game.game import Game
 from game.enums import (
-    BoardType, Tribes, ActionTypes, UnitType, UnitState,
+    BoardType, CityType, Tribes, ActionTypes, UnitType, UnitState,
     NODE_FEAT_DIM, N_UNIT_TYPES, N_CITY_TYPES,
     _TILE_TYPE_START, _PLAYER_CTRL_START, _CITY_START,
     UNIT_STATE_SLICE, player_type_slice,
     TileType,
 )
+from game.components.city import _CITY_UPGRADES, _CITY_UPGRADE_COST
+from game.components.units import _UNIT_COSTS
 
 
 class EnvWrapper(object):
 
-    def __init__(self, board_config, player_tribes, max_turns_per_game=30, win_reward=60, dense_reward=False):
+    def __init__(self, board_config, player_tribes, max_turns_per_game=999, win_reward=60, dense_reward=False):
 
         self.Nx, self.Ny = board_config["board_size"][0], board_config["board_size"][1]
         self.n_tiles = self.Nx * self.Ny
@@ -162,6 +164,19 @@ class EnvWrapper(object):
         elif action_type == ActionTypes.CaptureCity:
             translated_action["unit_id"] = player_unit_ids[action[1]]
 
+        elif action_type == ActionTypes.HealUnit:
+            translated_action["unit_id"] = player_unit_ids[action[1]]
+
+        elif action_type == ActionTypes.UpgradeCity:
+            translated_action["city"] = action[1]
+            translated_action["choice"] = action[2]
+
+        elif action_type == ActionTypes.PlaceRoad:
+            translated_action["tile_id"] = action[1]
+
+        elif action_type == ActionTypes.Upgrade2Vet:
+            translated_action["unit_id"] = player_unit_ids[action[1]]
+
         elif action_type == ActionTypes.EndTurn:
             pass
 
@@ -184,7 +199,7 @@ class EnvWrapper(object):
         num_cities_player = len(player.cities_under_control)
 
         valid_actions = [
-            np.zeros((num_actions,)),
+            np.zeros((num_actions,)),                             # action types
             np.zeros((num_units_player, self.n_tiles)),           # move unit
             np.zeros((num_units_player, len(visible_enemies))),   # attack (visible enemies only)
             np.zeros((num_cities_player, N_UNIT_TYPES)),          # create unit
@@ -223,13 +238,14 @@ class EnvWrapper(object):
             unit_can_hit = np.zeros(1)
 
         if unit_can_hit.sum() > 0:
-            valid_actions[0][ActionTypes.Attack] = 1.0
             for attacker_pos, can_hit in enumerate(unit_can_hit):
                 if can_hit:
                     reachable = self.game.tiles_in_range(player_units[attacker_pos].tile.id, player_units[attacker_pos].attack_range)
                     for def_pos, defender in enumerate(visible_enemies):
                         if defender.tile.id in reachable:
                             valid_actions[2][attacker_pos][def_pos] = 1.0
+            if valid_actions[2].sum() > 0:
+                valid_actions[0][ActionTypes.Attack] = 1.0
 
         # create unit
         can_create_unit = np.array([
@@ -238,10 +254,13 @@ class EnvWrapper(object):
             for city in player.cities_under_control
         ])
         if can_create_unit.sum() > 0:
-            valid_actions[0][ActionTypes.CreateUnit] = 1.0
             for city_id, city_valid in enumerate(can_create_unit):
                 if city_valid:
-                    valid_actions[3][city_id] = np.ones((N_UNIT_TYPES,))
+                    for unit_type in UnitType:
+                        if player.stars >= _UNIT_COSTS[unit_type]:
+                            valid_actions[3][city_id, int(unit_type)] = 1.0
+            if valid_actions[3].sum() > 0:
+                valid_actions[0][ActionTypes.CreateUnit] = 1.0
 
         # capture city
         can_capture_city = np.zeros((num_units_player,))
@@ -257,11 +276,44 @@ class EnvWrapper(object):
                 if unit_valid:
                     valid_actions[4][pos] = 1.0
     
-        # end turn
-        #if sum(valid_actions[0]) == 0: # if there is nothing more to do TODO: Change this once the RL actually learns
+        # heal unit
+        for pos, unit in enumerate(player_units):
+            if unit.turn_state == UnitState.ready and unit.current_hp < unit.hp:
+                valid_actions[5][pos] = 1.0
+        if valid_actions[5].sum() > 0:
+            valid_actions[0][ActionTypes.HealUnit] = 1.0
+
+        # upgrade city
+        for city_idx, city in enumerate(player.cities_under_control):
+            for choice in range(2):
+                next_lvl = _CITY_UPGRADES[city.lvl][choice]
+                cost = max(0, _CITY_UPGRADE_COST[next_lvl] - city.pending_discount)
+                if player.stars >= cost:
+                    valid_actions[6][city_idx, choice] = 1.0
+        if valid_actions[6].sum() > 0:
+            valid_actions[0][ActionTypes.UpgradeCity] = 1.0
+
+        # place road
+        if player.stars >= 4:
+            for tile_id in player.uncovered_tile_ids:
+                tile = self.game.game_board.board[tile_id]
+                if (not tile.has_road
+                        and tile.tile_type == TileType.field
+                        and (tile.cntrl is None or tile.cntrl == player.player_id)):
+                    valid_actions[7][tile_id] = 1.0
+            if valid_actions[7].sum() > 0:
+                valid_actions[0][ActionTypes.PlaceRoad] = 1.0
+
+        # upgrade unit to veteran
+        for pos, unit in enumerate(player_units):
+            if unit.kills >= 3 and not unit.is_vet:
+                valid_actions[8][pos] = 1.0
+        if valid_actions[8].sum() > 0:
+            valid_actions[0][ActionTypes.Upgrade2Vet] = 1.0
+
+        # end turn — always valid
         valid_actions[0][ActionTypes.EndTurn] = 1.0
-            
-        
+
         return valid_actions
     
         

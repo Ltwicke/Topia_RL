@@ -1,5 +1,15 @@
 from game.enums import DefenseBonus, PlayerId, UnitState, UnitType
 
+_UNIT_COSTS = {
+    UnitType.Warrior:  2,
+    UnitType.Rider:    3,
+    UnitType.Archer:   3,
+    UnitType.Knight:   13,
+    UnitType.Catapult: 12,
+    UnitType.Giant:    20,
+    UnitType.Sword:    5,
+}
+
 
 class Unit(object):
     """

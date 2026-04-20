@@ -24,9 +24,9 @@ def test_village_max_unit_cap_is_zero():
     assert c.max_unit_cap == 0
 
 
-def test_city_max_unit_cap_is_three():
+def test_city_max_unit_cap_is_two():
     c = City(tile_id=0, player_id=PlayerId.P1)
-    assert c.max_unit_cap == 3
+    assert c.max_unit_cap == 2
 
 
 def test_upgrade_increases_max_unit_cap():

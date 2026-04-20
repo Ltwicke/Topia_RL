@@ -49,6 +49,23 @@ def _random_action_from_mask(mask):
         unit_pos = _select_random_array_element(mask[4])
         return [ActionTypes.CaptureCity.value, unit_pos]
 
+    elif action_type == ActionTypes.HealUnit:
+        unit_pos = _select_random_array_element(mask[5])
+        return [ActionTypes.HealUnit.value, unit_pos]
+
+    elif action_type == ActionTypes.UpgradeCity:
+        city_idx, choice = _select_random_matrix_element(mask[6])
+        return [ActionTypes.UpgradeCity.value, city_idx, choice]
+
+    elif action_type == ActionTypes.PlaceRoad:
+        tile_id = _select_random_array_element(mask[7])
+        return [ActionTypes.PlaceRoad.value, tile_id]
+
+    elif action_type == ActionTypes.Upgrade2Vet:
+        unit_pos = _select_random_array_element(mask[8])
+        return [ActionTypes.Upgrade2Vet.value, unit_pos]
+        
+
     else:  # EndTurn
         return [ActionTypes.EndTurn.value]
 

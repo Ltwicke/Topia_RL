@@ -1,3 +1,4 @@
+import numpy as np
 from dataclasses import dataclass, field
 from game.enums import CityType, PlayerId
 
@@ -55,31 +56,37 @@ class City:
         self.lvl = CityType.village if self.player_id is None else CityType.lvl1
         self.times_upgraded = 0
         self.choices = []
+        self.pending_discount = 0
 
     @property
     def max_unit_cap(self) -> int:
-        return self.times_upgraded + 2
+        if self.player_id is None:  # village
+            return 0
+        return self.times_upgraded + 2 # 2 IS THE CORRECT VALUE HERE!
 
     @property
     def city_stars_per_turn(self) -> int:
+        if self.under_seige:
+            return 0
         spt = 1
         spt += self.times_upgraded
         if self.times_upgraded > 0:
-            if self.choices[1] == 0: # workshop
+            if self.choices[0] == 0: # workshop
                 spt += 1
-        if self.time_upgraded > 3: # 4th choice is the first option to get park
-            spt += np.sum(self.choices[4:]) # sum up all the choices == 1, bc. this is park
+        if self.times_upgraded > 3: # 4th upgrade (index 3) is the first park/su choice
+            spt += np.sum(self.choices[3:]) # park = choice 1; sum from first park choice
         return spt
             
 
     def capture(self, new_player_id: PlayerId) -> None:
-        if self.lvl == CityType.village: # if a village is captured, make it to a lvl1 
+        if self.lvl == CityType.village: # if a village is captured, make it to a lvl1
             self.lvl = CityType.lvl1
         self.player_id = new_player_id
         self.current_n_units = 1
         self.under_siege = False
+        self.pending_discount = 0
 
-    def upgrade(self, choice) -> None:
+    def upgrade(self, choice=0) -> None:
         new_lvl = _CITY_UPGRADES[self.lvl][choice]
         self.lvl = new_lvl
         self.times_upgraded += 1

@@ -1,62 +1,87 @@
 import numpy as np
+import pytest
 
 from game.enums import BoardType, Tribes, ActionTypes
 from env.wrapper import EnvWrapper
 
+BOARD_CONFIG_9x9 = {"board_size": (9, 9), "board_type": BoardType.Dummy, "n_players": 2}
+TRIBES = [Tribes.Omaji, Tribes.Yaddak]
+N_GAMES = 5
+MAX_DECISIONS = 200
 
-def select_random_matrix_element(mat):
+
+def _make_env(seed=None):
+    if seed is not None:
+        np.random.seed(seed)
+    env = EnvWrapper(BOARD_CONFIG_9x9, TRIBES)
+    env.reset()
+    return env
+
+
+def _select_random_matrix_element(mat):
     nonzero_rows = np.where(mat.any(axis=1))[0]
     row_idx = np.random.choice(nonzero_rows)
     col_idx = np.random.choice(np.flatnonzero(mat[row_idx]))
-    return row_idx, col_idx
+    return int(row_idx), int(col_idx)
 
-def select_random_array_element(arr):
-    return np.random.choice(np.flatnonzero(arr))
 
-def _create_random_action_from_action_mask(action_mask):
-    
-    action = []
-    choose_action_type = np.random.choice(np.flatnonzero(action_mask[0]))
+def _select_random_array_element(arr):
+    return int(np.random.choice(np.flatnonzero(arr)))
 
-    if ActionTypes(choose_action_type) == ActionTypes.MoveUnit:
-        action.append(ActionTypes.MoveUnit.value)
-        unit_id, loc_id = select_random_matrix_element(action_mask[1])
-        action.append(unit_id)
-        action.append(loc_id)
 
-    elif ActionTypes(choose_action_type) == ActionTypes.Attack:
-        action.append(ActionTypes.Attack.value)
-        unit_id, defender_id = select_random_matrix_element(action_mask[2])
-        action.append(unit_id)
-        action.append(defender_id)
+def _random_action_from_mask(mask):
+    """Build a valid random action list from a fresh action mask."""
+    action_type = ActionTypes(int(np.random.choice(np.flatnonzero(mask[0]))))
 
-    elif ActionTypes(choose_action_type) == ActionTypes.CreateUnit:
-        action.append(ActionTypes.CreateUnit.value)
-        city_id, unit_type = select_random_matrix_element(action_mask[3])
-        action.append(city_id)
-        action.append(unit_type)
+    if action_type == ActionTypes.MoveUnit:
+        unit_pos, tile_id = _select_random_matrix_element(mask[1])
+        return [ActionTypes.MoveUnit.value, unit_pos, tile_id]
 
-    elif ActionTypes(choose_action_type) == ActionTypes.CaptureCity:
-        action.append(ActionTypes.CaptureCity.value)
-        action.append(select_random_array_element(action_mask[4])) 
+    elif action_type == ActionTypes.Attack:
+        attacker_pos, defender_pos = _select_random_matrix_element(mask[2])
+        return [ActionTypes.Attack.value, attacker_pos, defender_pos]
 
-    elif ActionTypes(choose_action_type) == ActionTypes.EndTurn:
-        action.append(ActionTypes.EndTurn.value)
+    elif action_type == ActionTypes.CreateUnit:
+        city_idx, unit_type = _select_random_matrix_element(mask[3])
+        return [ActionTypes.CreateUnit.value, city_idx, unit_type]
 
-    return action
-    
+    elif action_type == ActionTypes.CaptureCity:
+        unit_pos = _select_random_array_element(mask[4])
+        return [ActionTypes.CaptureCity.value, unit_pos]
 
-for i in range(10):
-    env = EnvWrapper({'board_size': (9,9), 'board_type': BoardType.Dummy, 'n_players': 2}, [Tribes.Omaji, Tribes.Yaddak])
-    obs = env.reset()
-    
-    
-    mask = env.get_action_mask()
-    
-    # Play 5 EndTurn actions (always valid)
-    for turn in range(250):
-        action = _create_random_action_from_action_mask(mask)
+    elif action_type == ActionTypes.HealUnit:
+        unit_pos = _select_random_array_element(mask[5])
+        return [ActionTypes.HealUnit.value, unit_pos]
+
+    elif action_type == ActionTypes.UpgradeCity:
+        city_idx, choice = _select_random_matrix_element(mask[6])
+        return [ActionTypes.UpgradeCity.value, city_idx, choice]
+
+    elif action_type == ActionTypes.PlaceRoad:
+        tile_id = _select_random_array_element(mask[7])
+        return [ActionTypes.PlaceRoad.value, tile_id]
+
+    elif action_type == ActionTypes.Upgrade2Vet:
+        unit_pos = _select_random_array_element(mask[8])
+        return [ActionTypes.Upgrade2Vet.value, unit_pos]
+        
+
+    else:  # EndTurn
+        return [ActionTypes.EndTurn.value]
+
+
+@pytest.mark.parametrize("game_seed", range(N_GAMES))
+def test_random_game_no_exception(game_seed):
+    """Play a full random game (mask refreshed every step) and assert no exceptions."""
+    env = _make_env(seed=game_seed)
+    decisions = 0
+
+    while decisions < MAX_DECISIONS:
+        mask = env.get_action_mask()  # refresh mask EVERY step
+        action = _random_action_from_mask(mask)
         obs, reward, done, info = env.step(action)
-        print(f'Turn {turn+1}: reward={reward}, done={done}')
-    
-    print('Simulation OK ', i)
+        decisions += 1
+        if done:
+            break
+
+    assert decisions <= MAX_DECISIONS

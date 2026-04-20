@@ -99,6 +99,7 @@ class Tile(object):
         self.tile_status = tile_status
         self.unit = unit
         self.cntrl = player_controls
+        self.has_road: bool = False
 
         self.is_edge = False # is this useful?
 
@@ -108,20 +109,19 @@ class Tile(object):
         Transform a tile object into the vector node representation, where the ordering is as follows:
         
         """
-        tile_type_feats = one_hot_field_type(self.tile_type) # len tile types
-
-        player_control_feats = player_controls_tile(self.cntrl) # 
-
+        tile_type_feats = one_hot_field_type(self.tile_type)
+        road_feat = np.array([float(self.has_road)])
+        player_control_feats = player_controls_tile(self.cntrl)
         city_feats = city_featurizer(self.city)
-
         unit_feats = unit_featurizer(self.unit)
 
         return np.hstack([
             tile_type_feats,
+            road_feat,
             player_control_feats,
             city_feats,
-            unit_feats
-            ])
+            unit_feats,
+        ])
 
 
     def __eq__(self, other):
