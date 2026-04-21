@@ -10,9 +10,9 @@ from game.game import Game
 from game.enums import (
     BoardType, CityType, Tribes, ActionTypes, UnitType, UnitState,
     NODE_FEAT_DIM, N_UNIT_TYPES, N_CITY_TYPES,
-    _TILE_TYPE_START, _PLAYER_CTRL_START, _CITY_START,
+    _TILE_TYPE_START, _PLAYER_CTRL_START, _CITY_START, _ROAD_START,
     UNIT_STATE_SLICE, player_type_slice,
-    TileType,
+    TileType, DefenseBonus,
 )
 from game.components.city import _CITY_UPGRADES, _CITY_UPGRADE_COST
 from game.components.units import _UNIT_COSTS
@@ -31,20 +31,32 @@ class EnvWrapper(object):
         self.dense_reward = dense_reward
         self.max_turns_per_game = max_turns_per_game
 
-    
+        self.last_action = None
+        self.n_decisions = 0
+        self._overlay_ctx = {}
+
+
     def reset(self):
         self.game.reset_game()
         self.winner = None
+        self.last_action = None
+        self.n_decisions = 0
+        self._overlay_ctx = {}
         return self._get_obs()
 
-    
+
     def step(self, action):
         """
         Return the tuple for RL training in the 'gymnasium' setting
         """
         translated_action = self._translate_action(action)
+        self._snapshot_overlay_ctx(translated_action)
 
         message = self.game.apply_action(translated_action)
+
+        self._finalize_overlay_ctx(translated_action)
+        self.last_action = translated_action
+        self.n_decisions += 1
 
         obs = self._get_obs()
 
@@ -53,6 +65,43 @@ class EnvWrapper(object):
         info = {"log": message}
 
         return obs, reward, done, info
+
+
+    def _snapshot_overlay_ctx(self, translated):
+        """Capture pre-apply state needed by the renderer's action overlay."""
+        ctx = {}
+        atype = translated["type"]
+        player = self.game.players[self.game.player_go_id]
+        opponent = self.game.players[(self.game.player_go_id + 1) % 2]
+
+        if atype == ActionTypes.MoveUnit:
+            uid = translated["unit_id"]
+            unit = player.units_under_control[uid]
+            ctx["src_tile_id"] = unit.tile.id
+            ctx["dst_tile_id"] = translated["target_id"]
+            ctx["path"] = translated.get("path", [])
+
+        elif atype == ActionTypes.Attack:
+            uid = translated["unit_id"]
+            oid = translated["o_unit_id"]
+            attacker = player.units_under_control[uid]
+            defender = opponent.units_under_control[oid]
+            ctx["attacker_tile_id"] = attacker.tile.id
+            ctx["defender_tile_id"] = defender.tile.id
+            ctx["attacker_range"] = attacker.attack_range
+            ctx["o_unit_id"] = oid
+
+        elif atype == ActionTypes.HealUnit:
+            ctx["healed_unit_id"] = translated["unit_id"]
+
+        self._overlay_ctx = ctx
+
+    def _finalize_overlay_ctx(self, translated):
+        """Fill in post-apply fields (e.g. whether a defender died in Attack)."""
+        if translated["type"] == ActionTypes.Attack:
+            opponent = self.game.players[(self.game.player_go_id + 1) % 2]
+            oid = self._overlay_ctx.get("o_unit_id")
+            self._overlay_ctx["defender_died"] = oid not in opponent.units_under_control
 
     
     def _get_obs(self):
@@ -327,205 +376,352 @@ class EnvWrapper(object):
         return [self.game.game_board.tup_to_int[node] for node in valid_paths]
 
 
-    def render(self, figsize=(10, 5), shared_fog=True, critic_value=None, translated_action=None):
+    # ═══════════════════════════════════════════════════════════════════════
+    # Debug renderer (v2). Lightweight matplotlib-only board visualization.
+    # ═══════════════════════════════════════════════════════════════════════
+
+    _P_COLORS   = ('#1f77b4', '#d62728')       # P0 blue, P1 red
+    _P_VET      = ('#0d3c66', '#6a1315')       # darker variants
+    _CTRL_TINT  = ('#ADD8E6', '#FFB6C1')       # light-blue / light-pink
+    _UNIT_GLYPH = {
+        UnitType.Warrior:  ('\u265F', None),     # pawn
+        UnitType.Rider:    ('\u265E', None),     # knight
+        UnitType.Archer:   ('\u265D', None),     # bishop
+        UnitType.Knight:   ('\u265B', '\u265E'), # queen over chess-knight
+        UnitType.Catapult: ('\u265A', None),     # king
+        UnitType.Giant:    ('\u265C', None),     # rook
+        UnitType.Sword:    ('\u265F', 'sword'),  # pawn + sword overlay
+    }
+
+    def render(self, figsize=(13, 7), shared_fog=True, show_action_overlay=True,
+               save_path=None, show=True):
+        """
+        Debug renderer for Version 2.0. Visualizes the full board from
+        self.game.game_board.board_graph (tile-level) + live Unit objects
+        (per-unit detail). Optional action overlay for the last step().
+        """
         Nx, Ny = self.Nx, self.Ny
-        state_graph = self.game.game_board.board_graph
-        state_grid  = state_graph.reshape(Nx, Ny, NODE_FEAT_DIM)
-    
+        state_grid = self.game.game_board.board_graph.reshape(Nx, Ny, NODE_FEAT_DIM)
+        board = self.game.game_board.board
+
         fig = plt.figure(figsize=figsize)
-        gs  = fig.add_gridspec(1, 2, width_ratios=[Ny, 3.5], wspace=0.05)
+        gs  = fig.add_gridspec(1, 2, width_ratios=[Ny, 4.2], wspace=0.08)
         ax      = fig.add_subplot(gs[0])
         ax_info = fig.add_subplot(gs[1])
-    
+
         if shared_fog:
             uncovered = set()
-            for i in range(self.n_players):
-                uncovered |= self.game.players[i].uncovered_tile_ids
+            for p in range(self.n_players):
+                uncovered |= self.game.players[p].uncovered_tile_ids
         else:
             uncovered = set(range(self.n_tiles))
-    
+
         def tile_center(tile_id):
             row = tile_id // Ny
             col = tile_id % Ny
             return col + 0.5, (Nx - 1 - row) + 0.5
-    
-        def draw_sword(mx, my, angle, s=0.22):
-            bx0 = mx + np.cos(angle) * s * 0.6
-            by0 = my + np.sin(angle) * s * 0.6
-            bx1 = mx - np.cos(angle) * s * 0.6
-            by1 = my - np.sin(angle) * s * 0.6
-            ax.plot([bx0, bx1], [by0, by1],
-                    color='#DAA520', lw=3, solid_capstyle='round', zorder=8)
-            perp = angle + np.pi / 2
-            gx0  = mx + np.cos(perp) * s * 0.35
-            gy0  = my + np.sin(perp) * s * 0.35
-            gx1  = mx - np.cos(perp) * s * 0.35
-            gy1  = my - np.sin(perp) * s * 0.35
-            ax.plot([gx0, gx1], [gy0, gy1],
-                    color='#C0C0C0', lw=2.5, solid_capstyle='round', zorder=8)
-            for ang in np.linspace(0, 2 * np.pi, 6, endpoint=False):
-                bx = mx + np.cos(ang) * s * 0.55
-                by = my + np.sin(ang) * s * 0.55
-                ax.plot([mx, bx], [my, by],
-                        color='orange', lw=1, alpha=0.7, zorder=7)
-    
-        # ── Pass 1: terrain + fog ─────────────────────────────────────────────
+
+        # ── Pass 1: terrain / fog / control / city / road ─────────────────
         for i in range(Nx):
             for j in range(Ny):
                 tile    = state_grid[i, j]
                 tile_id = i * Ny + j
                 x, y    = j, Nx - 1 - i
-    
+
                 if tile_id not in uncovered:
                     ax.add_patch(Rectangle((x, y), 1, 1,
                         facecolor='#707070', edgecolor='#404040', linewidth=0.5))
                     continue
-    
+
                 if   tile[_TILE_TYPE_START + int(TileType.deep_water)] > 0: fc = '#00008B'
                 elif tile[_TILE_TYPE_START + int(TileType.water)]      > 0: fc = '#4169E1'
                 elif tile[_TILE_TYPE_START + int(TileType.field)]      > 0: fc = '#90EE90'
+                elif tile[_TILE_TYPE_START + int(TileType.mountain)]   > 0: fc = '#8A8A80'
                 else:                                                         fc = '#F5F5DC'
                 ax.add_patch(Rectangle((x, y), 1, 1,
                     facecolor=fc, edgecolor='black', linewidth=0.5))
 
+                # control tints
                 if tile[_PLAYER_CTRL_START] > 0:
                     ax.add_patch(Rectangle((x, y), 1, 1,
-                        facecolor='#ADD8E6', alpha=0.4, edgecolor='none'))
+                        facecolor=self._CTRL_TINT[0], alpha=0.35, edgecolor='none'))
                 if tile[_PLAYER_CTRL_START + 1] > 0:
                     ax.add_patch(Rectangle((x, y), 1, 1,
-                        facecolor='#FFB6C1', alpha=0.4, edgecolor='none'))
-                if tile[_CITY_START] > 0:
-                    ax.add_patch(Circle((x+0.5, y+0.5), 0.15,
-                        facecolor='#8B4513', edgecolor='black', linewidth=1))
-                if tile[_CITY_START + 1] > 0:
-                    ax.add_patch(Circle((x+0.5, y+0.5), 0.15,
-                        facecolor='blue', edgecolor='black', linewidth=1))
-                if tile[_CITY_START + 1 + N_CITY_TYPES] > 0:
-                    ax.add_patch(Circle((x+0.5, y+0.5), 0.15,
-                        facecolor='red', edgecolor='black', linewidth=1))
+                        facecolor=self._CTRL_TINT[1], alpha=0.35, edgecolor='none'))
 
-        # ── Pass 2: units ─────────────────────────────────────────────────────
-        _P0_TYPE = player_type_slice(0)
-        _P1_TYPE = player_type_slice(1)
-        for i in range(Nx):
-            for j in range(Ny):
-                tile    = state_grid[i, j]
-                tile_id = i * Ny + j
+                # road cross
+                if tile[_ROAD_START] > 0:
+                    ax.plot([x + 0.02, x + 0.98], [y + 0.02, y + 0.98],
+                            color='#8B4513', lw=1.1, zorder=2,
+                            solid_capstyle='round', alpha=0.25)
+                    ax.plot([x + 0.02, x + 0.98], [y + 0.98, y + 0.02],
+                            color='#8B4513', lw=1.1, zorder=2,
+                            solid_capstyle='round', alpha=0.25)
+
+                # city marker (read from Tile object for exact owner/level)
+                city_obj = board[tile_id].city
+                if city_obj is not None:
+                    if city_obj.player_id is None:
+                        ax.add_patch(Circle((x + 0.5, y + 0.22), 0.09,
+                            facecolor='#8B4513', edgecolor='black',
+                            linewidth=0.8, zorder=3))
+                    else:
+                        c = self._P_COLORS[int(city_obj.player_id)]
+                        ax.add_patch(Rectangle((x + 0.38, y + 0.10), 0.24, 0.14,
+                            facecolor=c, edgecolor='black',
+                            linewidth=0.8, zorder=3))
+                        ax.text(x + 0.50, y + 0.17,
+                                str(city_obj.times_upgraded),
+                                ha='center', va='center',
+                                fontsize=6, color='white', zorder=4)
+
+        # ── Pass 2: units (iterate live Unit objects) ─────────────────────
+        for player in self.game.players:
+            for _, unit in player.units_under_control.items():
+                tile_id = unit.tile.id
                 if tile_id not in uncovered:
                     continue
-                hp_val = tile[UNIT_STATE_SLICE].max()
-                if hp_val <= 0:
-                    continue
-                x, y = j, Nx - 1 - i
+                row = tile_id // Ny
+                col = tile_id % Ny
+                x, y = col, Nx - 1 - row
+                tile_obj = board[tile_id]
+                walled = (tile_obj.city is not None
+                          and len(tile_obj.city.choices) >= 2
+                          and tile_obj.city.choices[1] == 1)
+                self._draw_unit(ax, unit, x, y, walled)
 
-                if tile[_P0_TYPE].any():
-                    fc, ec = 'blue', 'darkblue'
-                    shape = 'warrior' if np.argmax(tile[_P0_TYPE]) == int(UnitType.Warrior) else 'rider'
-                else:
-                    fc, ec = 'red', 'darkred'
-                    shape = 'warrior' if np.argmax(tile[_P1_TYPE]) == int(UnitType.Warrior) else 'rider'
+        # ── Pass 3: action overlays ───────────────────────────────────────
+        if show_action_overlay and self.last_action is not None:
+            self._draw_action_overlay(ax, tile_center)
 
-                if shape == 'warrior':
-                    pts = np.array([[x+0.5,y+0.70],[x+0.40,y+0.30],[x+0.60,y+0.30]])
-                    ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec, linewidth=1.5))
-                    ax.add_patch(Circle((x+0.5, y+0.75), 0.08,
-                        facecolor=fc, edgecolor=ec, linewidth=1.5))
-                else:
-                    ax.add_patch(Rectangle((x+0.35, y+0.35), 0.30, 0.25,
-                        facecolor=fc, edgecolor=ec, linewidth=1.5))
-                    pts = np.array([[x+0.50,y+0.75],[x+0.40,y+0.60],[x+0.60,y+0.60]])
-                    ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec, linewidth=1.5))
-                    ax.add_patch(Circle((x+0.65, y+0.70), 0.06,
-                        facecolor=fc, edgecolor=ec, linewidth=1.5))
-    
-        # ── Pass 3: action overlays ───────────────────────────────────────────
-        if translated_action is not None:
-            t_act  = translated_action
-            atype  = t_act["type"]
-            player = self.game.players[self.game.player_go_id]
-            pcolor = 'royalblue' if self.game.player_go_id == 0 else 'crimson'
-    
-            if atype == ActionTypes.MoveUnit:
-                path_ids = t_act["path"]
-                for tid in path_ids:
-                    cx, cy = tile_center(tid)
-                    ax.plot(cx, cy, 'o',
-                            color=pcolor, markersize=8,
-                            markeredgecolor='white', markeredgewidth=1.0,
-                            zorder=10)
-    
-            elif atype == ActionTypes.Attack:
-
-                opponent = self.game.players[(self.game.player_go_id + 1) % 2]
-                uid = t_act["unit_id"]
-                oid = t_act["o_unit_id"]
-                ax0, ay0 = tile_center(player.units_under_control[uid].tile.id)
-                ax1, ay1 = tile_center(opponent.units_under_control[oid].tile.id)
-                mx, my   = (ax0 + ax1) / 2, (ay0 + ay1) / 2
-                angle    = np.arctan2(ay1 - ay0, ax1 - ax0)
-                draw_sword(mx, my, angle)
-    
-            elif atype == ActionTypes.CaptureCity:
-                uid = t_act["unit_id"]
-                cx, cy = tile_center(player.units_under_control[uid].tile.id)
-                ax.add_patch(Rectangle((cx - 0.22, cy + 0.02), 0.44, 0.12,
-                              facecolor='gold', edgecolor='darkorange',
-                              linewidth=1.5, zorder=8))
-                for px, ph in [(cx - 0.15, 0.18), (cx, 0.23), (cx + 0.15, 0.18)]:
-                    ax.add_patch(Polygon(
-                        [[px - 0.06, cy + 0.12],
-                         [px,         cy + 0.12 + ph],
-                         [px + 0.06, cy + 0.12]],
-                        closed=True, facecolor='gold',
-                        edgecolor='darkorange', linewidth=1.5, zorder=8
-                    ))
-    
-        # ── Board axis ────────────────────────────────────────────────────────
+        # ── Board axis ────────────────────────────────────────────────────
         ax.set_xlim(0, Ny); ax.set_ylim(0, Nx)
         ax.set_aspect('equal')
         ax.set_xticks(range(Ny + 1)); ax.set_yticks(range(Nx + 1))
         ax.tick_params(labelsize=7)
         ax.grid(True, alpha=0.25, linewidth=0.5)
         ax.set_title('Board State', fontsize=11, fontweight='bold', pad=4)
-    
-        # ── Info panel ────────────────────────────────────────────────────────
+
+        self._draw_info_panel(ax_info)
+
+        plt.tight_layout()
+        if save_path is not None:
+            plt.savefig(save_path, bbox_inches='tight', dpi=120)
+        if show:
+            plt.show()
+        else:
+            plt.close(fig)
+        return fig
+
+
+    def _draw_unit(self, ax, unit, x, y, walled):
+        cx, cy = x + 0.5, y + 0.5
+        pid = int(unit.player_id)
+        color = self._P_VET[pid] if unit.is_vet else self._P_COLORS[pid]
+
+        # turn-state glow (behind everything else for this unit)
+        if unit.turn_state in (UnitState.ready, UnitState.escaping, UnitState.can_hit):
+            ax.add_patch(Circle((cx, cy + 0.02), 0.40,
+                facecolor='white', edgecolor='none', alpha=0.45, zorder=3))
+
+        # defensive shield (left of the glyph; larger for walled cities)
+        if unit.def_bonus != DefenseBonus.NoBonus:
+            size = 0.12 if (unit.def_bonus == DefenseBonus.Wall or walled) else 0.07
+            self._draw_shield(ax, x + 0.14, cy + 0.02, size)
+
+        top_glyph, extra = self._UNIT_GLYPH[unit.unit_type]
+        if extra is None:
+            ax.text(cx, cy + 0.04, top_glyph,
+                    ha='center', va='center', fontsize=22, color=color,
+                    fontfamily='DejaVu Sans', zorder=5)
+        elif extra == 'sword':
+            ax.text(cx - 0.05, cy + 0.04, top_glyph,
+                    ha='center', va='center', fontsize=22, color=color,
+                    fontfamily='DejaVu Sans', zorder=5)
+            # small sword: silver blade + brown hilt
+            ax.plot([cx + 0.10, cx + 0.24], [cy - 0.10, cy + 0.16],
+                    color='#C0C0C0', lw=2.2, zorder=6, solid_capstyle='round')
+            ax.plot([cx + 0.07, cx + 0.17], [cy - 0.04, cy - 0.14],
+                    color='#8B4513', lw=2.0, zorder=6, solid_capstyle='round')
+        else:
+            # composite: queen atop a chess-knight
+            ax.text(cx, cy + 0.16, top_glyph,
+                    ha='center', va='center', fontsize=14, color=color,
+                    fontfamily='DejaVu Sans', zorder=5)
+            ax.text(cx, cy - 0.12, extra,
+                    ha='center', va='center', fontsize=14, color=color,
+                    fontfamily='DejaVu Sans', zorder=5)
+
+        # HP text (top of tile so it never collides with the city marker) + heal glow
+        hp_y = y + 0.88
+        healed = (self.last_action is not None
+                  and self.last_action["type"] == ActionTypes.HealUnit
+                  and self._overlay_ctx.get("healed_unit_id") == unit.unit_id)
+        if healed:
+            ax.add_patch(Circle((cx, hp_y), 0.13,
+                facecolor='#90EE90', edgecolor='none', alpha=0.85, zorder=6))
+        hp_text = f"{int(round(unit.current_hp))}/{int(unit.hp)}"
+        ax.text(cx, hp_y, hp_text,
+                ha='center', va='center', fontsize=6.5,
+                fontweight='bold', color='black', zorder=7,
+                bbox=dict(boxstyle='round,pad=0.12', facecolor='white',
+                          edgecolor='none', alpha=0.7))
+
+
+    def _draw_shield(self, ax, cx, cy, s):
+        pts = np.array([
+            [cx - s,        cy + s * 1.1],
+            [cx + s,        cy + s * 1.1],
+            [cx + s,        cy - s * 0.2],
+            [cx,            cy - s * 1.3],
+            [cx - s,        cy - s * 0.2],
+        ])
+        ax.add_patch(Polygon(pts, facecolor='#D3D3D3',
+            edgecolor='#404040', linewidth=0.8, zorder=5))
+        # small cross on the shield
+        ax.plot([cx, cx], [cy - s * 0.9, cy + s * 0.9],
+                color='#404040', lw=0.6, zorder=6)
+        ax.plot([cx - s * 0.7, cx + s * 0.7], [cy + s * 0.2, cy + s * 0.2],
+                color='#404040', lw=0.6, zorder=6)
+
+
+    def _draw_sword_icon(self, ax, mx, my, angle, s=0.22):
+        bx0 = mx + np.cos(angle) * s * 0.7
+        by0 = my + np.sin(angle) * s * 0.7
+        bx1 = mx - np.cos(angle) * s * 0.7
+        by1 = my - np.sin(angle) * s * 0.7
+        ax.plot([bx0, bx1], [by0, by1],
+                color='#C0C0C0', lw=3.0, solid_capstyle='round', zorder=10)
+        perp = angle + np.pi / 2
+        gx0 = mx + np.cos(perp) * s * 0.30
+        gy0 = my + np.sin(perp) * s * 0.30
+        gx1 = mx - np.cos(perp) * s * 0.30
+        gy1 = my - np.sin(perp) * s * 0.30
+        ax.plot([gx0, gx1], [gy0, gy1],
+                color='#8B4513', lw=2.4, solid_capstyle='round', zorder=10)
+
+
+    def _draw_action_overlay(self, ax, tile_center):
+        ta = self.last_action
+        if ta is None:
+            return
+        atype = ta["type"]
+        ctx = self._overlay_ctx
+
+        if atype == ActionTypes.MoveUnit:
+            path = ctx.get("path", [])
+            if len(path) < 2:
+                return
+            sx, sy = tile_center(path[0])
+            dx, dy = tile_center(path[-1])
+            ax.add_patch(mpatches.FancyArrowPatch(
+                (sx, sy), (dx, dy),
+                arrowstyle='-|>', mutation_scale=18,
+                color='black', lw=1.8, zorder=10,
+                shrinkA=6, shrinkB=10))
+
+        elif atype == ActionTypes.Attack:
+            atk_x, atk_y = tile_center(ctx["attacker_tile_id"])
+            def_x, def_y = tile_center(ctx["defender_tile_id"])
+            ranged = ctx.get("attacker_range", 1) > 1
+            died   = ctx.get("defender_died", False)
+
+            if ranged:
+                # outer target ring + inner bullseye + dashed line
+                ax.add_patch(Circle((def_x, def_y), 0.38,
+                    facecolor='none', edgecolor='red',
+                    lw=1.8, linestyle='--', zorder=10))
+                ax.add_patch(Circle((def_x, def_y), 0.18,
+                    facecolor='none', edgecolor='red',
+                    lw=1.4, zorder=10))
+                ax.plot([atk_x, def_x], [atk_y, def_y],
+                        color='red', lw=1.3, linestyle='--', zorder=10)
+
+            angle = np.arctan2(def_y - atk_y, def_x - atk_x)
+            if died:
+                # sword biased toward the attacker's original tile
+                mx = atk_x + 0.35 * (def_x - atk_x)
+                my = atk_y + 0.35 * (def_y - atk_y)
+                self._draw_sword_icon(ax, mx, my, angle)
+            elif not ranged:
+                mx = (atk_x + def_x) / 2
+                my = (atk_y + def_y) / 2
+                self._draw_sword_icon(ax, mx, my, angle)
+        # HealUnit overlay is drawn per-unit inside _draw_unit (green HP glow).
+
+
+    def _draw_info_panel(self, ax_info):
         ax_info.axis('off')
         ax_info.set_xlim(0, 1); ax_info.set_ylim(0, 1)
-    
-        pid       = self.game.player_go_id
+
+        pid = self.game.player_go_id
         pcolor_hx = '#1E6FD9' if pid == 0 else '#D92B1E'
-    
-        badge = FancyBboxPatch((0.05, 0.80), 0.90, 0.13,
-                                boxstyle="round,pad=0.02",
-                                facecolor=pcolor_hx, edgecolor='none', alpha=0.85)
+
+        badge = FancyBboxPatch((0.05, 0.88), 0.90, 0.10,
+            boxstyle="round,pad=0.02",
+            facecolor=pcolor_hx, edgecolor='none', alpha=0.85)
         ax_info.add_patch(badge)
-        ax_info.text(0.50, 0.865, f"▶  Player {pid}'s Turn",
-                     ha='center', va='center', fontsize=11, fontweight='bold',
-                     color='white', transform=ax_info.transAxes)
-    
-        def _info_row(y, label, value, vc='#222222'):
-            ax_info.text(0.08, y, label, ha='left',  va='top', fontsize=9,
-                         color='#555555', transform=ax_info.transAxes)
-            ax_info.text(0.92, y, str(value), ha='right', va='top', fontsize=9,
-                         fontweight='bold', color=vc, transform=ax_info.transAxes)
-    
-        _info_row(0.74, "Turn", self.game.turn)
-    
-        if critic_value is not None:
-            v  = critic_value.item() if hasattr(critic_value, 'item') else float(critic_value)
-            vc = '#1a7a1a' if v >= 0 else '#cc2200'
-            _info_row(0.64, "Critic V̂", f"{v:+.3f}", vc=vc)
-    
-        if translated_action is not None:
-            atype_str = translated_action["type"].name
-            _info_row(0.54, "Last action", atype_str, vc=pcolor_hx)
-    
-        ax_info.plot([0.05, 0.95], [0.38, 0.38],
-                     color='#CCCCCC', linewidth=0.8,
-                     transform=ax_info.transAxes)
-    
-        plt.tight_layout()
-        plt.show()
+        ax_info.text(0.50, 0.93, f"\u25B6  Player {pid}'s Turn",
+            ha='center', va='center', fontsize=11, fontweight='bold',
+            color='white')
+
+        def _row(y, label, value, vc='#222222'):
+            ax_info.text(0.08, y, label, ha='left',  va='top',
+                fontsize=9, color='#555555')
+            ax_info.text(0.92, y, str(value), ha='right', va='top',
+                fontsize=9, fontweight='bold', color=vc)
+
+        _row(0.82, "Turn", self.game.turn)
+        _row(0.76, "Decisions", self.n_decisions)
+
+        ax_info.plot([0.05, 0.95], [0.72, 0.72],
+            color='#CCCCCC', linewidth=0.6)
+
+        for p_idx, player in enumerate(self.game.players):
+            y_lbl = 0.66 - p_idx * 0.07
+            c = self._P_COLORS[p_idx]
+            ax_info.text(0.08, y_lbl, f"P{p_idx}",
+                ha='left', va='top', fontsize=9,
+                fontweight='bold', color=c)
+            ax_info.text(0.92, y_lbl,
+                f"\u2605 {player.stars} (+{player.current_stars_per_turn})",
+                ha='right', va='top', fontsize=9, color='#222222')
+
+        ax_info.plot([0.05, 0.95], [0.50, 0.50],
+            color='#CCCCCC', linewidth=0.6)
+        ax_info.text(0.08, 0.46, "Last action:",
+            ha='left', va='top', fontsize=9, color='#555555')
+        ax_info.text(0.08, 0.40, self._fmt_last_action(),
+            ha='left', va='top', fontsize=8, color='#222222')
+
+
+    def _fmt_last_action(self):
+        ta = self.last_action
+        if ta is None:
+            return '(none yet)'
+        atype = ta["type"]
+        ctx = self._overlay_ctx
+        if atype == ActionTypes.MoveUnit:
+            return f"MoveUnit  tile {ctx.get('src_tile_id')} \u2192 {ctx.get('dst_tile_id')}"
+        if atype == ActionTypes.Attack:
+            flag = "  [KILL]" if ctx.get("defender_died") else ""
+            return f"Attack  tile {ctx.get('attacker_tile_id')} \u2192 {ctx.get('defender_tile_id')}{flag}"
+        if atype == ActionTypes.CreateUnit:
+            ut = ta.get("unit_type")
+            return f"CreateUnit  {ut.name if ut is not None else '?'}  city={ta.get('city')}"
+        if atype == ActionTypes.CaptureCity:
+            return f"CaptureCity  u={ta.get('unit_id')}"
+        if atype == ActionTypes.HealUnit:
+            return f"HealUnit  u={ta.get('unit_id')}"
+        if atype == ActionTypes.UpgradeCity:
+            return f"UpgradeCity  city={ta.get('city')}  choice={ta.get('choice')}"
+        if atype == ActionTypes.PlaceRoad:
+            return f"PlaceRoad  tile={ta.get('tile_id')}"
+        if atype == ActionTypes.Upgrade2Vet:
+            return f"Upgrade2Vet  u={ta.get('unit_id')}"
+        if atype == ActionTypes.EndTurn:
+            return "EndTurn"
+        return atype.name
 
 
 

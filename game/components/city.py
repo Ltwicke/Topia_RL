@@ -70,6 +70,8 @@ class City:
         if self.under_siege:
             return 0
         spt = 1
+        if self.is_capital:
+            spt += 1 #capital produces one more star
         spt += self.times_upgraded
         if self.times_upgraded > 0:
             if self.choices[0] == 0: # workshop

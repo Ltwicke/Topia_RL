@@ -4,32 +4,21 @@ This file lays down some important design choices for the todos that should be e
 
 ## Game simulator overhaul and additions
 
-### Blocked city income during enemy seige
+Everything up to date so far!
 
-- When an enemy unit occupies a city, the income of this city is set to 0 as long as the unit occupies it
+### Attack interactions with ranged units
 
-### Road mechanic
+- Ranged units get no retaliation damage when attacking a non-ranged unit at distance.
+- Ranged units furthermore dont move in the place of a killed defender.
+- Include stiff mechanic for units that do not retaliate.
 
-- Roads cannot be placed in enemy controlled territory
-- Roads can be placed in visible territory for a cost of 4 stars
-- If two adjacent tiles (also diagonal) both have roads, the edge weight between them gets updated to 0.5 
-- a players units cannot use roads that lie within enemy territory (player cntrl) 
+### Defensive Bonus mechanics
 
- 
-### Inclusion of score
+- Some units dont have fortify and therefore dont benefit from defensive boni from the city (but still from mountains)
 
- - Score is awarded for cities under control, units under control and controlled tiles. 
- - This score is visible to every player in the game.
- 
-### Addition of multiple new units 
- 
- - A giant can never be created in a city other than via the city upgrade mechanic. 
+### Road mechanics
 
-
-### Upgrade City
-
- - Workshop vs Explorer; A workshop means one more stars per turn for the city, an explorer is a special unit that is created on upgrade and moves 14 moves in random directions, irregardless of enemy zoc, occupied tiles, only by water DONE
- - after this, the player can choose between a park, or a super_unit (su for short); the park functions exactly like a workshop and choosing su, will invoke CreatUnit and create a Giant on the city (also takes up one space of the city). DONE
+- roads cannot be build onto mountains, and mountains end the movement.
 
 
 ## Environment wrapper
@@ -38,6 +27,10 @@ This file lays down some important design choices for the todos that should be e
 
 - Currently the render function is build into the EnvWrapper, but it is probably better to isolate it into its own module. 
 
+
+### More complex UI on the horizon
+
+- In the long term, the goal is that the user can play against a trained agent. For this, a more refined UI will be needed. But this is something for the future.
 
 
 

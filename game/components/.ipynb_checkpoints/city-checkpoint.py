@@ -57,6 +57,7 @@ class City:
         self.times_upgraded = 0
         self.choices = []
         self.pending_discount = 0
+        self.controlled_tile_ids: list[int] = []
 
     @property
     def max_unit_cap(self) -> int:
@@ -66,9 +67,11 @@ class City:
 
     @property
     def city_stars_per_turn(self) -> int:
-        if self.under_seige:
+        if self.under_siege:
             return 0
         spt = 1
+        if self.is_capital:
+            spt += 1 #capital produces one more star
         spt += self.times_upgraded
         if self.times_upgraded > 0:
             if self.choices[0] == 0: # workshop

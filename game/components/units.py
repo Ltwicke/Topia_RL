@@ -133,6 +133,8 @@ class Catapult(Unit):
         self.unit_type = UnitType.Catapult
         self.cost = 12
 
+        self.attack_range = 3
+
         self.hp = 10.0
         self.atk_stat = 4.0
         self.def_stat = 0.0
