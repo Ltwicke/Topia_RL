@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Polygon, FancyBboxPatch
 from matplotlib.collections import PatchCollection
 import matplotlib.patches as mpatches
+import matplotlib.patheffects as pe
 
 from game.game import Game
 from game.enums import (
@@ -106,6 +107,7 @@ class EnvWrapper(object):
     
     def _get_obs(self):
         """
+        TODO: update this function to satisfy all new additions of version 2.0
         This is the input to the policynetwork
         I assume here I combine the partial graph with the position embedding and everything else I need to give the NN the full information...
         obs is a python dictionary, including not only the board information but also the next player, the next next player etc... it will be converted to torch.tensor to be handled in RL!
@@ -144,13 +146,40 @@ class EnvWrapper(object):
         if self.dense_reward:
             if message["action_type"] == ActionTypes.MoveUnit:
                 reward += 0.3 * message["tiles_uncovered"] # for uncovering tiles
+                
             elif message["action_type"] == ActionTypes.Attack:
                 if message["killed_unit"] == 1:
                     reward += 1.0 # for killing a unit
-                elif message["killed_unit"] == 0:
-                    pass
+
             elif message["action_type"] == ActionTypes.CreateUnit:
-                reward += 1.0 # for creating a unit
+                if message["unit_type"] == UnitType.Rider:
+                    reward += 0.5
+                elif message["unit_type"] == UnitType.Sword:
+                    reward += 1.0
+                elif message["unit_type"] == UnitType.Knight:
+                    reward += 2.5
+                elif message["unit_type"] == UnitType.Catapult:
+                    reward += 1.0 # because they are hard to place
+                elif message["unit_type"] == UnitType.Defender:
+                    reward -= .5 # discourage a passive playstyle
+
+            elif message["action_type"] == ActionTypes.HealUnit:
+                if message["heal_amount"] == 4.0:
+                    reward += .5
+                else:
+                    reward -= .5 # healing outside of own city border almost never is worth it..
+                 
+            elif message["action_type"] == ActionTypes.UpgradeCity:
+                pass
+                ## TODO: implement the rewards for city upgrades; must be done by a human!
+
+            elif message["action_type"] == ActionTypes.Upgrade2Vet:
+                reward += message["hp_diff"] * 0.1 # reward greater healing with the upgrade2vet mechanic
+
+            elif message["action_type"] == ActionTypes.PlaceRoad:
+                #reward -= 0.2 # discourage IF used too much!
+                pass
+                
             elif message["action_type"] == ActionTypes.CaptureCity:
                 reward += 5.0
             elif message["action_type"] == ActionTypes.EndTurn:
@@ -343,7 +372,7 @@ class EnvWrapper(object):
             valid_actions[0][ActionTypes.UpgradeCity] = 1.0
 
         # place road
-        if player.stars >= 4:
+        if player.stars >= 5:                                   ## ROAD PRICE
             for tile_id in player.uncovered_tile_ids:
                 tile = self.game.game_board.board[tile_id]
                 if (not tile.has_road
@@ -355,7 +384,7 @@ class EnvWrapper(object):
 
         # upgrade unit to veteran
         for pos, unit in enumerate(player_units):
-            if unit.kills >= 3 and not unit.is_vet:
+            if unit.kills >= 3 and not unit.is_vet and not unit.unit_type == UnitType.Giant:
                 valid_actions[8][pos] = 1.0
         if valid_actions[8].sum() > 0:
             valid_actions[0][ActionTypes.Upgrade2Vet] = 1.0
@@ -391,6 +420,7 @@ class EnvWrapper(object):
         UnitType.Catapult: ('\u265A', None),     # king
         UnitType.Giant:    ('\u265C', None),     # rook
         UnitType.Sword:    ('\u265F', 'sword'),  # pawn + sword overlay
+        UnitType.Defender: ('\u265F', 'shield'), # pawn + shield overlay
     }
 
     def render(self, figsize=(13, 7), shared_fog=True, show_action_overlay=True,
@@ -519,10 +549,11 @@ class EnvWrapper(object):
         pid = int(unit.player_id)
         color = self._P_VET[pid] if unit.is_vet else self._P_COLORS[pid]
 
-        # turn-state glow (behind everything else for this unit)
+        # silhouette glow: outline stroke that traces the glyph/icon shapes
         if unit.turn_state in (UnitState.ready, UnitState.escaping, UnitState.can_hit):
-            ax.add_patch(Circle((cx, cy + 0.02), 0.40,
-                facecolor='white', edgecolor='none', alpha=0.45, zorder=3))
+            effects = [pe.withStroke(linewidth=5, foreground='white', alpha=0.55)]
+        else:
+            effects = None
 
         # defensive shield (left of the glyph; larger for walled cities)
         if unit.def_bonus != DefenseBonus.NoBonus:
@@ -533,24 +564,42 @@ class EnvWrapper(object):
         if extra is None:
             ax.text(cx, cy + 0.04, top_glyph,
                     ha='center', va='center', fontsize=22, color=color,
-                    fontfamily='DejaVu Sans', zorder=5)
+                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
         elif extra == 'sword':
             ax.text(cx - 0.05, cy + 0.04, top_glyph,
                     ha='center', va='center', fontsize=22, color=color,
-                    fontfamily='DejaVu Sans', zorder=5)
+                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
             # small sword: silver blade + brown hilt
             ax.plot([cx + 0.10, cx + 0.24], [cy - 0.10, cy + 0.16],
-                    color='#C0C0C0', lw=2.2, zorder=6, solid_capstyle='round')
+                    color='#C0C0C0', lw=2.2, zorder=6, solid_capstyle='round',
+                    path_effects=effects)
             ax.plot([cx + 0.07, cx + 0.17], [cy - 0.04, cy - 0.14],
-                    color='#8B4513', lw=2.0, zorder=6, solid_capstyle='round')
+                    color='#8B4513', lw=2.0, zorder=6, solid_capstyle='round',
+                    path_effects=effects)
+        elif extra == 'shield':
+            ax.text(cx - 0.05, cy + 0.04, top_glyph,
+                    ha='center', va='center', fontsize=22, color=color,
+                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
+            # small shield on the RIGHT of the pawn; grey body + bronze rim
+            # (distinct from def-bonus shield which is teal and sits on the LEFT)
+            shield = Polygon(
+                [(cx + 0.10, cy + 0.18), (cx + 0.26, cy + 0.18),
+                 (cx + 0.26, cy - 0.02), (cx + 0.18, cy - 0.16),
+                 (cx + 0.10, cy - 0.02)],
+                closed=True, facecolor='#B0B0B0',
+                edgecolor='#7A4A1A', linewidth=1.2, zorder=6,
+            )
+            if effects is not None:
+                shield.set_path_effects(effects)
+            ax.add_patch(shield)
         else:
             # composite: queen atop a chess-knight
             ax.text(cx, cy + 0.16, top_glyph,
                     ha='center', va='center', fontsize=14, color=color,
-                    fontfamily='DejaVu Sans', zorder=5)
+                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
             ax.text(cx, cy - 0.12, extra,
                     ha='center', va='center', fontsize=14, color=color,
-                    fontfamily='DejaVu Sans', zorder=5)
+                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
 
         # HP text (top of tile so it never collides with the city marker) + heal glow
         hp_y = y + 0.88

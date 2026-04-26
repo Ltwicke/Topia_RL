@@ -805,6 +805,14 @@ Make these situations look like real-world game situations, and introduce robust
 
 
 
+
+
+
+
+
+
+
+
 18.04. 01:09 Uhr:
 
 Planning my reentry into the project. After a long break, it is time to move further. For this, I will watch a yt video on how to use claude code in a foldered codebase.
@@ -956,7 +964,11 @@ e   o e   c   t n
 
 20.04. 00:07 Uhr:
 
------------------TODO FILE FOR NEW FEATURES---------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
 
 # Current To-Dos and open design choices
 
@@ -1031,7 +1043,279 @@ This file lays down some important design choices for the todos that should be e
 ------------------------------------------------------------------------------------------------------------------------------------------
 
 
+21.04. 14:18 Uhr:
 
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+
+# Current To-Dos and open design choices
+
+This file lays down some important design choices for the todos that should be existentialized.
+
+## Game simulator overhaul and additions
+
+### Attack interactions with ranged units
+
+- Ranged units get no retaliation damage when attacking a non-ranged unit at distance. 
+- Ranged units furthermore dont move in the place of a killed defender.
+- Include stiff mechanic for units that do not retaliate.
+
+### Defensive Bonus mechanics
+
+- Some units dont have the ability to benefit from defensive boni from the city (but still from mountains). This is unit-specific and should be a class attribute called self.fortify
+- The following units have fortify: Warrior, Rider, Defender, Knight, Archer
+
+### Road mechanics
+
+- roads cannot be build onto mountains, and mountains end the movement.
+
+
+
+## Environment wrapper
+
+
+### Renderer cosmetic improvements
+
+- Instead of having the turnstate glow be a circle, match the shape of the unit figure. The glow should be outlining the shape. 
+- The defender should be a pawn with a shield, similar to the sword, which is a pawn with a sword. Dont mix it up with the shield from the defense bonus tho.
+
+
+### More complex UI on the horizon
+IGNORE FOR NOW!
+- In the long term, the goal is that the user can play against a trained agent. For this, a more refined UI will be needed. But this is something for the future.
+
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+16:56 Uhr  The next step is to rebuild the policy model to be trained with the same file.
+
+ORIGINALLY (and still in fact), I want to refine the training and code that up by myself as a test for what I already understand. However, I would much more like to do that while the laptop is busy already training in the old setting, also for just seeing, how it goes. 
+
+For this, the next steps are refactoring 
+Z) Asserting, that the dimension switching of partial graphs and the new partial graphs overall are correct! This is a silent but deadly error when training the agent. CHECKED AND WORKING
+A) the connections of the env wrapper to the actual ppo pipeline; the observations, rewards, done flags etc.
+B) the model modules; new modules for new action types, formulated to the lowest level; for this, remember how the current model works
+
+... Thats it basically. Then the very same training scripts can be used for a first training run.
+
+Then its important to read some literature first. 
+
+------>   IF YOU DONT READ LITERATURE ON TRAINING BEHAVIOUR, YOU WONT BE SUCCESSFUL, EVERRRRRRRRRR!!!!!  <----------
+
+
+
+Finally, remember the newly refined goal. Most likely, it will impossible to train a super human agent in early, mid and lategame on this machine. 
+However, we have one lucky trick up our sleeve, and its weakly-solved games!
+
+
+
+
+
+
+25.04. 13:15 Uhr:
+
+Collection of game states for testing:
+
+      | 1. Observable tactics
+      | 1.1 Dash dancing: Simply have a defender that can be killed and a dash unit (warrior or swordsman, or test for both) ordered in a way 
+      |     that the agent can either directly kill (no dash dancing) or first move to uncover tiles and then use dash to kill
+      |
+      | 1.2 Rider leapfrogging: Have a game in early state, 1 of two riders is still on the capital. Then observe if they leapfrog for maximum
+      |     exploring power. Also test this same situation for a crowded game board to see, if the model gets confused if there is a lot 
+      |     to digest
+      |
+      | 1.3 Road to kill: (WARNING: It is difficult to test this, because it is very much possible, that moving the riders forward slowly will ultimately
+      |     secure the kill too. Therefore it is important to find game states, where it is ultimately clear, what the best action is in this state)
+      |     Therefore, change to: 
+      |     Road to unseige: Two cities. One is sieged by an enemy warrior. Two riders with some distance in own city. -> they need to build roads 
+      |     to unseige. 
+      |
+      | 1.4 Zone of control management: Dont know yet, how it should ultimately look like, but its about closing an important gap with a defender or a giant
+      |
+      | 1.5 Knight chain choice: Have a knight choose between two chains, where one is clearly more valuable. Dont run the actual attacking actions, only the 
+      |     knights movement to the respective start of either of the chains.
+      |
+      | 1.6 City upgrade order: A classic. Two cities to upgrade. You can upgrade both, if you use the resources choice, otherwise you can only upgrade one.
+      |     Already place units on the cities, so that the agent doesnt want to create units.
+      |
+      | 1.7 Rider escaping placement: Consider a game state, where I have a bunch of riders in escaping with fractional health. Without any stars for roads etc.
+      |     where will the agent place the riders? (hopefully inside its own borders, out of reach of attacking units)
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      | 2. Hidden tiles estimator tests
+      | 2.1 Simple stuff: Complete objects, such as cities, based on seeing a line of controlled tiles.
+      |     Or estimate simple unit clustering strategies; Ideally, there are no isolated, lone units
+      |
+      | 2.2 How does estimation change based on the opponents score?: Given a simple game state and varying the opponents score in steps of 1000;
+      |     How will the estimation of the unit counts, unit types, city counts, city lvls vary?
+      |
+      | 2.3 Can he track escaping enemy units?: Oh no... There is a design flaw. ---> 26.04.
+      |     SOLUTUION: Hardcoded scenario: Rider escapes into fog, turn ends, your turn; what does the hidden tile estimator estimates for units
+      |     in the vicinity of the escaped rider?
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+
+
+
+
+
+HIDDEN TILE ESTIMATOR:
+
+Another thing: It would be straight forward to train an additional network, that does some hidden graph estimation; a simple network that outputs estimated full node feature vecs of hidden tiles.
+Specifically, it is very easy to have a notion of uncertainty; Since my node features are mostly one-hot encoded, the network can simply output sigmoided logits and this will already show how confident it is. We can also make something like unit types, unit turn states softmaxed in order to make it easier for the network.
+Furthermore, we could simplify the city lvl feature dimensions to one; if there is a village or not. However, given that the model will also have access to the opponents score, it would be very interesting to see it estimate the full stack.
+Finally, if it is too much load to estimate it for every step and every covered tile, one can simply reduce this to only estimating a N-tile reach into the unknown. 
+
+There are multiple advantages of this approach:
+
+1. This could teach the encodings to hold much more valuable condensed information; Because this is much faster to train compared to PPO for agent behaviour, it can very positively leak into the behaviour learning task. 
+
+2. The model architecture and training are very straight forward: (NO THEY ARE NOT!) A collection of decisions and the saved observations form the dataset for 1 update. The input (same as for the behaviour agent) is the concealed partial graph and the ground truth is the uncoceiled partial graph (you can simply also save this out from the player class). 
+    Then, batch the data and run for a couple of epochs. Here, we can go full ham on GPU utilization. 
+    HERE IS WHY ITS NOT STRAIGHT FORWARD: We have two design choices: Simultaneous gradients, or serialized gradients; Either we run one batch of hidden
+    estimation and one batch of PPO and combine the gradients, or we first run the hidden estimation and then the PPO
+
+I actually tend to the serialized gradients, but make sure, that this is not a problem.
+
+3. The hope then is: Hopefully, the hidden estimations gradients modify the weights of the policy network such that the observations module becomes far more efficient in encoding structures of the map type, notions of the extension of game objects (such as a corner of a cntrl tile) and overall game strategy; What I mean by this: Since the dataset is generated from the same agent that is trained to behave based on what the hidden estimation model learns from the data, there will be a self-fulfilling prophecy: The agents play (which could potentially manifest in always expanding into the center of the map) can be learned by the hidden estimation for better estimating.
+This can either go well or terribly unwell; Either the agent learns to predict the covered tiles according to optimal play and will therefore be an optimal estimator OR the agent tries to correlate the play with an easy form of prediction thus getting lower loss values but also cheating itself. It wouldnt learn optimal play, just to predict its own bad playstyle better. 
+Luckily, the goal of the PPO is to find the optimal and competitive playstyle (the game will be treated as a zero-sum two player game) and I think that the hidden estimation will help this goal. But, I have to have a keen eye for this!!
+
+
+One great joy will be the visualization of this estimation; I see some form of shape superposition on each tile depending on what the estimator says.  
+
+
+
+
+
+
+
+
+
+26.04. There is a design flaw: Currently, the game is processed based on a static input. There is no carried over notion of what happened the turns before other than the current static board shape. 
+Comparing this to the real game, there are slept on opportunities: In the real game, it is possible to track some units like riders -which hit then escape into the fog- by remembering where they went. Additionally, by following the order or spatial locations where they do their actions, it is potentially possible to deduce what strategy they follow.
+To include this into the agent, it would be a good idea to include old game states (carry multiple decision states along). But this significantly increases the active objects that the network needs to process. 
+
+For example: One immediate idea I have is to have an information strand per player about the partial graph by carrying along some recourrent node embedding of some sorts. Similar to how the feature vector in a LSTM network carries temporal earlier information and then adds new information on top, maybe it could be done similarily with the node embedding for the game board. 
+
+---> My hopes are essentially, that during the enemy turn, if there is a rider emerging in the partial graph, this information is preserved and if the rider disapears again, the node embedding will carry along the potential positions where the rider could have escaped to. 
+
+--->This can be tested with the hidden tile estimator module; In a (hardcoded) situation, where the rider disappears (even without the animation showing where exactly is goes), the turn is ended and then your turn starts (Rider escapes, end turn, your turn), what will the hidden tile estimator in the vicinity of the escaped rider show??
+
+
+
+
+
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+----------------------TODOS.md FILE----------------------------------------------------------------------------------------------------------
+
+26.04. 19:29 Uhr
+
+# Current To-Dos and open design choices
+
+This file lays down some important design choices for the todos that should be existentialized.
+
+## Game simulator overhaul and additions
+
+All done for now!
+
+## Environment wrapper
+
+### Notion of center in each tile
+
+- Each tile needs a notion of how much in the center of the map it is and how much on the edge it is. 
+- This absolut notion is important because generally, the center of the map is more valuable (like in chess) that the edges and there is no learnable feature that classifies this notion being close to the center.
+- What would be the best way to include this to the raw node features?
+
+### Observation handling refactoring in environmentwrapper
+
+- The function _get_obs collects the observations to be used in the policy agent network
+- The function needs to be refactored to include the new features. Specifically, the own current stars, stars per turn and own and opponents scores as well as the turn number.
+- Also add the fully uncovered partial graph for the hidden tiles estimator.
+- Changes here also need to cascade into make_snapshots in policy.py in the models folder.
+
+### Custom game state editor
+
+- For the unit tests after every update of the PPO line, I need a comfortable way to edit user-defined game states.
+- A game state is a user-defined state of the game board and player states. From the pre-defined state, the game simulation can unfolds without any furhter disturbances as if it were to happen in a real game.
+
+### More complex UI on the horizon
+IGNORE FOR NOW!
+- In the long term, the goal is that the user can play against a trained agent. For this, a more refined UI will be needed. But this is something for the future.
+
+
+## RL agent model and PPO pipeline
+
+### New modules for Version 2.0
+
+- New modules need to be added to the policy network:
+- HealUnit Head (very similar to the CaptureCityHead): Goes over all units, computes pairwise attention and returns a container with the results
+- UpgradeCity Head (similar to create city selection head): Could also include a notion of the entropy in the two possible choices, but this doesnt need its own class, just include it into the UpgradeCity Head controlled by an on/ off flag.
+- PlaceRoad Head: A simple head that scores the probability to place a road on any visible tile to the player. Here, its also very important to calculate the entropy and bring it into the equation for the final action type head.
+- UpgradeUnit Head: (similar to HealUnit Head): Goes over all units, computes pairwise attention and returns a container with the results.
+- All of the above new modules need to be bundled in policy.py 
+
+### Pooling strategy for MultiScale convs
+
+- Always pool with the max function, not with the mean function.
+
+
+### Hidden tile estimator network
+
+- Interfaces the policy agent after the main node embedding layers.
+- add the class code into the main_modules.py. This estimator can be either a super minimal single FCNN with a couple of hidden layers or it could be another (smaller) graph transformer. 
+- Make softmax for the sets of slices, where the values must add to 1 (for example for all unit types, all field types, etc.)
+- How this is integrated into the training: The loss will be the sum of each tile estimation loss which will be some form of logistic loss for every vector dimension. The resulting loss will be backpropagated to the node embedding layers. After 5-10 epochs of this, ppo is run.
+
+
+### Per update unit tests
+
+- There is an array of unit tests which consists of predefined game situations, where after every successful update of the PPO, they should be run multiple times (~20 times per situation) and logged.
+- Some tests are logged as pngs. A good naming strategy will be needed here.
+- I also need the ability to hardcode some actions which will be taken before the agent gets to decide.
+
+
+### Entropy fusing strategy
+
+- Currently, entropy is just fused with a linear input projection using nn.Linear onto all of the necessary embeddings.
+- Given the objective being to push the network into choosing clear decisions (those with low entropy, essentially telling, this is a must do move), is there a better way to include these low level entropy values?
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 

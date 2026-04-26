@@ -12,7 +12,7 @@ from game.enums import (
 from game.components.board import Board
 from game.components.city import _CITY_UPGRADES, _CITY_UPGRADE_COST
 from game.components.player import Player
-from game.components.units import Warrior, Rider, Knight, Giant, Archer, Catapult, Sword
+from game.components.units import Warrior, Rider, Knight, Giant, Archer, Catapult, Sword, Defender
 
 
 _TURN_STATE_TRANSITIONS = [
@@ -40,12 +40,22 @@ _TURN_STATE_TRANSITIONS = [
     (UnitType.Giant, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
     (UnitType.Giant, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.idle),
     (UnitType.Giant, None,               ActionTypes.Attack,   None,  UnitState.idle),
+    ## DEFENDER
+    (UnitType.Defender, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
+    (UnitType.Defender, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.idle),
+    (UnitType.Defender, None,               ActionTypes.Attack,   None,  UnitState.idle),
     ## RIDER
     (UnitType.Rider, UnitState.ready,    ActionTypes.MoveUnit, False, UnitState.idle),
     (UnitType.Rider, UnitState.ready,    ActionTypes.MoveUnit, True,  UnitState.can_hit),
     (UnitType.Rider, UnitState.escaping, ActionTypes.MoveUnit, None,  UnitState.idle),
     (UnitType.Rider, None,               ActionTypes.Attack,   None,  UnitState.escaping),
 ]
+
+
+def col_round(x):
+    frac = x - math.floor(x)
+    if frac < 0.5: return math.floor(x)
+    return math.ceil(x)
 
 
 class Game(object):
@@ -108,10 +118,12 @@ class Game(object):
 
             self.advance_unit_turn_state(unit, action, message)
 
+            """ Already handled in move_unit
             if unit.tile.city != None:
                 self._apply_unit_def_bonus(unit)
             else:
                 unit.def_bonus = DefenseBonus.NoBonus
+            """
 
             message["tiles_uncovered"] = n_tiles_uncovered
 
@@ -122,25 +134,32 @@ class Game(object):
             unit_tile = unit.tile
             o_unit_tile = o_unit.tile
 
+            # retaliation gate: defender retaliates only if (a) not stiff AND (b) attacker is within its reach
+            dist = self._tile_distance(unit_tile.id, o_unit_tile.id)
+            retaliates = (not o_unit.stiff) and (dist <= o_unit.attack_range)
+
             attackResult, defenseResult = self.attack_retaliate_calc(unit, o_unit)
+            if not retaliates:
+                defenseResult = 0
 
             unit_result_hp = unit.current_hp - defenseResult
             o_unit_result_hp = o_unit.current_hp - attackResult
 
             if o_unit_result_hp <= 0: ## attacker deletes defender --> No current_hp change
-                attack_path = [unit_tile.id, o_unit_tile.id]
-                unit_tile.unit = None ## attacker moves tile!
-                o_unit_tile.unit = unit ## former defender tile now points to attacker. TODO: Include invalid movements
-                
-                ## update tile in unit:
-                unit.tile = o_unit_tile
-                
-                if o_unit_tile.city != None:
-                    self._apply_unit_def_bonus(unit) # You had to change to .value for the enum!
+                is_ranged_attack = dist > 1  # no advance into defender tile on ranged kill
+                if not is_ranged_attack:
+                    attack_path = [unit_tile.id, o_unit_tile.id]
+                    unit_tile.unit = None ## attacker moves tile!
+                    o_unit_tile.unit = unit ## former defender tile now points to attacker
+                    unit.tile = o_unit_tile
+                    if o_unit_tile.city != None:
+                        self._apply_unit_def_bonus(unit)
+                    else:
+                        unit.def_bonus = DefenseBonus.NoBonus
+                    self.apply_unit_vision(unit, attack_path)
                 else:
-                    unit.def_bonus = DefenseBonus.NoBonus
-
-                self.apply_unit_vision(unit, attack_path)
+                    # ranged kill: attacker stays put; just clear the dead defender from its tile
+                    o_unit_tile.unit = None
 
                 del opponent.units_under_control[action["o_unit_id"]] ## remove defender key from opponent
                 o_unit.city.current_n_units -= 1
@@ -191,6 +210,7 @@ class Game(object):
                 UnitType.Archer:   Archer,
                 UnitType.Catapult: Catapult,
                 UnitType.Sword:    Sword,
+                UnitType.Defender: Defender,
             }
             unit = _UNIT_CLASSES[action["unit_type"]](
                 player_id=PlayerId(self.player_go_id),
@@ -242,6 +262,7 @@ class Game(object):
             heal_amount = 4.0 if unit.tile.cntrl == player.player_id else 2.0
             unit.current_hp = min(unit.hp, unit.current_hp + heal_amount)
             unit.turn_state = UnitState.idle
+            message["heal_amount"] = heal_amount
 
         elif action["type"] == ActionTypes.UpgradeCity:
             city = player.cities_under_control[action["city"]]
@@ -277,31 +298,40 @@ class Game(object):
                 self._apply_unit_def_bonus(city_tile.unit)
 
             message["new_lvl"] = city.lvl
+            message["choice"] = choice
 
         elif action["type"] == ActionTypes.PlaceRoad:
             tile = self.game_board.board[action["tile_id"]]
+            assert tile.tile_type == TileType.field, "roads cannot be placed on non-field tiles"
             tile.has_road = True
-            player.stars -= 4
+            player.stars -= 5                                    ## ROAD PRICE
             self.game_board._update_road_edge_weights()
 
         elif action["type"] == ActionTypes.Upgrade2Vet:
             unit = player.units_under_control[action["unit_id"]]
+            old_curr_hp = unit.current_hp
             unit.is_vet = True
             unit.hp += 5
             unit.current_hp = unit.hp
             #UNIT TURN STATE DOES NOT CHANGE, THIS IS CORRECT!
+            message["hp_diff"] = unit.current_hp - old_curr_hp
 
         elif action["type"] == ActionTypes.EndTurn:
             self.turn += self.player_go_id % 2 # 0 1 0 1 0 1 0 1 ...
             self.player_go_id = (self.player_go_id + 1) % 2
             new_player = self.players[self.player_go_id] # after ending the turn
 
-            for unit in self.players[self.player_go_id].units_under_control.values():
+            for unit in new_player.units_under_control.values():
                 unit.set_ready() # set turn state to ready
 
             self._refresh_siege_states()
             ## player_go_id gets his stars for the turn
-            new_player.stars += new_player.current_stars_per_turn
+            if self.turn > 0:
+                new_player.stars += new_player.current_stars_per_turn
+
+            self.game_board.create_board_graph_from_board_state(self.all_tile_ids)
+            new_player.construct_partial_graph_2players(self.game_board)            # important: create for new player
+            return message
 
         ## Create a new board_graph AND players partial graph:
         self.game_board.create_board_graph_from_board_state(self.all_tile_ids)
@@ -344,13 +374,21 @@ class Game(object):
         for tid in city.controlled_tile_ids:
             self.game_board.board[tid].cntrl = new_player_id
 
+    def _tile_distance(self, tid_a, tid_b):
+        ax, ay = self.game_board.int_to_tup[tid_a]
+        bx, by = self.game_board.int_to_tup[tid_b]
+        return max(abs(ax - bx), abs(ay - by))
+
     def _apply_unit_def_bonus(self, unit):
         city = unit.tile.city
-        if city.player_id is None or city.player_id.value != self.player_go_id:
+        if (city is None
+                or city.player_id is None
+                or city.player_id.value != self.player_go_id
+                or not unit.fortify):
             unit.def_bonus = DefenseBonus.NoBonus
-        else:
-            has_wall = len(city.choices) >= 2 and city.choices[1] == 1
-            unit.def_bonus = DefenseBonus.Wall if has_wall else DefenseBonus.Shield
+            return
+        has_wall = len(city.choices) >= 2 and city.choices[1] == 1
+        unit.def_bonus = DefenseBonus.Wall if has_wall else DefenseBonus.Shield
             
     
     def _apply_explorer_vision(self, player, start_tile_id, n_steps=14):
@@ -407,7 +445,8 @@ class Game(object):
         """Calculate valid movement destinations and shortest paths for unit.
 
         Transit rules:
-          - Hidden tiles and non-field tiles block ALL movement through them.
+          - Hidden tiles, water and mountain tiles block ALL transit.
+          - Mountains CAN be stopping destinations; entering one ends movement.
           - Enemy-occupied tiles and their ZoC neighbors block transit (unit must stop before).
           - Friendly-occupied tiles are passable as intermediate nodes.
           - ZoC tiles (adjacent to enemies) can be stopping destinations but not transit nodes.
@@ -417,11 +456,14 @@ class Game(object):
         partial_graph = self.players[unit.player_id].partial_graph
 
         # Phase 0 — classify tiles
-        cant_step_on   = partial_graph[:, _TILE_TYPE_START] == 0               # not a field (hidden tiles are also 0)
+        field_bit      = partial_graph[:, _TILE_TYPE_START]                    # 1 if field, else 0
+        mountain_bit   = partial_graph[:, _TILE_TYPE_START + int(TileType.mountain)]
+        cant_transit   = field_bit == 0                                        # only fields can be traversed
+        cant_stop      = (field_bit == 0) & (mountain_bit == 0)                # hidden/water block stopping; mountain allowed
         own_occupied   = (partial_graph[:, OWN_TYPE_SLICE] != 0).any(axis=-1)
         enemy_occupied = (partial_graph[:, OPP_TYPE_SLICE] != 0).any(axis=-1)
         any_occupied   = own_occupied | enemy_occupied
-        destination_blocked = cant_step_on | any_occupied
+        destination_blocked = cant_stop | any_occupied
 
         # Phase 1 — ZoC set: tiles adjacent to (or occupied by) visible enemy units
         enemy_tile_ids = set(np.argwhere(enemy_occupied).flatten())
@@ -437,7 +479,7 @@ class Game(object):
         for i in zoc_ids:
             zoc_arr[i] = True
 
-        transit_blocked = cant_step_on | enemy_occupied | zoc_arr
+        transit_blocked = cant_transit | enemy_occupied | zoc_arr
         nodes_to_remove = [self.game_board.int_to_tup[i]
                            for i in np.argwhere(transit_blocked).flatten()]
         unit_loc = self.game_board.int_to_tup[unit.tile.id]
@@ -467,11 +509,13 @@ class Game(object):
             if any(not destination_blocked[self.game_board.tup_to_int[n]]
                    for n in lengths if n != unit_loc):
                 return True
-            # also check ZoC tiles reachable as one-step stopping points
+            # also check ZoC / mountain tiles reachable as one-step stopping points
             for node, cost in lengths.items():
                 for nbr in self.game_board.movement_topology_graph.neighbors(node):
                     nbr_id = self.game_board.tup_to_int[nbr]
-                    if nbr_id not in zoc_ids or destination_blocked[nbr_id]:
+                    is_zoc_stop      = (nbr_id in zoc_ids)
+                    is_mountain_stop = bool(mountain_bit[nbr_id])
+                    if (not (is_zoc_stop or is_mountain_stop)) or destination_blocked[nbr_id]:
                         continue
                     base_w = self.game_board.movement_topology_graph \
                                  .get_edge_data(node, nbr).get('weight', 1.0)
@@ -486,11 +530,13 @@ class Game(object):
                         return True
             return False
 
-        # Extend: ZoC tiles reachable as stopping destinations (one step from transit nodes)
+        # Extend: ZoC / mountain tiles reachable as stopping destinations (one step from transit nodes)
         for node, cost in list(lengths.items()):
             for nbr in self.game_board.movement_topology_graph.neighbors(node):
                 nbr_id = self.game_board.tup_to_int[nbr]
-                if nbr_id not in zoc_ids or destination_blocked[nbr_id]:
+                is_zoc_stop      = (nbr_id in zoc_ids)
+                is_mountain_stop = bool(mountain_bit[nbr_id])
+                if (not (is_zoc_stop or is_mountain_stop)) or destination_blocked[nbr_id]:
                     continue
                 base_w = self.game_board.movement_topology_graph \
                              .get_edge_data(node, nbr).get('weight', 1.0)
@@ -534,6 +580,9 @@ class Game(object):
         ## update unit tile pointer:
         unit.tile = target_tile
 
+        ## update defense bonus (important if unit is being pushed by giant creation)
+        self._apply_unit_def_bonus(unit)
+
 
     def apply_unit_vision(self, unit, path):
 
@@ -556,8 +605,8 @@ class Game(object):
         attackForce = unit.atk_stat * (unit.current_hp / unit.hp)
         defenseForce = o_unit.def_stat * (o_unit.current_hp / o_unit.hp) * o_unit.def_bonus.value 
         totalDamage = attackForce + defenseForce 
-        attackResult = math.ceil((attackForce / totalDamage) * unit.atk_stat * 4.5) 
-        defenseResult = math.ceil((defenseForce / totalDamage) * o_unit.def_stat * 4.5)
+        attackResult = col_round((attackForce / totalDamage) * unit.atk_stat * 4.5) 
+        defenseResult = col_round((defenseForce / totalDamage) * o_unit.def_stat * 4.5)
 
         if splash:
             attackResult /= 2

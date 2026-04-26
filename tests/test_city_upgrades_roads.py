@@ -220,12 +220,12 @@ def test_place_road_sets_has_road(fresh_game):
     assert g.game_board.board[tile_id].has_road is True
 
 
-def test_place_road_deducts_4_stars(fresh_game):
+def test_place_road_deducts_5_stars(fresh_game):
     g = fresh_game
     g.players[0].stars = 10
     tile_id = _find_non_road_field_tile(g)
     _place_road(g, tile_id)
-    assert g.players[0].stars == 6
+    assert g.players[0].stars == 5
 
 
 def test_road_edge_weight_halved(fresh_game):

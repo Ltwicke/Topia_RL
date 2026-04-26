@@ -8,6 +8,7 @@ class UnitType(IntEnum):
     Catapult = 4
     Giant = 5
     Sword = 6
+    Defender = 7
 
 
 class UnitState(IntEnum):

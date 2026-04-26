@@ -2,12 +2,13 @@ from game.enums import DefenseBonus, PlayerId, UnitState, UnitType
 
 _UNIT_COSTS = {
     UnitType.Warrior:  2,
-    UnitType.Rider:    3,
-    UnitType.Archer:   3,
-    UnitType.Knight:   13,
-    UnitType.Catapult: 12,
+    UnitType.Rider:    4,
+    UnitType.Archer:   4,
+    UnitType.Knight:   16,
+    UnitType.Catapult: 13,
     UnitType.Giant:    20,
-    UnitType.Sword:    5,
+    UnitType.Sword:    12,
+    UnitType.Defender: 4,
 }
 
 
@@ -33,6 +34,9 @@ class Unit(object):
 
         self.vision_range = 1
         self.attack_range = 1
+
+        self.fortify = False    # True -> eligible for city Shield/Wall bonus
+        self.stiff   = False    # True -> never deals retaliation damage
 
         self.turn_state = UnitState.idle
         self.current_hp = None
@@ -61,6 +65,8 @@ class Warrior(Unit):
 
         self.current_hp = 10.0
 
+        self.fortify = True
+
 
 class Rider(Unit):
     def __init__(self, player_id: PlayerId, city, tile, unit_id: int):
@@ -76,6 +82,8 @@ class Rider(Unit):
 
         self.current_hp = 10.0
 
+        self.fortify = True
+
 
 
 class Knight(Unit):
@@ -84,13 +92,15 @@ class Knight(Unit):
 
         self.unit_type = UnitType.Knight
         self.cost = 13
-        
+
         self.hp = 10.0
         self.atk_stat = 3.5
         self.def_stat = 1
         self.mvpts = 3
 
         self.current_hp = 10.0
+
+        self.fortify = True
 
 
 class Giant(Unit):
@@ -125,6 +135,8 @@ class Archer(Unit):
 
         self.current_hp = 10.0
 
+        self.fortify = True
+
 
 class Catapult(Unit):
     def __init__(self, player_id: PlayerId, city, tile, unit_id: int):
@@ -141,6 +153,8 @@ class Catapult(Unit):
         self.mvpts = 1
 
         self.current_hp = 10.0
+
+        self.stiff = True
 
 
 
@@ -159,4 +173,21 @@ class Sword(Unit):
         self.current_hp = 15.0
 
 
+
+
+class Defender(Unit):
+    def __init__(self, player_id: PlayerId, city, tile, unit_id: int):
+        super().__init__(player_id, city, tile, unit_id)
+
+        self.unit_type = UnitType.Defender
+        self.cost = 4
+
+        self.hp = 15.0
+        self.atk_stat = 1.0
+        self.def_stat = 3.0
+        self.mvpts = 1
+
+        self.current_hp = 15.0
+
+        self.fortify = True
 

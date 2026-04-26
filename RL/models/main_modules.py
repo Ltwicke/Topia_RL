@@ -71,7 +71,7 @@ class GraphTransformerEncoder(nn.Module):
     def __init__(
         self,
         in_feats:   int = IN_FEATS,
-        hidden_dim: int = 128,
+        hidden_dim: int = 128, # way too large
         n_heads:    int = 4,
         depth:      int = 3,
     ) -> None:
