@@ -2,18 +2,12 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Rectangle, Polygon, FancyBboxPatch
-from matplotlib.collections import PatchCollection
-import matplotlib.patches as mpatches
-import matplotlib.patheffects as pe
 
 from game.game import Game
 from game.enums import (
     BoardType, CityType, Tribes, ActionTypes, UnitType, UnitState,
-    NODE_FEAT_DIM, N_UNIT_TYPES, N_CITY_TYPES,
-    _TILE_TYPE_START, _PLAYER_CTRL_START, _CITY_START, _ROAD_START,
-    UNIT_STATE_SLICE, player_type_slice,
-    TileType, DefenseBonus,
+    NODE_FEAT_DIM, N_UNIT_TYPES,
+    TileType,
     PARTIAL_GRAPH_SWAPS,
 )
 from game.components.city import _CITY_UPGRADES, _CITY_UPGRADE_COST
@@ -446,133 +440,89 @@ class EnvWrapper(object):
 
 
     # ═══════════════════════════════════════════════════════════════════════
-    # Debug renderer (v2). Lightweight matplotlib-only board visualization.
+    # Rendering — thin orchestrator over env/renderer.BoardRenderer
     # ═══════════════════════════════════════════════════════════════════════
 
-    _P_COLORS   = ('#1f77b4', '#d62728')       # P0 blue, P1 red
-    _P_VET      = ('#0d3c66', '#6a1315')       # darker variants
-    _CTRL_TINT  = ('#ADD8E6', '#FFB6C1')       # light-blue / light-pink
-    _UNIT_GLYPH = {
-        UnitType.Warrior:  ('\u265F', None),     # pawn
-        UnitType.Rider:    ('\u265E', None),     # knight
-        UnitType.Archer:   ('\u265D', None),     # bishop
-        UnitType.Knight:   ('\u265B', '\u265E'), # queen over chess-knight
-        UnitType.Catapult: ('\u265A', None),     # king
-        UnitType.Giant:    ('\u265C', None),     # rook
-        UnitType.Sword:    ('\u265F', 'sword'),  # pawn + sword overlay
-        UnitType.Defender: ('\u265F', 'shield'), # pawn + shield overlay
-    }
-
-    def render(self, figsize=(13, 7), shared_fog=True, show_action_overlay=True,
-               save_path=None, show=True):
-        """
-        Debug renderer for Version 2.0. Visualizes the full board from
-        self.game.game_board.board_graph (tile-level) + live Unit objects
-        (per-unit detail). Optional action overlay for the last step().
-        """
-        Nx, Ny = self.Nx, self.Ny
-        state_grid = self.game.game_board.board_graph.reshape(Nx, Ny, NODE_FEAT_DIM)
-        board = self.game.game_board.board
-
-        fig = plt.figure(figsize=figsize)
-        gs  = fig.add_gridspec(1, 2, width_ratios=[Ny, 4.2], wspace=0.08)
-        ax      = fig.add_subplot(gs[0])
-        ax_info = fig.add_subplot(gs[1])
-
+    def _uncovered_set(self, shared_fog):
         if shared_fog:
             uncovered = set()
             for p in range(self.n_players):
                 uncovered |= self.game.players[p].uncovered_tile_ids
+            return uncovered
+        return set(range(self.n_tiles))
+
+    def render(
+        self,
+        *,
+        figsize=None,
+        shared_fog=True,
+        show_action_overlay=True,
+        save_path=None,
+        show=True,
+        # — trajectory inputs (optional) —
+        action=None,
+        joint_probs=None,
+        traj_actions=None,
+        critic_value=None,
+        # — hidden-tile estimator overlay (optional) —
+        show_hidden=False,
+        hidden_estimate=None,
+    ):
+        """Universal renderer for V2.0.
+
+        See `env/renderer.py` for the drawing implementation. All optional
+        kwargs are no-ops when omitted; callers that previously used the
+        non-keyword `render(figsize, shared_fog, ...)` signature must move
+        to keyword-only — `figsize` etc. are now keyword-only by design.
+        """
+        from env.renderer import BoardRenderer
+
+        if show_hidden and hidden_estimate is None:
+            raise ValueError(
+                "render(show_hidden=True) requires `hidden_estimate` "
+                "(numpy array of shape (N_tiles, NODE_FEAT_DIM) — typically "
+                "policy.hidden_estimator.predict_proba(node_emb).cpu().numpy())."
+            )
+
+        renderer = BoardRenderer(self)
+        prob_overlay, atype_probs = renderer.compute_prob_overlay(
+            action, joint_probs, traj_actions,
+        )
+        if not (joint_probs is not None and traj_actions is not None):
+            atype_probs = None  # info panel suppresses bar chart when no probs given
+
+        fig, axes = renderer.build_figure(figsize=figsize, dual=show_hidden)
+
+        if not show_hidden:
+            renderer.draw(
+                ax=axes['board'],
+                ax_info=axes['info'],
+                uncovered=self._uncovered_set(shared_fog),
+                prob_overlay=prob_overlay,
+                atype_probs=atype_probs,
+                show_action_overlay=show_action_overlay,
+                critic_value=critic_value,
+                info_horizontal=False,
+            )
         else:
-            uncovered = set(range(self.n_tiles))
-
-        def tile_center(tile_id):
-            row = tile_id // Ny
-            col = tile_id % Ny
-            return col + 0.5, (Nx - 1 - row) + 0.5
-
-        # ── Pass 1: terrain / fog / control / city / road ─────────────────
-        for i in range(Nx):
-            for j in range(Ny):
-                tile    = state_grid[i, j]
-                tile_id = i * Ny + j
-                x, y    = j, Nx - 1 - i
-
-                if tile_id not in uncovered:
-                    ax.add_patch(Rectangle((x, y), 1, 1,
-                        facecolor='#707070', edgecolor='#404040', linewidth=0.5))
-                    continue
-
-                if   tile[_TILE_TYPE_START + int(TileType.deep_water)] > 0: fc = '#00008B'
-                elif tile[_TILE_TYPE_START + int(TileType.water)]      > 0: fc = '#4169E1'
-                elif tile[_TILE_TYPE_START + int(TileType.field)]      > 0: fc = '#90EE90'
-                elif tile[_TILE_TYPE_START + int(TileType.mountain)]   > 0: fc = '#8A8A80'
-                else:                                                         fc = '#F5F5DC'
-                ax.add_patch(Rectangle((x, y), 1, 1,
-                    facecolor=fc, edgecolor='black', linewidth=0.5))
-
-                # control tints
-                if tile[_PLAYER_CTRL_START] > 0:
-                    ax.add_patch(Rectangle((x, y), 1, 1,
-                        facecolor=self._CTRL_TINT[0], alpha=0.35, edgecolor='none'))
-                if tile[_PLAYER_CTRL_START + 1] > 0:
-                    ax.add_patch(Rectangle((x, y), 1, 1,
-                        facecolor=self._CTRL_TINT[1], alpha=0.35, edgecolor='none'))
-
-                # road cross
-                if tile[_ROAD_START] > 0:
-                    ax.plot([x + 0.02, x + 0.98], [y + 0.02, y + 0.98],
-                            color='#8B4513', lw=1.1, zorder=2,
-                            solid_capstyle='round', alpha=0.25)
-                    ax.plot([x + 0.02, x + 0.98], [y + 0.98, y + 0.02],
-                            color='#8B4513', lw=1.1, zorder=2,
-                            solid_capstyle='round', alpha=0.25)
-
-                # city marker (read from Tile object for exact owner/level)
-                city_obj = board[tile_id].city
-                if city_obj is not None:
-                    if city_obj.player_id is None:
-                        ax.add_patch(Circle((x + 0.5, y + 0.22), 0.09,
-                            facecolor='#8B4513', edgecolor='black',
-                            linewidth=0.8, zorder=3))
-                    else:
-                        c = self._P_COLORS[int(city_obj.player_id)]
-                        ax.add_patch(Rectangle((x + 0.38, y + 0.10), 0.24, 0.14,
-                            facecolor=c, edgecolor='black',
-                            linewidth=0.8, zorder=3))
-                        ax.text(x + 0.50, y + 0.17,
-                                str(city_obj.times_upgraded),
-                                ha='center', va='center',
-                                fontsize=6, color='white', zorder=4)
-
-        # ── Pass 2: units (iterate live Unit objects) ─────────────────────
-        for player in self.game.players:
-            for _, unit in player.units_under_control.items():
-                tile_id = unit.tile.id
-                if tile_id not in uncovered:
-                    continue
-                row = tile_id // Ny
-                col = tile_id % Ny
-                x, y = col, Nx - 1 - row
-                tile_obj = board[tile_id]
-                walled = (tile_obj.city is not None
-                          and len(tile_obj.city.choices) >= 2
-                          and tile_obj.city.choices[1] == 1)
-                self._draw_unit(ax, unit, x, y, walled)
-
-        # ── Pass 3: action overlays ───────────────────────────────────────
-        if show_action_overlay and self.last_action is not None:
-            self._draw_action_overlay(ax, tile_center)
-
-        # ── Board axis ────────────────────────────────────────────────────
-        ax.set_xlim(0, Ny); ax.set_ylim(0, Nx)
-        ax.set_aspect('equal')
-        ax.set_xticks(range(Ny + 1)); ax.set_yticks(range(Nx + 1))
-        ax.tick_params(labelsize=7)
-        ax.grid(True, alpha=0.25, linewidth=0.5)
-        ax.set_title('Board State', fontsize=11, fontweight='bold', pad=4)
-
-        self._draw_info_panel(ax_info)
+            # Caller supplies estimate from current player's POV; mirror to opp POV.
+            if isinstance(hidden_estimate, tuple) and len(hidden_estimate) == 2:
+                est_a = np.asarray(hidden_estimate[0])
+                est_b = np.asarray(hidden_estimate[1])
+            else: # its always this case for now
+                est_a = np.asarray(hidden_estimate)
+                est_b = renderer.swap_pov(est_a)
+            renderer.draw_dual_pov(
+                ax_pov_a=axes['pov_a'],
+                ax_pov_b=axes['pov_b'],
+                ax_info=axes['info'],
+                hidden_estimate_pov_a=est_a,
+                hidden_estimate_pov_b=est_b,
+                prob_overlay=prob_overlay,
+                atype_probs=atype_probs,
+                critic_value=critic_value,
+                show_action_overlay=show_action_overlay,
+            )
 
         plt.tight_layout()
         if save_path is not None:
@@ -582,526 +532,3 @@ class EnvWrapper(object):
         else:
             plt.close(fig)
         return fig
-
-
-    def _draw_unit(self, ax, unit, x, y, walled):
-        cx, cy = x + 0.5, y + 0.5
-        pid = int(unit.player_id)
-        color = self._P_VET[pid] if unit.is_vet else self._P_COLORS[pid]
-
-        # silhouette glow: outline stroke that traces the glyph/icon shapes
-        if unit.turn_state in (UnitState.ready, UnitState.escaping, UnitState.can_hit):
-            effects = [pe.withStroke(linewidth=5, foreground='white', alpha=0.55)]
-        else:
-            effects = None
-
-        # defensive shield (left of the glyph; larger for walled cities)
-        if unit.def_bonus != DefenseBonus.NoBonus:
-            size = 0.12 if (unit.def_bonus == DefenseBonus.Wall or walled) else 0.07
-            self._draw_shield(ax, x + 0.14, cy + 0.02, size)
-
-        top_glyph, extra = self._UNIT_GLYPH[unit.unit_type]
-        if extra is None:
-            ax.text(cx, cy + 0.04, top_glyph,
-                    ha='center', va='center', fontsize=22, color=color,
-                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
-        elif extra == 'sword':
-            ax.text(cx - 0.05, cy + 0.04, top_glyph,
-                    ha='center', va='center', fontsize=22, color=color,
-                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
-            # small sword: silver blade + brown hilt
-            ax.plot([cx + 0.10, cx + 0.24], [cy - 0.10, cy + 0.16],
-                    color='#C0C0C0', lw=2.2, zorder=6, solid_capstyle='round',
-                    path_effects=effects)
-            ax.plot([cx + 0.07, cx + 0.17], [cy - 0.04, cy - 0.14],
-                    color='#8B4513', lw=2.0, zorder=6, solid_capstyle='round',
-                    path_effects=effects)
-        elif extra == 'shield':
-            ax.text(cx - 0.05, cy + 0.04, top_glyph,
-                    ha='center', va='center', fontsize=22, color=color,
-                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
-            # small shield on the RIGHT of the pawn; grey body + bronze rim
-            # (distinct from def-bonus shield which is teal and sits on the LEFT)
-            shield = Polygon(
-                [(cx + 0.10, cy + 0.18), (cx + 0.26, cy + 0.18),
-                 (cx + 0.26, cy - 0.02), (cx + 0.18, cy - 0.16),
-                 (cx + 0.10, cy - 0.02)],
-                closed=True, facecolor='#B0B0B0',
-                edgecolor='#7A4A1A', linewidth=1.2, zorder=6,
-            )
-            if effects is not None:
-                shield.set_path_effects(effects)
-            ax.add_patch(shield)
-        else:
-            # composite: queen atop a chess-knight
-            ax.text(cx, cy + 0.16, top_glyph,
-                    ha='center', va='center', fontsize=14, color=color,
-                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
-            ax.text(cx, cy - 0.12, extra,
-                    ha='center', va='center', fontsize=14, color=color,
-                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
-
-        # HP text (top of tile so it never collides with the city marker) + heal glow
-        hp_y = y + 0.88
-        healed = (self.last_action is not None
-                  and self.last_action["type"] == ActionTypes.HealUnit
-                  and self._overlay_ctx.get("healed_unit_id") == unit.unit_id)
-        if healed:
-            ax.add_patch(Circle((cx, hp_y), 0.13,
-                facecolor='#90EE90', edgecolor='none', alpha=0.85, zorder=6))
-        hp_text = f"{int(round(unit.current_hp))}/{int(unit.hp)}"
-        ax.text(cx, hp_y, hp_text,
-                ha='center', va='center', fontsize=6.5,
-                fontweight='bold', color='black', zorder=7,
-                bbox=dict(boxstyle='round,pad=0.12', facecolor='white',
-                          edgecolor='none', alpha=0.7))
-
-
-    def _draw_shield(self, ax, cx, cy, s):
-        pts = np.array([
-            [cx - s,        cy + s * 1.1],
-            [cx + s,        cy + s * 1.1],
-            [cx + s,        cy - s * 0.2],
-            [cx,            cy - s * 1.3],
-            [cx - s,        cy - s * 0.2],
-        ])
-        ax.add_patch(Polygon(pts, facecolor='#D3D3D3',
-            edgecolor='#404040', linewidth=0.8, zorder=5))
-        # small cross on the shield
-        ax.plot([cx, cx], [cy - s * 0.9, cy + s * 0.9],
-                color='#404040', lw=0.6, zorder=6)
-        ax.plot([cx - s * 0.7, cx + s * 0.7], [cy + s * 0.2, cy + s * 0.2],
-                color='#404040', lw=0.6, zorder=6)
-
-
-    def _draw_sword_icon(self, ax, mx, my, angle, s=0.22):
-        bx0 = mx + np.cos(angle) * s * 0.7
-        by0 = my + np.sin(angle) * s * 0.7
-        bx1 = mx - np.cos(angle) * s * 0.7
-        by1 = my - np.sin(angle) * s * 0.7
-        ax.plot([bx0, bx1], [by0, by1],
-                color='#C0C0C0', lw=3.0, solid_capstyle='round', zorder=10)
-        perp = angle + np.pi / 2
-        gx0 = mx + np.cos(perp) * s * 0.30
-        gy0 = my + np.sin(perp) * s * 0.30
-        gx1 = mx - np.cos(perp) * s * 0.30
-        gy1 = my - np.sin(perp) * s * 0.30
-        ax.plot([gx0, gx1], [gy0, gy1],
-                color='#8B4513', lw=2.4, solid_capstyle='round', zorder=10)
-
-
-    def _draw_action_overlay(self, ax, tile_center):
-        ta = self.last_action
-        if ta is None:
-            return
-        atype = ta["type"]
-        ctx = self._overlay_ctx
-
-        if atype == ActionTypes.MoveUnit:
-            path = ctx.get("path", [])
-            if len(path) < 2:
-                return
-            sx, sy = tile_center(path[0])
-            dx, dy = tile_center(path[-1])
-            ax.add_patch(mpatches.FancyArrowPatch(
-                (sx, sy), (dx, dy),
-                arrowstyle='-|>', mutation_scale=18,
-                color='black', lw=1.8, zorder=10,
-                shrinkA=6, shrinkB=10))
-
-        elif atype == ActionTypes.Attack:
-            atk_x, atk_y = tile_center(ctx["attacker_tile_id"])
-            def_x, def_y = tile_center(ctx["defender_tile_id"])
-            ranged = ctx.get("attacker_range", 1) > 1
-            died   = ctx.get("defender_died", False)
-
-            if ranged:
-                # outer target ring + inner bullseye + dashed line
-                ax.add_patch(Circle((def_x, def_y), 0.38,
-                    facecolor='none', edgecolor='red',
-                    lw=1.8, linestyle='--', zorder=10))
-                ax.add_patch(Circle((def_x, def_y), 0.18,
-                    facecolor='none', edgecolor='red',
-                    lw=1.4, zorder=10))
-                ax.plot([atk_x, def_x], [atk_y, def_y],
-                        color='red', lw=1.3, linestyle='--', zorder=10)
-
-            angle = np.arctan2(def_y - atk_y, def_x - atk_x)
-            if died:
-                # sword biased toward the attacker's original tile
-                mx = atk_x + 0.35 * (def_x - atk_x)
-                my = atk_y + 0.35 * (def_y - atk_y)
-                self._draw_sword_icon(ax, mx, my, angle)
-            elif not ranged:
-                mx = (atk_x + def_x) / 2
-                my = (atk_y + def_y) / 2
-                self._draw_sword_icon(ax, mx, my, angle)
-        # HealUnit overlay is drawn per-unit inside _draw_unit (green HP glow).
-
-
-    def _draw_info_panel(self, ax_info):
-        ax_info.axis('off')
-        ax_info.set_xlim(0, 1); ax_info.set_ylim(0, 1)
-
-        pid = self.game.player_go_id
-        pcolor_hx = '#1E6FD9' if pid == 0 else '#D92B1E'
-
-        badge = FancyBboxPatch((0.05, 0.88), 0.90, 0.10,
-            boxstyle="round,pad=0.02",
-            facecolor=pcolor_hx, edgecolor='none', alpha=0.85)
-        ax_info.add_patch(badge)
-        ax_info.text(0.50, 0.93, f"\u25B6  Player {pid}'s Turn",
-            ha='center', va='center', fontsize=11, fontweight='bold',
-            color='white')
-
-        def _row(y, label, value, vc='#222222'):
-            ax_info.text(0.08, y, label, ha='left',  va='top',
-                fontsize=9, color='#555555')
-            ax_info.text(0.92, y, str(value), ha='right', va='top',
-                fontsize=9, fontweight='bold', color=vc)
-
-        _row(0.82, "Turn", self.game.turn)
-        _row(0.76, "Decisions", self.n_decisions)
-
-        ax_info.plot([0.05, 0.95], [0.72, 0.72],
-            color='#CCCCCC', linewidth=0.6)
-
-        for p_idx, player in enumerate(self.game.players):
-            y_lbl = 0.66 - p_idx * 0.07
-            c = self._P_COLORS[p_idx]
-            ax_info.text(0.08, y_lbl, f"P{p_idx}",
-                ha='left', va='top', fontsize=9,
-                fontweight='bold', color=c)
-            ax_info.text(0.92, y_lbl,
-                f"\u2605 {player.stars} (+{player.current_stars_per_turn})",
-                ha='right', va='top', fontsize=9, color='#222222')
-
-        ax_info.plot([0.05, 0.95], [0.50, 0.50],
-            color='#CCCCCC', linewidth=0.6)
-        ax_info.text(0.08, 0.46, "Last action:",
-            ha='left', va='top', fontsize=9, color='#555555')
-        ax_info.text(0.08, 0.40, self._fmt_last_action(),
-            ha='left', va='top', fontsize=8, color='#222222')
-
-
-    def _fmt_last_action(self):
-        ta = self.last_action
-        if ta is None:
-            return '(none yet)'
-        atype = ta["type"]
-        ctx = self._overlay_ctx
-        if atype == ActionTypes.MoveUnit:
-            return f"MoveUnit  tile {ctx.get('src_tile_id')} \u2192 {ctx.get('dst_tile_id')}"
-        if atype == ActionTypes.Attack:
-            flag = "  [KILL]" if ctx.get("defender_died") else ""
-            return f"Attack  tile {ctx.get('attacker_tile_id')} \u2192 {ctx.get('defender_tile_id')}{flag}"
-        if atype == ActionTypes.CreateUnit:
-            ut = ta.get("unit_type")
-            return f"CreateUnit  {ut.name if ut is not None else '?'}  city={ta.get('city')}"
-        if atype == ActionTypes.CaptureCity:
-            return f"CaptureCity  u={ta.get('unit_id')}"
-        if atype == ActionTypes.HealUnit:
-            return f"HealUnit  u={ta.get('unit_id')}"
-        if atype == ActionTypes.UpgradeCity:
-            return f"UpgradeCity  city={ta.get('city')}  choice={ta.get('choice')}"
-        if atype == ActionTypes.PlaceRoad:
-            return f"PlaceRoad  tile={ta.get('tile_id')}"
-        if atype == ActionTypes.Upgrade2Vet:
-            return f"Upgrade2Vet  u={ta.get('unit_id')}"
-        if atype == ActionTypes.EndTurn:
-            return "EndTurn"
-        return atype.name
-
-
-
-
-    def render_with_trajs(self, figsize=(10, 5), shared_fog=True, critic_value=None,
-                          action=None, joint_probs=None, traj_actions=None):
-        Nx, Ny = self.Nx, self.Ny
-        state_graph = self.game.game_board.board_graph
-        state_grid  = state_graph.reshape(Nx, Ny, NODE_FEAT_DIM)
-    
-        fig = plt.figure(figsize=figsize)
-        gs  = fig.add_gridspec(1, 2, width_ratios=[Ny, 3.5], wspace=0.05)
-        ax      = fig.add_subplot(gs[0])
-        ax_info = fig.add_subplot(gs[1])
-    
-        # ── Fog of war ────────────────────────────────────────────────────────
-        if shared_fog:
-            uncovered = set()
-            for i in range(self.n_players):
-                uncovered |= self.game.players[i].uncovered_tile_ids
-        else:
-            uncovered = set(range(self.n_tiles))
-    
-        # ── Helpers ───────────────────────────────────────────────────────────
-        def tile_center(tile_id):
-            row = tile_id // Ny
-            col = tile_id % Ny
-            return col + 0.5, (Nx - 1 - row) + 0.5
-    
-        def draw_sword(mx, my, angle, s=0.22):
-            bx0 = mx + np.cos(angle) * s * 0.6
-            by0 = my + np.sin(angle) * s * 0.6
-            bx1 = mx - np.cos(angle) * s * 0.6
-            by1 = my - np.sin(angle) * s * 0.6
-            ax.plot([bx0, bx1], [by0, by1],
-                    color='#DAA520', lw=3, solid_capstyle='round', zorder=8)
-            perp = angle + np.pi / 2
-            gx0 = mx + np.cos(perp) * s * 0.35
-            gy0 = my + np.sin(perp) * s * 0.35
-            gx1 = mx - np.cos(perp) * s * 0.35
-            gy1 = my - np.sin(perp) * s * 0.35
-            ax.plot([gx0, gx1], [gy0, gy1],
-                    color='#C0C0C0', lw=2.5, solid_capstyle='round', zorder=8)
-            for ang in np.linspace(0, 2 * np.pi, 6, endpoint=False):
-                bx = mx + np.cos(ang) * s * 0.55
-                by = my + np.sin(ang) * s * 0.55
-                ax.plot([mx, bx], [my, by],
-                        color='orange', lw=1, alpha=0.7, zorder=7)
-    
-        # ── Pre-compute trajectory overlays ───────────────────────────────────
-        prob_overlay: dict[int, float] = {}
-        pcolor_rgb = (0.25, 0.41, 0.88) if self.game.player_go_id == 0 else (0.85, 0.15, 0.15)
-        atype_probs: dict[str, float] = {at.name: 0.0 for at in ActionTypes}
-    
-        if joint_probs is not None and traj_actions is not None:
-            probs_np = joint_probs.detach().cpu().numpy()
-    
-            for traj, p in zip(traj_actions, probs_np):
-                atype_probs[ActionTypes(traj[0]).name] += float(p)
-    
-            if action is not None:
-                sampled_atype = ActionTypes(action[0])
-    
-                if sampled_atype == ActionTypes.MoveUnit:
-                    sampled_uid = action[1]
-                    move_mask   = np.array([
-                        (ActionTypes(t[0]) == ActionTypes.MoveUnit and t[1] == sampled_uid)
-                        for t in traj_actions
-                    ], dtype=bool)
-                    if move_mask.any():
-                        move_probs   = probs_np[move_mask]
-                        move_targets = [traj_actions[i][2] for i in np.where(move_mask)[0]]
-                        total = move_probs.sum()
-                        if total > 0:
-                            move_probs = move_probs / total
-                        for tile_id, alpha in zip(move_targets, move_probs):
-                            prob_overlay[tile_id] = float(alpha)
-    
-        # ── Pass 1: terrain + fog + probability overlay ───────────────────────
-        for i in range(Nx):
-            for j in range(Ny):
-                tile    = state_grid[i, j]
-                tile_id = i * Ny + j
-                x, y    = j, Nx - 1 - i
-    
-                if tile_id not in uncovered:
-                    ax.add_patch(Rectangle((x, y), 1, 1,
-                        facecolor='#707070', edgecolor='#404040', linewidth=0.5))
-                    continue
-    
-                if   tile[_TILE_TYPE_START + int(TileType.deep_water)] > 0: fc = '#00008B'
-                elif tile[_TILE_TYPE_START + int(TileType.water)]      > 0: fc = '#4169E1'
-                elif tile[_TILE_TYPE_START + int(TileType.field)]      > 0: fc = '#90EE90'
-                else:                                                         fc = '#F5F5DC'
-                ax.add_patch(Rectangle((x, y), 1, 1,
-                    facecolor=fc, edgecolor='black', linewidth=0.5))
-
-                if tile[_PLAYER_CTRL_START] > 0:
-                    ax.add_patch(Rectangle((x, y), 1, 1,
-                        facecolor='#ADD8E6', alpha=0.4, edgecolor='none'))
-                if tile[_PLAYER_CTRL_START + 1] > 0:
-                    ax.add_patch(Rectangle((x, y), 1, 1,
-                        facecolor='#FFB6C1', alpha=0.4, edgecolor='none'))
-                if tile[_CITY_START] > 0:
-                    ax.add_patch(Circle((x+0.5, y+0.5), 0.15,
-                        facecolor='#8B4513', edgecolor='black', linewidth=1))
-                if tile[_CITY_START + 1] > 0:
-                    ax.add_patch(Circle((x+0.5, y+0.5), 0.15,
-                        facecolor='blue', edgecolor='black', linewidth=1))
-                if tile[_CITY_START + 1 + N_CITY_TYPES] > 0:
-                    ax.add_patch(Circle((x+0.5, y+0.5), 0.15,
-                        facecolor='red', edgecolor='black', linewidth=1))
-
-                if tile_id in prob_overlay:
-                    alpha = np.clip(prob_overlay[tile_id], 0.0, 0.92)
-                    ax.add_patch(Rectangle((x, y), 1, 1,
-                        facecolor=pcolor_rgb, alpha=alpha,
-                        edgecolor='none', zorder=3))
-
-        # ── Pass 2: units ─────────────────────────────────────────────────────
-        _P0_TYPE = player_type_slice(0)
-        _P1_TYPE = player_type_slice(1)
-        for i in range(Nx):
-            for j in range(Ny):
-                tile    = state_grid[i, j]
-                tile_id = i * Ny + j
-                if tile_id not in uncovered:
-                    continue
-                hp_val = tile[UNIT_STATE_SLICE].max()
-                if hp_val <= 0:
-                    continue
-                x, y = j, Nx - 1 - i
-
-                if tile[_P0_TYPE].any():
-                    fc, ec = 'blue', 'darkblue'
-                    shape = 'warrior' if np.argmax(tile[_P0_TYPE]) == int(UnitType.Warrior) else 'rider'
-                else:
-                    fc, ec = 'red', 'darkred'
-                    shape = 'warrior' if np.argmax(tile[_P1_TYPE]) == int(UnitType.Warrior) else 'rider'
-
-                if shape == 'warrior':
-                    pts = np.array([[x+0.5, y+0.70],
-                                    [x+0.40, y+0.30],
-                                    [x+0.60, y+0.30]])
-                    ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec,
-                                         linewidth=1.5, zorder=4))
-                    ax.add_patch(Circle((x+0.5, y+0.75), 0.08, facecolor=fc,
-                                        edgecolor=ec, linewidth=1.5, zorder=4))
-                else:
-                    ax.add_patch(Rectangle((x+0.35, y+0.35), 0.30, 0.25,
-                                           facecolor=fc, edgecolor=ec,
-                                           linewidth=1.5, zorder=4))
-                    pts = np.array([[x+0.50, y+0.75],
-                                    [x+0.40, y+0.60],
-                                    [x+0.60, y+0.60]])
-                    ax.add_patch(Polygon(pts, facecolor=fc, edgecolor=ec,
-                                         linewidth=1.5, zorder=4))
-                    ax.add_patch(Circle((x+0.65, y+0.70), 0.06, facecolor=fc,
-                                        edgecolor=ec, linewidth=1.5, zorder=4))
-
-                # HP label at top-right of tile
-                ax.text(x + 0.92, y + 0.82, f"{hp_val:.1f}",
-                        ha='right', va='top', fontsize=5.5,
-                        fontweight='bold', color='white',
-                        bbox=dict(boxstyle='round,pad=0.1', fc=ec,
-                                  ec='none', alpha=0.7),
-                        zorder=6)
-    
-        # ── Pass 3: action overlays ───────────────────────────────────────────
-        if action is not None:
-            t_act  = self._translate_action(action)
-            atype  = t_act["type"]
-            player = self.game.players[self.game.player_go_id]
-            pcolor = 'royalblue' if self.game.player_go_id == 0 else 'crimson'
-    
-            if atype == ActionTypes.MoveUnit:
-                path_ids = t_act.get("path", [])
-                for tid in path_ids:
-                    cx, cy = tile_center(tid)
-                    ax.plot(cx, cy, 'o',
-                            color=pcolor, markersize=8,
-                            markeredgecolor='white', markeredgewidth=1.0,
-                            zorder=10)
-            
-            elif atype == ActionTypes.Attack:
-                pass
-                #opponent = self.game.players[(self.game.player_go_id + 1) % 2]
-                #uid = t_act["unit_id"]
-                #oid = t_act["o_unit_index"]
-                #ax0, ay0 = tile_center(player.units_under_control[uid].tile.id)
-                #ax1, ay1 = tile_center(opponent.units_under_control[oid].tile.id)
-                #mx, my   = (ax0 + ax1) / 2, (ay0 + ay1) / 2
-                #angle    = np.arctan2(ay1 - ay0, ax1 - ax0)
-                #draw_sword(mx, my, angle)
-            
-    
-            elif atype == ActionTypes.CaptureCity:
-                uid = t_act["unit_id"]
-                cx, cy = tile_center(player.units_under_control[uid].tile.id)
-                ax.add_patch(Rectangle((cx - 0.22, cy + 0.02), 0.44, 0.12,
-                              facecolor='gold', edgecolor='darkorange',
-                              linewidth=1.5, zorder=8))
-                for px, ph in [(cx - 0.15, 0.18), (cx, 0.23), (cx + 0.15, 0.18)]:
-                    ax.add_patch(Polygon(
-                        [[px - 0.06, cy + 0.12],
-                         [px,         cy + 0.12 + ph],
-                         [px + 0.06, cy + 0.12]],
-                        closed=True, facecolor='gold',
-                        edgecolor='darkorange', linewidth=1.5, zorder=8
-                    ))
-    
-        # ── Board axis ────────────────────────────────────────────────────────
-        ax.set_xlim(0, Ny); ax.set_ylim(0, Nx)
-        ax.set_aspect('equal')
-        ax.set_xticks(range(Ny + 1)); ax.set_yticks(range(Nx + 1))
-        ax.tick_params(labelsize=7)
-        ax.grid(True, alpha=0.25, linewidth=0.5)
-        ax.set_title('Board State', fontsize=11, fontweight='bold', pad=4)
-    
-        # ── Info panel ────────────────────────────────────────────────────────
-        ax_info.axis('off')
-        ax_info.set_xlim(0, 1); ax_info.set_ylim(0, 1)
-    
-        pid       = self.game.player_go_id
-        pcolor_hx = '#1E6FD9' if pid == 0 else '#D92B1E'
-    
-        badge = FancyBboxPatch((0.05, 0.87), 0.90, 0.11,
-                                boxstyle="round,pad=0.02",
-                                facecolor=pcolor_hx, edgecolor='none', alpha=0.85)
-        ax_info.add_patch(badge)
-        ax_info.text(0.50, 0.925, f"▶  Player {pid}'s Turn",
-                     ha='center', va='center', fontsize=11, fontweight='bold',
-                     color='white', transform=ax_info.transAxes)
-    
-        def _info_row(y, label, value, vc='#222222'):
-            ax_info.text(0.08, y, label, ha='left',  va='top', fontsize=9,
-                         color='#555555', transform=ax_info.transAxes)
-            ax_info.text(0.92, y, str(value), ha='right', va='top', fontsize=9,
-                         fontweight='bold', color=vc, transform=ax_info.transAxes)
-    
-        _info_row(0.82, "Turn", self.game.turn)
-    
-        if critic_value is not None:
-            v  = critic_value.item() if hasattr(critic_value, 'item') else float(critic_value)
-            vc = '#1a7a1a' if v >= 0 else '#cc2200'
-            _info_row(0.74, "Critic V̂", f"{v:+.3f}", vc=vc)
-    
-        if action is not None:
-            try:
-                atype_str = ActionTypes(action[0]).name
-            except Exception:
-                atype_str = str(action[0])
-            _info_row(0.66, "Last action", atype_str, vc=pcolor_hx)
-    
-        # ── Action-type probability breakdown ─────────────────────────────────
-        ax_info.plot([0.05, 0.95], [0.60, 0.60],
-                     color='#CCCCCC', linewidth=0.8,
-                     transform=ax_info.transAxes)
-        ax_info.text(0.50, 0.57, "Action Probabilities",
-                     ha='center', va='top', fontsize=8.5, fontweight='bold',
-                     color='#333333', transform=ax_info.transAxes)
-    
-        row_y = 0.50
-        for at in ActionTypes:
-            p = atype_probs.get(at.name, 0.0)
-            bar_w = p * 0.60
-            ax_info.add_patch(FancyBboxPatch(
-                (0.08, row_y - 0.030), 0.60, 0.028,
-                boxstyle="round,pad=0.002",
-                facecolor='#EEEEEE', edgecolor='none',
-                transform=ax_info.transAxes, clip_on=False, zorder=2
-            ))
-            if bar_w > 0:
-                ax_info.add_patch(FancyBboxPatch(
-                    (0.08, row_y - 0.030), bar_w, 0.028,
-                    boxstyle="round,pad=0.002",
-                    facecolor=pcolor_hx, edgecolor='none', alpha=0.75,
-                    transform=ax_info.transAxes, clip_on=False, zorder=3
-                ))
-            ax_info.text(0.08, row_y - 0.001, at.name, ha='left', va='center',
-                         fontsize=7, color='#333333',
-                         transform=ax_info.transAxes, zorder=4)
-            ax_info.text(0.70, row_y - 0.001, f"{p*100:.1f}%", ha='left', va='center',
-                         fontsize=7, fontweight='bold', color='#333333',
-                         transform=ax_info.transAxes, zorder=4)
-            row_y -= 0.072
-    
-        plt.tight_layout()
-        plt.show()
-
-
-
-
-    

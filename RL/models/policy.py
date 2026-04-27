@@ -1077,6 +1077,26 @@ class PolicyNetwork(nn.Module):
     # compute_values_batch — critic-only, fully batched
     # ══════════════════════════════════════════════════════════════════════
 
+    def estimate_hidden(
+        self,
+        obs:  dict,
+    ) -> torch.Tensor:
+        """
+        TODO:
+        Calculate the estimation for the hidden tiles based players partial graph
+        """
+        graph_np = np.asarray(obs['partial_graph'])
+        N_tiles  = graph_np.shape[0]
+        Nx = Ny  = int(round(N_tiles ** 0.5))
+        scalar   = obs.get('scalar_state')
+
+        # ── Encode ─────────────────────────────────────────────────────────
+        node_emb, _ = self.encoder.encode(graph_np, Nx, Ny, scalar)
+        # node_emb   : (N_tiles, D)
+        # global_emb : (1, D)  — already includes scalar fusion when given
+
+        return self.hidden_estimator.predict_proba(node_emb)
+    
     def compute_values_batch(
         self,
         obs_snaps: List[dict],
@@ -1225,7 +1245,7 @@ class PolicyNetwork(nn.Module):
         node_embs, _ = self.encoder.encode_batch(graphs, board_sizes, scalars)
 
         losses: List[torch.Tensor] = []
-        for b, snap in enumerate(obs_snaps):
+        for b, snap in enumerate(obs_snaps): ## why cant this be done in parallel for each batch? batch processing has to be reworked!
             node_emb = node_embs[b]                                  # (N_b, D)
             N        = node_emb.shape[0]
             dev      = node_emb.device
