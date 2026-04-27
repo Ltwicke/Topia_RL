@@ -14,6 +14,7 @@ from game.enums import (
     _TILE_TYPE_START, _PLAYER_CTRL_START, _CITY_START, _ROAD_START,
     UNIT_STATE_SLICE, player_type_slice,
     TileType, DefenseBonus,
+    PARTIAL_GRAPH_SWAPS,
 )
 from game.components.city import _CITY_UPGRADES, _CITY_UPGRADE_COST
 from game.components.units import _UNIT_COSTS
@@ -107,23 +108,62 @@ class EnvWrapper(object):
     
     def _get_obs(self):
         """
-        TODO: update this function to satisfy all new additions of version 2.0
-        This is the input to the policynetwork
-        I assume here I combine the partial graph with the position embedding and everything else I need to give the NN the full information...
-        obs is a python dictionary, including not only the board information but also the next player, the next next player etc... it will be converted to torch.tensor to be handled in RL!
+        Observation dict consumed by the policy network.
+
+        All views are taken from the current player's perspective. The P2
+        unit/city/control swap is already applied to `partial_graph` by
+        `Player.construct_partial_graph_2players` and is applied here to
+        `full_graph` so own/opp slots line up across both views.
+
+        Keys
+        ────
+        partial_graph      : np.ndarray  (N_tiles, NODE_FEAT_DIM)
+            Fog-of-war view; hidden tiles are zeroed.
+        full_graph         : np.ndarray  (N_tiles, NODE_FEAT_DIM)
+            Un-fogged ground truth in the same channel layout as
+            partial_graph; used as the HiddenTileEstimator label.
+        units              : list[Unit]   current player's units (stable order)
+        cities             : list[City]   current player's cities
+        enemy_units        : list[Unit]   only enemies visible to the player
+        scalar_state       : np.ndarray  (7,) float32 — own/opp stars, spt,
+            scores, normalised turn count.  Fed into the encoder's global emb.
+        uncovered_tile_ids : np.ndarray  (k,) int64 — sorted uncovered tile IDs;
+            used by HiddenTileEstimator to mask visible tiles out of the loss.
         """
-        player = self.game.players[self.game.player_go_id]
+        player   = self.game.players[self.game.player_go_id]
         opponent = self.game.players[(self.game.player_go_id + 1) % 2]
-        
-        obs = {
-            "partial_graph" : player.partial_graph, ## is it already constructed??
-            "units" : player.units_under_control,
-            "cities" : player.cities_under_control,
-            "enemy_units" : opponent.units_under_control, # thats technically cheating a bit, bc network knows how many units the opponent has, even if hidden.
-            #"opponent_score" : opponent.score, 
+
+        own_score = player.current_score   if player.current_score   is not None else 0
+        opp_score = opponent.current_score if opponent.current_score is not None else 0
+
+        return {
+            "partial_graph":      player.partial_graph,
+            "full_graph":         self._full_graph_for_player(player.player_id.value),
+            "units":              list(player.units_under_control.values()),
+            "cities":             player.cities_under_control,
+            "enemy_units":        self._visible_enemy_units(),
+            "scalar_state":       np.array([
+                float(player.stars),
+                float(player.current_stars_per_turn),
+                #float(opponent.stars),   # These are not part of the observation!
+                #float(opponent.current_stars_per_turn), # These are not part of the observation!
+                float(own_score),
+                float(opp_score),
+                float(self.game.turn) / max(1.0, float(self.max_turns_per_game)),
+            ], dtype=np.float32),
+            "uncovered_tile_ids": np.array(sorted(player.uncovered_tile_ids), dtype=np.int64),
         }
 
-        return obs
+
+    def _full_graph_for_player(self, pid: int) -> np.ndarray:
+        """Un-fogged board graph in `pid`'s channel order (P2 swap applied for pid==1)."""
+        full = np.copy(self.game.game_board.board_graph)
+        if pid == 1:
+            for s0, s1 in PARTIAL_GRAPH_SWAPS:
+                tmp = full[:, s0].copy()
+                full[:, s0] = full[:, s1]
+                full[:, s1] = tmp
+        return full
         
 
     def _get_done_and_rewards(self, message):

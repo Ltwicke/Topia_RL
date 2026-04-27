@@ -4,6 +4,7 @@ Run_different_policies_against_each_other.ipynb
 /visual_examples
 /old
 /RL/logs
+/RL/ppo
 /RL/checkpoints_training
 /RL/checkpoints_win_reward
 /RL/.ipynb_checkpoints

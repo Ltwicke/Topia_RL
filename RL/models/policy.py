@@ -46,7 +46,8 @@ Snapshot format (make_snapshot)
 ────────────────────────────────
 Stores the minimal information needed to re-score a transition:
 
-    graph              : np.ndarray  (N_tiles, 26)
+    graph              : np.ndarray  (N_tiles, NODE_FEAT_DIM)  — partial graph
+    full_graph         : np.ndarray  (N_tiles, NODE_FEAT_DIM)  — un-fogged board
     Nx, Ny             : int
     player_id          : int
     unit_tile_ids      : list[int]   length n_units
@@ -54,6 +55,8 @@ Stores the minimal information needed to re-score a transition:
     unit_attack_ranges : list[float] length n_units
     enemy_tile_ids     : list[int]   length n_enemies
     city_tile_ids      : list[int]   length n_cities
+    scalar_state       : np.ndarray  (scalar_dim,)
+    uncovered_tile_ids : np.ndarray  (n_visible,) — for HiddenTileEstimator loss masking
 """
 
 from __future__ import annotations
@@ -68,10 +71,18 @@ import torch.nn.functional as F
 
 from game.enums import ActionTypes, UnitType
 
-from RL.models.main_modules        import GraphTransformerEncoder, CriticHead
+from RL.models.main_modules        import (
+    GraphTransformerEncoder, CriticHead, HiddenTileEstimator,
+)
 from RL.models.movement_module     import MovementTargetHead, MovementTargetResult
 from RL.models.attack_module       import AttackTargetHead, AttackTargetResult
 from RL.models.unit_generation_module import CreateUnitTypeHead, CreateUnitTypeResult
+from RL.models.version2_modules    import (
+    HealUnitHead,    HealUnitResult,
+    Upgrade2VetHead, Upgrade2VetResult,
+    UpgradeCityHead, UpgradeCityChoiceResult,
+    PlaceRoadHead,   PlaceRoadResult,
+)
 from RL.models.utility_modules     import _mlp, _shannon_entropy
 
 N_ACTION_TYPES: int = len(ActionTypes)
@@ -133,7 +144,8 @@ def make_snapshot(obs: dict, Nx: int, Ny: int, player_id: int) -> dict:
 
     Returns (all lists are length-matched to the corresponding obs lists)
     ──────────────────────────────────────────────────────────────────────
-    graph              : np.ndarray (N_tiles, 26)
+    graph              : np.ndarray (N_tiles, NODE_FEAT_DIM)  — partial graph
+    full_graph         : np.ndarray (N_tiles, NODE_FEAT_DIM)  — un-fogged board
     Nx, Ny             : int
     player_id          : int
     unit_tile_ids      : list[int]   (n_units,)
@@ -141,9 +153,12 @@ def make_snapshot(obs: dict, Nx: int, Ny: int, player_id: int) -> dict:
     unit_attack_ranges : list[float] (n_units,)
     enemy_tile_ids     : list[int]   (n_enemies,)
     city_tile_ids      : list[int]   (n_cities,)
+    scalar_state       : np.ndarray  (scalar_dim,)
+    uncovered_tile_ids : np.ndarray  (n_visible,)
     """
     return {
         'graph':              np.asarray(obs['partial_graph']).copy(),
+        'full_graph':         np.asarray(obs['full_graph']).copy(),
         'Nx':                 Nx,
         'Ny':                 Ny,
         'player_id':          player_id,
@@ -152,6 +167,8 @@ def make_snapshot(obs: dict, Nx: int, Ny: int, player_id: int) -> dict:
         'unit_attack_ranges': [float(u.attack_range) for u in obs['units']],
         'enemy_tile_ids':     [u.tile.id          for u in obs['enemy_units']],
         'city_tile_ids':      [c.tile_id          for c in obs['cities']],
+        'scalar_state':       np.asarray(obs['scalar_state']).copy(),
+        'uncovered_tile_ids': np.asarray(obs['uncovered_tile_ids']).copy(),
     }
 
 
@@ -357,6 +374,12 @@ class PolicyNetwork(nn.Module):
     kernel_sizes       : tuple = (9,7,5,3)
     n_conv_layers      : int   = 2
     context_bias       : int   = 4
+    scalar_dim         : int   = 7     scalar_state width fed into encoder
+    upgrade_city_fuse_entropy : bool = True
+                                       fuse per-city upgrade-choice entropy into
+                                       the city selector for UpgradeCity
+    estimator_mlp_hidden : int = 128   HiddenTileEstimator hidden width
+    estimator_mlp_depth  : int = 2     HiddenTileEstimator depth
     """
 
     def __init__(self, cfg) -> None:
@@ -373,12 +396,17 @@ class PolicyNetwork(nn.Module):
         kernels    = getattr(cfg, 'kernel_sizes',       (9, 7, 5, 3))
         n_conv     = getattr(cfg, 'n_conv_layers',      2)
         ctx_bias   = getattr(cfg, 'context_bias',       4)
+        scalar_dim = getattr(cfg, 'scalar_dim',         5)
+        uc_fuse    = getattr(cfg, 'upgrade_city_fuse_entropy', True)
+        est_hid    = getattr(cfg, 'estimator_mlp_hidden', 128)
+        est_dep    = getattr(cfg, 'estimator_mlp_depth',   2)
 
         # ── Encoder + Critic ───────────────────────────────────────────────
         self.encoder = GraphTransformerEncoder(
             hidden_dim = D,
             n_heads    = enc_heads,
             depth      = enc_depth,
+            scalar_dim = scalar_dim,
         )
         self.critic = CriticHead(
             hidden_dim = D,
@@ -458,6 +486,58 @@ class PolicyNetwork(nn.Module):
             fuse_entropy = False,
         )
 
+        # ── Heal unit line ─────────────────────────────────────────────────
+        # Single-level: pairwise attention picks the unit; no target factor.
+        self.heal_sel = HealUnitHead(
+            node_dim   = D,
+            n_heads    = sel_heads,
+            n_layers   = sel_layers,
+            mlp_hidden = mlp_hid,
+            mlp_depth  = mlp_dep,
+        )
+
+        # ── Upgrade-2-veteran line ─────────────────────────────────────────
+        self.upgrade2vet_sel = Upgrade2VetHead(
+            node_dim   = D,
+            n_heads    = sel_heads,
+            n_layers   = sel_layers,
+            mlp_hidden = mlp_hid,
+            mlp_depth  = mlp_dep,
+        )
+
+        # ── Upgrade city line ──────────────────────────────────────────────
+        # Two-step:  P(AT) · P(city|AT) · P(choice|city,AT)
+        # Lower head scores the 2 upgrade choices per eligible city.
+        self.upgrade_city_choice = UpgradeCityHead(
+            node_dim   = D,
+            mlp_hidden = mlp_hid,
+            mlp_depth  = mlp_dep,
+        )
+        # City selector — fuse_entropy controlled by cfg.upgrade_city_fuse_entropy.
+        self.upgrade_city_sel = SequenceSelectionHead(
+            node_dim     = D,
+            n_heads      = sel_heads,
+            n_layers     = sel_layers,
+            mlp_hidden   = mlp_hid,
+            mlp_depth    = mlp_dep,
+            fuse_entropy = uc_fuse,
+        )
+
+        # ── Place road line ────────────────────────────────────────────────
+        # Single-level: per-tile MLP scores eligible road tiles directly.
+        self.place_road = PlaceRoadHead(
+            node_dim   = D,
+            mlp_hidden = mlp_hid,
+            mlp_depth  = mlp_dep,
+        )
+
+        # ── Hidden tile estimator (auxiliary pretraining head) ─────────────
+        self.hidden_estimator = HiddenTileEstimator(
+            node_dim   = D,
+            mlp_hidden = est_hid,
+            mlp_depth  = est_dep,
+        )
+
     # ── Device helper ─────────────────────────────────────────────────────
 
     @property
@@ -515,6 +595,12 @@ class PolicyNetwork(nn.Module):
         capture_tile_ids     : list[int]   tile IDs of eligible capturers
         capture_probs      : (U_cap,) | None
         capture_logits     : (U_cap,) | None
+        heal_result        : HealUnitResult    | None
+        upgrade2vet_result : Upgrade2VetResult | None
+        upgrade_city_choice  : UpgradeCityChoiceResult | None
+        upgrade_city_probs   : (C_up,) | None       — P(city | UpgradeCity)
+        upgrade_city_logits  : (C_up,) | None
+        place_road_result    : PlaceRoadResult | None
         """
         dev = node_emb.device
 
@@ -541,11 +627,30 @@ class PolicyNetwork(nn.Module):
         )
         capture_tile_ids: List[int] = [units[i].tile.id for i in capture_unit_indices]
 
+        # V2.0 lower heads
+        heal_result = (
+            self.heal_sel(node_emb, mask[5], units, Ny)
+            if mask[0][int(ActionTypes.HealUnit)] else None
+        )
+        upgrade_city_choice = (
+            self.upgrade_city_choice(node_emb, mask[6], cities, Ny)
+            if mask[0][int(ActionTypes.UpgradeCity)] else None
+        )
+        place_road_result = (
+            self.place_road(node_emb, mask[7])
+            if mask[0][int(ActionTypes.PlaceRoad)] else None
+        )
+        upgrade2vet_result = (
+            self.upgrade2vet_sel(node_emb, mask[8], units, Ny)
+            if mask[0][int(ActionTypes.Upgrade2Vet)] else None
+        )
+
         # ── 2. Selection heads ─────────────────────────────────────────────
         move_unit_probs    = move_unit_logits    = None
         attack_unit_probs  = attack_unit_logits  = None
         create_city_probs  = create_city_logits  = None
         capture_probs      = capture_logits      = None
+        upgrade_city_probs = upgrade_city_logits = None
 
         if move_target_result is not None:
             move_unit_probs, _, move_unit_logits = self.move_unit_sel(
@@ -586,6 +691,18 @@ class PolicyNetwork(nn.Module):
             # capture_probs  : (U_cap,)
             # capture_logits : (U_cap,)
 
+        if upgrade_city_choice is not None:
+            # P(city|UpgradeCity) — selector uses per-city entropy from the
+            # lower head when fuse_entropy=True.
+            upgrade_city_probs, _, upgrade_city_logits = self.upgrade_city_sel(
+                node_emb,
+                upgrade_city_choice.tile_ids,
+                Ny,
+                entropies = upgrade_city_choice.entropies,
+            )
+            # upgrade_city_probs  : (C_up,)
+            # upgrade_city_logits : (C_up,)
+
         # ── 3. Action type distribution ────────────────────────────────────
         # Refine the mask: zero out any AT whose head returned no valid entities.
         # This ensures the flat joint distribution always sums to 1.
@@ -594,6 +711,10 @@ class PolicyNetwork(nn.Module):
         if attack_target_result is None: avail[int(ActionTypes.Attack)]      = 0.0
         if create_type_result   is None: avail[int(ActionTypes.CreateUnit)]  = 0.0
         if not capture_tile_ids:         avail[int(ActionTypes.CaptureCity)] = 0.0
+        if heal_result          is None: avail[int(ActionTypes.HealUnit)]    = 0.0
+        if upgrade_city_choice  is None: avail[int(ActionTypes.UpgradeCity)] = 0.0
+        if place_road_result    is None: avail[int(ActionTypes.PlaceRoad)]   = 0.0
+        if upgrade2vet_result   is None: avail[int(ActionTypes.Upgrade2Vet)] = 0.0
         # EndTurn is always kept if mask[0][EndTurn] was set
 
         avail_t   = torch.tensor(avail, dtype=torch.float32, device=dev)
@@ -619,6 +740,12 @@ class PolicyNetwork(nn.Module):
             capture_tile_ids     = capture_tile_ids,
             capture_probs        = capture_probs,
             capture_logits       = capture_logits,
+            heal_result          = heal_result,
+            upgrade2vet_result   = upgrade2vet_result,
+            upgrade_city_choice  = upgrade_city_choice,
+            upgrade_city_probs   = upgrade_city_probs,
+            upgrade_city_logits  = upgrade_city_logits,
+            place_road_result    = place_road_result,
         )
 
     # ══════════════════════════════════════════════════════════════════════
@@ -706,6 +833,47 @@ class PolicyNetwork(nn.Module):
                 p_unit = cap_p[u_local]
                 joint_list.append((p_at * p_unit).unsqueeze(0))
                 traj_actions.append([ActionTypes.CaptureCity, u_idx])
+
+        # ── HealUnit  :  P(HEAL) · P(unit_i|HEAL) ────────────────────────
+        heal = heads['heal_result']
+        if heal is not None:
+            p_at = at_probs[int(ActionTypes.HealUnit)]
+            for u_local, u_idx in enumerate(heal.unit_indices):
+                p_unit = heal.probs[u_local]
+                joint_list.append((p_at * p_unit).unsqueeze(0))
+                traj_actions.append([ActionTypes.HealUnit, u_idx])
+
+        # ── Upgrade2Vet  :  P(UP2V) · P(unit_i|UP2V) ─────────────────────
+        u2v = heads['upgrade2vet_result']
+        if u2v is not None:
+            p_at = at_probs[int(ActionTypes.Upgrade2Vet)]
+            for u_local, u_idx in enumerate(u2v.unit_indices):
+                p_unit = u2v.probs[u_local]
+                joint_list.append((p_at * p_unit).unsqueeze(0))
+                traj_actions.append([ActionTypes.Upgrade2Vet, u_idx])
+
+        # ── UpgradeCity  :  P(UPC) · P(city_c|UPC) · P(choice_k|city_c,UPC)
+        ucc = heads['upgrade_city_choice']
+        ucp = heads['upgrade_city_probs']
+        if ucc is not None and ucp is not None:
+            p_at = at_probs[int(ActionTypes.UpgradeCity)]
+            for c_local, c_idx in enumerate(ucc.city_indices):
+                p_city = ucp[c_local]
+                for k in range(2):
+                    if not bool(ucc.choice_mask[c_local, k]):
+                        continue
+                    p_choice = ucc.probs[c_local, k]
+                    joint_list.append((p_at * p_city * p_choice).unsqueeze(0))
+                    traj_actions.append([ActionTypes.UpgradeCity, c_idx, k])
+
+        # ── PlaceRoad  :  P(ROAD) · P(tile_t|ROAD) ───────────────────────
+        pr = heads['place_road_result']
+        if pr is not None:
+            p_at = at_probs[int(ActionTypes.PlaceRoad)]
+            for t_local, tile_id in enumerate(pr.tile_ids):
+                p_tile = pr.probs[t_local]
+                joint_list.append((p_at * p_tile).unsqueeze(0))
+                traj_actions.append([ActionTypes.PlaceRoad, tile_id])
 
         joint_probs = torch.cat(joint_list, dim=0)   # (N_traj,)
 
@@ -804,6 +972,42 @@ class PolicyNetwork(nn.Module):
             lp = lp + F.log_softmax(capl, dim=-1)[u_local]
             return lp
 
+        # ── HealUnit ───────────────────────────────────────────────────────
+        if atype == ActionTypes.HealUnit:
+            unit_obs_idx = action[1]
+            heal = heads['heal_result']
+            u_local = heal.unit_indices.index(unit_obs_idx)
+            lp = lp + F.log_softmax(heal.logits, dim=-1)[u_local]
+            return lp
+
+        # ── Upgrade2Vet ────────────────────────────────────────────────────
+        if atype == ActionTypes.Upgrade2Vet:
+            unit_obs_idx = action[1]
+            u2v = heads['upgrade2vet_result']
+            u_local = u2v.unit_indices.index(unit_obs_idx)
+            lp = lp + F.log_softmax(u2v.logits, dim=-1)[u_local]
+            return lp
+
+        # ── UpgradeCity ────────────────────────────────────────────────────
+        if atype == ActionTypes.UpgradeCity:
+            city_obs_idx = action[1]
+            choice_idx   = int(action[2])
+            ucc = heads['upgrade_city_choice']
+            ucl = heads['upgrade_city_logits']      # (C_up,)
+            c_local = ucc.city_indices.index(city_obs_idx)
+            lp = lp + F.log_softmax(ucl, dim=-1)[c_local]
+            # ucc.logits[c_local] : (2,) with -inf at masked choices
+            lp = lp + F.log_softmax(ucc.logits[c_local], dim=-1)[choice_idx]
+            return lp
+
+        # ── PlaceRoad ──────────────────────────────────────────────────────
+        if atype == ActionTypes.PlaceRoad:
+            tile_id = int(action[1])
+            pr = heads['place_road_result']
+            t_local = pr.tile_ids.index(tile_id)
+            lp = lp + F.log_softmax(pr.logits, dim=-1)[t_local]
+            return lp
+
         raise ValueError(f"Unknown action type: {atype}")
 
     # ══════════════════════════════════════════════════════════════════════
@@ -835,11 +1039,12 @@ class PolicyNetwork(nn.Module):
         graph_np = np.asarray(obs['partial_graph'])
         N_tiles  = graph_np.shape[0]
         Nx = Ny  = int(round(N_tiles ** 0.5))
+        scalar   = obs.get('scalar_state')
 
         # ── Encode ─────────────────────────────────────────────────────────
-        node_emb, global_emb = self.encoder.encode(graph_np, Nx, Ny)
+        node_emb, global_emb = self.encoder.encode(graph_np, Nx, Ny, scalar)
         # node_emb   : (N_tiles, D)
-        # global_emb : (1, D)
+        # global_emb : (1, D)  — already includes scalar fusion when given
 
         value = self.critic(global_emb)   # ()
 
@@ -890,7 +1095,9 @@ class PolicyNetwork(nn.Module):
         """
         graphs      = [s['graph'] for s in obs_snaps]
         board_sizes = [(s['Nx'], s['Ny']) for s in obs_snaps]
-        _, global_embs = self.encoder.encode_batch(graphs, board_sizes)
+        scalars     = [s['scalar_state'] for s in obs_snaps] \
+                      if 'scalar_state' in obs_snaps[0] else None
+        _, global_embs = self.encoder.encode_batch(graphs, board_sizes, scalars)
         # global_embs : (B, D)
         return self.critic(global_embs)   # (B,)
 
@@ -935,8 +1142,12 @@ class PolicyNetwork(nn.Module):
         # ── 1. Batched GNN encoder pass ─────────────────────────────────────
         graphs      = [s['graph'] for s in obs_snaps]
         board_sizes = [(s['Nx'], s['Ny']) for s in obs_snaps]
+        scalars     = [s['scalar_state'] for s in obs_snaps] \
+                      if 'scalar_state' in obs_snaps[0] else None
 
-        node_embs, global_embs = self.encoder.encode_batch(graphs, board_sizes)
+        node_embs, global_embs = self.encoder.encode_batch(
+            graphs, board_sizes, scalars,
+        )
         # node_embs   : list of B tensors, each (N_b, D)
         # global_embs : (B, D)
 
@@ -976,6 +1187,64 @@ class PolicyNetwork(nn.Module):
 
         return log_probs, entropies, values
 
+    # ══════════════════════════════════════════════════════════════════════
+    # estimator_loss — auxiliary pretraining for the encoder
+    # ══════════════════════════════════════════════════════════════════════
+
+    def estimator_loss(self, obs_snaps: List[dict]) -> torch.Tensor:
+        """Auxiliary cross-entropy loss for the HiddenTileEstimator.
+
+        For each snapshot, the encoder produces node embeddings from the
+        partial (fogged) graph; the estimator predicts per-tile feature
+        groups; the loss is the sum of per-group cross-entropies (plus the
+        BCE on the road bit), restricted to the tiles currently hidden from
+        the acting player.  Gradients flow back into the encoder.
+
+        Intended pretraining loop
+        ─────────────────────────
+            for _ in range(K):
+                loss = policy.estimator_loss(snaps)
+                loss.backward()
+                optim.step()
+                optim.zero_grad()
+
+        Parameters
+        ──────────
+        obs_snaps : list[dict]   length B — from make_snapshot()
+
+        Returns
+        ───────
+        loss : ()  scalar; mean of per-board losses (differentiable).
+        """
+        graphs      = [s['graph']      for s in obs_snaps]
+        full_graphs = [s['full_graph'] for s in obs_snaps]
+        board_sizes = [(s['Nx'], s['Ny']) for s in obs_snaps]
+        scalars     = [s['scalar_state'] for s in obs_snaps] \
+                      if 'scalar_state' in obs_snaps[0] else None
+
+        node_embs, _ = self.encoder.encode_batch(graphs, board_sizes, scalars)
+
+        losses: List[torch.Tensor] = []
+        for b, snap in enumerate(obs_snaps):
+            node_emb = node_embs[b]                                  # (N_b, D)
+            N        = node_emb.shape[0]
+            dev      = node_emb.device
+
+            pred   = self.hidden_estimator(node_emb)                 # (N_b, F)
+            target = torch.as_tensor(np.asarray(full_graphs[b]),
+                                     dtype=torch.float32, device=dev)
+
+            hidden_mask = torch.ones(N, dtype=torch.bool, device=dev)
+            uncovered   = np.asarray(snap['uncovered_tile_ids'], dtype=np.int64)
+            if uncovered.size:
+                hidden_mask[
+                    torch.as_tensor(uncovered, dtype=torch.long, device=dev)
+                ] = False
+
+            losses.append(self.hidden_estimator.loss(pred, target, hidden_mask))
+
+        return torch.stack(losses).mean()
+
 
 # ── Parameter summary ─────────────────────────────────────────────────────────
 
@@ -992,6 +1261,12 @@ def model_summary(policy: PolicyNetwork) -> None:
         'CreateUnitTypeHead'      : policy.create_type,
         'Create city selector'    : policy.create_city_sel,
         'Capture selector'        : policy.capture_sel,
+        'Heal unit selector'      : policy.heal_sel,
+        'Upgrade2Vet selector'    : policy.upgrade2vet_sel,
+        'UpgradeCity choice head' : policy.upgrade_city_choice,
+        'UpgradeCity selector'    : policy.upgrade_city_sel,
+        'Place road head'         : policy.place_road,
+        'HiddenTileEstimator'     : policy.hidden_estimator,
     }
     total     = sum(p.numel() for p in policy.parameters())
     trainable = sum(p.numel() for p in policy.parameters() if p.requires_grad)
