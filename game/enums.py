@@ -68,6 +68,7 @@ class BoardType(IntEnum):
     Dummy = 0
     Drylands = 1
     Lakes = 2
+    Archipelago = 3
 
 class PlayerId(IntEnum):
     P1 = 0
