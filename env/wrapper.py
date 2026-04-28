@@ -119,16 +119,22 @@ class EnvWrapper(object):
         units              : list[Unit]   current player's units (stable order)
         cities             : list[City]   current player's cities
         enemy_units        : list[Unit]   only enemies visible to the player
-        scalar_state       : np.ndarray  (7,) float32 — own/opp stars, spt,
-            scores, normalised turn count.  Fed into the encoder's global emb.
+        scalar_state       : np.ndarray  (5,) float32 — own stars, spt,
+            own/opp scores, normalised turn count.  Fed into the encoder's global emb.
         uncovered_tile_ids : np.ndarray  (k,) int64 — sorted uncovered tile IDs;
             used by HiddenTileEstimator to mask visible tiles out of the loss.
+        opp_partial_graph,
+        opp_scalar_state,
+        opp_uncovered_tile_ids
+            Same three keys but built from the opponent's POV — populated every
+            turn so a single obs dict can drive `policy.estimate_hidden_dual()`.
         """
         player   = self.game.players[self.game.player_go_id]
         opponent = self.game.players[(self.game.player_go_id + 1) % 2]
 
         own_score = player.current_score   if player.current_score   is not None else 0
         opp_score = opponent.current_score if opponent.current_score is not None else 0
+        turn_norm = float(self.game.turn) / max(1.0, float(self.max_turns_per_game))
 
         return {
             "partial_graph":      player.partial_graph,
@@ -139,13 +145,22 @@ class EnvWrapper(object):
             "scalar_state":       np.array([
                 float(player.stars),
                 float(player.current_stars_per_turn),
-                #float(opponent.stars),   # These are not part of the observation!
-                #float(opponent.current_stars_per_turn), # These are not part of the observation!
                 float(own_score),
                 float(opp_score),
-                float(self.game.turn) / max(1.0, float(self.max_turns_per_game)),
+                turn_norm,
             ], dtype=np.float32),
             "uncovered_tile_ids": np.array(sorted(player.uncovered_tile_ids), dtype=np.int64),
+
+            # — opponent's POV (consumed by HiddenTileEstimator dual-POV path) —
+            "opp_partial_graph":      opponent.partial_graph,
+            "opp_scalar_state":       np.array([
+                float(opponent.stars),
+                float(opponent.current_stars_per_turn),
+                float(opp_score),
+                float(own_score),
+                turn_norm,
+            ], dtype=np.float32),
+            "opp_uncovered_tile_ids": np.array(sorted(opponent.uncovered_tile_ids), dtype=np.int64),
         }
 
 
@@ -477,11 +492,14 @@ class EnvWrapper(object):
         """
         from env.renderer import BoardRenderer
 
-        if show_hidden and hidden_estimate is None:
+        if show_hidden and not (
+            isinstance(hidden_estimate, tuple) and len(hidden_estimate) == 2
+        ):
             raise ValueError(
-                "render(show_hidden=True) requires `hidden_estimate` "
-                "(numpy array of shape (N_tiles, NODE_FEAT_DIM) — typically "
-                "policy.hidden_estimator.predict_proba(node_emb).cpu().numpy())."
+                "render(show_hidden=True) requires "
+                "`hidden_estimate=(est_a, est_b)` as a tuple of two numpy "
+                "arrays of shape (N_tiles, REDUCED_FEAT_DIM). Use "
+                "`policy.estimate_hidden_dual(env._get_obs())` to build one."
             )
 
         renderer = BoardRenderer(self)
@@ -505,13 +523,8 @@ class EnvWrapper(object):
                 info_horizontal=False,
             )
         else:
-            # Caller supplies estimate from current player's POV; mirror to opp POV.
-            if isinstance(hidden_estimate, tuple) and len(hidden_estimate) == 2:
-                est_a = np.asarray(hidden_estimate[0])
-                est_b = np.asarray(hidden_estimate[1])
-            else: # its always this case for now
-                est_a = np.asarray(hidden_estimate)
-                est_b = renderer.swap_pov(est_a)
+            est_a = np.asarray(hidden_estimate[0])
+            est_b = np.asarray(hidden_estimate[1])
             renderer.draw_dual_pov(
                 ax_pov_a=axes['pov_a'],
                 ax_pov_b=axes['pov_b'],

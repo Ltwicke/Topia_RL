@@ -19,7 +19,10 @@ overlay is opt-in via `show_hidden=True` + `hidden_estimate=...`.
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Rectangle, Polygon, FancyBboxPatch
+from matplotlib.patches import Circle, Rectangle, Polygon, FancyBboxPatch, PathPatch
+from matplotlib.textpath import TextPath
+from matplotlib.font_manager import FontProperties
+from matplotlib.transforms import Affine2D
 import matplotlib.patches as mpatches
 import matplotlib.patheffects as pe
 
@@ -30,7 +33,9 @@ from game.enums import (
     UNIT_STATE_SLICE, TILE_TYPE_SLICE, ROAD_SLICE, PLAYER_CTRL_SLICE,
     CITY_SLICE, OWN_TYPE_SLICE, OPP_TYPE_SLICE,
     TileType, DefenseBonus,
-    PARTIAL_GRAPH_SWAPS,
+    REDUCED_TILE_TYPE_SLICE, REDUCED_ROAD_SLICE, REDUCED_OPP_CTRL_SLICE,
+    REDUCED_CITY_SLICE, REDUCED_OPP_UNIT_SLICE,
+    MAX_CITY_LEVEL_HIDDEN,
 )
 
 
@@ -120,8 +125,11 @@ class BoardRenderer:
         hidden_estimate=None, hidden_tile_ids=None,
         show_action_overlay=True,
         info_horizontal=False, critic_value=None,
+        pov_pid=None,
         title='Board State',
     ):
+        if pov_pid is None:
+            pov_pid = self.game.player_go_id
         rng = np.random.default_rng(self.n_decisions)
         self._render_board(
             ax, uncovered,
@@ -129,13 +137,12 @@ class BoardRenderer:
             hidden_estimate=hidden_estimate,
             hidden_tile_ids=hidden_tile_ids,
             rng=rng,
+            pov_pid=pov_pid,
         )
         self._render_control_perimeter(ax, uncovered)
         self._render_units(ax, uncovered)
         if show_action_overlay and self.last_action is not None:
             self._render_action_overlay(ax)
-        if prob_overlay:
-            self._render_traj_overlay(ax, prob_overlay)
         # Board axis frame
         ax.set_xlim(0, self.Ny); ax.set_ylim(0, self.Nx)
         ax.set_aspect('equal')
@@ -159,32 +166,41 @@ class BoardRenderer:
         prob_overlay=None, atype_probs=None,
         critic_value=None, show_action_overlay=True,
     ):
-        pid_a = self.game.player_go_id
-        pid_b = (pid_a + 1) % 2
-        unc_a = set(self.game.players[pid_a].uncovered_tile_ids)
-        unc_b = set(self.game.players[pid_b].uncovered_tile_ids)
-        hidden_a = [t for t in range(self.Nx * self.Ny) if t not in unc_a]
-        hidden_b = [t for t in range(self.Nx * self.Ny) if t not in unc_b]
+        # Fixed layout: P0 always left, P1 always right — independent of whose
+        # turn it currently is. The two estimates come in (current_pov, opp_pov)
+        # ordering from `policy.estimate_hidden_dual()`; remap them to (P0, P1).
+        go_id = self.game.player_go_id
+        if go_id == 0:
+            est_p0, est_p1 = hidden_estimate_pov_a, hidden_estimate_pov_b
+        else:
+            est_p0, est_p1 = hidden_estimate_pov_b, hidden_estimate_pov_a
 
-        # Left: current player POV
+        unc_p0 = set(self.game.players[0].uncovered_tile_ids)
+        unc_p1 = set(self.game.players[1].uncovered_tile_ids)
+        hidden_p0 = [t for t in range(self.Nx * self.Ny) if t not in unc_p0]
+        hidden_p1 = [t for t in range(self.Nx * self.Ny) if t not in unc_p1]
+
+        # Left: P0's POV — opponent on hidden tiles is P1 (red).
         self.draw(
             ax=ax_pov_a, ax_info=None,
-            uncovered=unc_a,
-            prob_overlay=prob_overlay,
-            hidden_estimate=hidden_estimate_pov_a,
-            hidden_tile_ids=hidden_a,
-            show_action_overlay=show_action_overlay,
-            title=f"Player {pid_a} POV",
+            uncovered=unc_p0,
+            prob_overlay=prob_overlay if go_id == 0 else None,
+            hidden_estimate=est_p0,
+            hidden_tile_ids=hidden_p0,
+            show_action_overlay=show_action_overlay and go_id == 0,
+            pov_pid=0,
+            title="Player 0 POV",
         )
-        # Right: opponent POV (no action overlay — last_action is current player's)
+        # Right: P1's POV — opponent on hidden tiles is P0 (blue).
         self.draw(
             ax=ax_pov_b, ax_info=None,
-            uncovered=unc_b,
-            prob_overlay=None,
-            hidden_estimate=hidden_estimate_pov_b,
-            hidden_tile_ids=hidden_b,
-            show_action_overlay=False,
-            title=f"Player {pid_b} POV",
+            uncovered=unc_p1,
+            prob_overlay=prob_overlay if go_id == 1 else None,
+            hidden_estimate=est_p1,
+            hidden_tile_ids=hidden_p1,
+            show_action_overlay=show_action_overlay and go_id == 1,
+            pov_pid=1,
+            title="Player 1 POV",
         )
         self._render_info_panel(
             ax_info,
@@ -197,7 +213,10 @@ class BoardRenderer:
     def _render_board(
         self, ax, uncovered, *,
         prob_overlay=None, hidden_estimate=None, hidden_tile_ids=None, rng=None,
+        pov_pid=None,
     ):
+        if pov_pid is None:
+            pov_pid = self.game.player_go_id
         Nx, Ny = self.Nx, self.Ny
         state_grid = self.game.game_board.board_graph.reshape(Nx, Ny, NODE_FEAT_DIM)
         board = self.game.game_board.board
@@ -215,6 +234,7 @@ class BoardRenderer:
                     if hidden_estimate is not None:
                         self._draw_hidden_tile(
                             ax, x, y, hidden_estimate[tile_id], rng,
+                            pov_pid=pov_pid,
                         )
                     else:
                         ax.add_patch(Rectangle(
@@ -267,22 +287,36 @@ class BoardRenderer:
                     ))
 
     # ── Hidden-tile estimator decode (single tile) ──────────────────────
-    def _draw_hidden_tile(self, ax, x, y, est_row, rng):
+    def _draw_hidden_tile(self, ax, x, y, est_row, rng, *, pov_pid=None):
         """Draw a single hidden tile from its estimator distribution row.
 
-        `est_row` is a 1-D numpy array of length NODE_FEAT_DIM, already
-        through HiddenTileEstimator.predict_proba — i.e. one-hot groups
-        are softmaxed and the road bit is sigmoid'd.
+        `est_row` is a 1-D numpy array of length REDUCED_FEAT_DIM, already
+        through HiddenTileEstimator.predict_proba — i.e. softmax groups
+        are softmaxed and the road / opp_ctrl bits are sigmoid'd.
+
+        Reduced layout decoded here:
+            - tile_type : softmax over TileType                  → terrain color
+            - road      : sigmoid bit                            → road cross alpha
+            - opp_ctrl  : sigmoid bit (0 = unowned/own, 1 = opp) → opponent shadow
+            - city      : softmax {None, Village, L1..L_cap}     → city marker
+            - opp_unit  : softmax {None, UnitType.*}             → unit silhouette
+
+        `pov_pid` identifies which player's POV is being drawn — the opponent
+        on hidden tiles is the *other* player. Defaults to the current player
+        in the single-POV path.
         """
         cx, cy = x + 0.5, y + 0.5
+        if pov_pid is None:
+            pov_pid = self.game.player_go_id
+        opp_pid = (pov_pid + 1) % self.n_players
 
         # Layer 0 — beige background so partial alphas always blend onto a known color.
         ax.add_patch(Rectangle((x, y), 1, 1,
                                facecolor=_TERRAIN_FALLBACK,
                                edgecolor='#404040', linewidth=0.5))
 
-        # Layer 1 — terrain color from argmax of TILE_TYPE_SLICE
-        tt_block = np.asarray(est_row[TILE_TYPE_SLICE])
+        # Layer 1 — terrain color from argmax of REDUCED_TILE_TYPE_SLICE
+        tt_block = np.asarray(est_row[REDUCED_TILE_TYPE_SLICE])
         if tt_block.size > 0 and tt_block.sum() > 0:
             tt_idx   = int(np.argmax(tt_block))
             tt_alpha = float(np.clip(tt_block[tt_idx], 0.0, 1.0))
@@ -294,20 +328,18 @@ class BoardRenderer:
                     edgecolor='none', zorder=1,
                 ))
 
-        # Layer 2 — control shadow (light blue / red) at alpha = max_prob * 0.4
-        ctrl_block = np.asarray(est_row[PLAYER_CTRL_SLICE])
-        if ctrl_block.size > 0:
-            ctrl_idx   = int(np.argmax(ctrl_block))
-            ctrl_alpha = float(np.clip(ctrl_block[ctrl_idx] * 0.4, 0.0, 1.0))
-            if ctrl_alpha > 0.02 and ctrl_idx < len(_P_COLORS):
-                ax.add_patch(Rectangle(
-                    (x, y), 1, 1,
-                    facecolor=_P_COLORS[ctrl_idx], alpha=ctrl_alpha,
-                    edgecolor='none', zorder=1.5,
-                ))
+        # Layer 2 — opponent control shadow (single sigmoid bit).
+        opp_ctrl_p = float(np.clip(est_row[REDUCED_OPP_CTRL_SLICE.start], 0.0, 1.0))
+        ctrl_alpha = opp_ctrl_p * 0.4
+        if ctrl_alpha > 0.02:
+            ax.add_patch(Rectangle(
+                (x, y), 1, 1,
+                facecolor=_P_COLORS[opp_pid], alpha=ctrl_alpha,
+                edgecolor='none', zorder=1.5,
+            ))
 
         # Layer 3 — road cross at alpha = sigmoid'd road bit
-        road_alpha = float(np.clip(est_row[_ROAD_START], 0.0, 1.0))
+        road_alpha = float(np.clip(est_row[REDUCED_ROAD_SLICE.start], 0.0, 1.0))
         if road_alpha > 0.05:
             ax.plot([x + 0.02, x + 0.98], [y + 0.02, y + 0.98],
                     color='#8B4513', lw=1.1, zorder=2,
@@ -316,62 +348,63 @@ class BoardRenderer:
                     color='#8B4513', lw=1.1, zorder=2,
                     solid_capstyle='round', alpha=road_alpha * 0.6)
 
-        # Layer 4 — city marker
-        city_block = np.asarray(est_row[CITY_SLICE])
-        if city_block.size > 0 and city_block.sum() > 0:
+        # Layer 4 — city marker.  argmax over the reduced city block:
+        #     0     → None       (no marker)
+        #     1     → Village    (brown circle)
+        #     2..K  → opponent city of level (idx - 1), labelled (or "8+" for cap)
+        city_block = np.asarray(est_row[REDUCED_CITY_SLICE])
+        if city_block.size > 0:
             c_idx   = int(np.argmax(city_block))
             c_alpha = float(np.clip(city_block[c_idx], 0.0, 1.0))
-            if c_alpha > 0.05:
-                if c_idx == 0:
+            if c_idx >= 1 and c_alpha > 0.05:
+                if c_idx == 1:
                     ax.add_patch(Circle(
                         (cx, y + 0.22), 0.09,
                         facecolor='#8B4513', edgecolor='black',
                         linewidth=0.8, zorder=3, alpha=c_alpha,
                     ))
                 else:
-                    # 1..N_CITY_TYPES → P0; rest → P1
-                    if c_idx <= N_CITY_TYPES:
-                        owner_pid = 0
-                        level     = c_idx - 1
-                    else:
-                        owner_pid = 1
-                        level     = c_idx - 1 - N_CITY_TYPES
+                    level = c_idx - 1
+                    label = f"{level}+" if level >= MAX_CITY_LEVEL_HIDDEN else str(level)
                     ax.add_patch(Rectangle(
                         (x + 0.38, y + 0.10), 0.24, 0.14,
-                        facecolor=_P_COLORS[owner_pid], edgecolor='black',
+                        facecolor=_P_COLORS[opp_pid], edgecolor='black',
                         linewidth=0.8, zorder=3, alpha=c_alpha,
                     ))
-                    ax.text(cx, y + 0.17, str(level),
+                    ax.text(cx, y + 0.17, label,
                             ha='center', va='center',
                             fontsize=6, color='white', zorder=4,
                             alpha=c_alpha)
 
-        # Layer 5 — own/opp unit silhouettes (stroke-only glyphs with jitter)
-        for pid_idx, slc in ((0, OWN_TYPE_SLICE), (1, OPP_TYPE_SLICE)):
-            block = np.asarray(est_row[slc])
-            if block.size == 0 or block.sum() == 0:
-                continue
-            u_idx   = int(np.argmax(block))
-            u_alpha = float(np.clip(block[u_idx], 0.0, 1.0))
-            if u_alpha < 0.05 or u_idx >= len(UnitType):
-                continue
-            try:
-                ut = UnitType(u_idx)
-            except ValueError:
-                continue
-            top_glyph, _extra = _UNIT_GLYPH.get(ut, (None, None))
-            if top_glyph is None:
-                continue
-            jx = float(rng.uniform(-0.07, 0.07))
-            jy = float(rng.uniform(-0.05, 0.05))
-            color = _P_COLORS[pid_idx]
-            ax.text(
-                cx + jx, cy + 0.04 + jy, top_glyph,
-                ha='center', va='center', fontsize=18,
-                color=(1, 1, 1, 0),  # transparent fill — only the stroke shows
-                fontfamily='DejaVu Sans', zorder=5, alpha=u_alpha,
-                path_effects=[pe.withStroke(linewidth=2.0, foreground=color)],
-            )
+        # Layer 5 — opponent unit silhouettes.  Draw EVERY unit type whose
+        # softmax probability is non-trivial, with `alpha = p(class)` so the
+        # rendered overlay is the full posterior over unit type, not just the
+        # argmax. Each silhouette gets its own jitter offset so the different
+        # candidates don't all stack on the tile center.
+        unit_block = np.asarray(est_row[REDUCED_OPP_UNIT_SLICE])
+        if unit_block.size > 0:
+            color = _P_COLORS[opp_pid]
+            for u_idx in range(1, unit_block.size):  # skip idx 0 = None
+                u_alpha = float(np.clip(unit_block[u_idx], 0.0, 1.0))
+                if u_alpha < 0.05:
+                    continue
+                try:
+                    ut = UnitType(u_idx - 1)
+                except ValueError:
+                    continue
+                if ut not in _UNIT_GLYPH:
+                    continue
+                if rng is not None:
+                    jx = float(rng.uniform(-0.18, 0.18))
+                    jy = float(rng.uniform(-0.14, 0.14))
+                else:
+                    jx, jy = 0.0, 0.0
+                self._draw_unit_glyph(
+                    ax, ut, cx + jx, cy + jy, color,
+                    alpha=u_alpha, outline=True,
+                    fontsize_main=18, fontsize_pair=12,
+                    linewidth=1.4, zorder=5,
+                )
 
         # Layer 6 — global hidden-tile shadow on top
         ax.add_patch(Rectangle(
@@ -401,22 +434,6 @@ class BoardRenderer:
     # ── Pass 3: action overlays ─────────────────────────────────────────
     def _render_action_overlay(self, ax):
         self._draw_action_overlay(ax, self.tile_center)
-
-    # ── Trajectory overlay (move-target dots, capture banner) ──────────
-    def _render_traj_overlay(self, ax, prob_overlay):
-        # Tile-level move-target shading is already painted in _render_board.
-        # Add a small probability-weighted dot at each candidate tile center
-        # to make the destination obvious even when alpha is low.
-        if not prob_overlay:
-            return
-        pcolor_rgb = _P_COLORS_RGB[self.game.player_go_id]
-        for tid, p in prob_overlay.items():
-            cx, cy = self.tile_center(tid)
-            ax.plot(cx, cy, 'o',
-                    color=pcolor_rgb,
-                    markersize=4 + 6 * float(np.clip(p, 0, 1)),
-                    markeredgecolor='white', markeredgewidth=0.8,
-                    alpha=0.85, zorder=10)
 
     # ── Player-control perimeter outline (replaces alpha fill) ─────────
     def _render_control_perimeter(self, ax, uncovered):
@@ -494,24 +511,72 @@ class BoardRenderer:
 
         return prob_overlay, atype_probs
 
-    # ── POV swap (mirror an estimate from one player's POV to the other)
-    @staticmethod
-    def swap_pov(estimate):
-        """Return a copy of `estimate` (N, NODE_FEAT_DIM) with P0/P1 swap applied.
-
-        Uses the same PARTIAL_GRAPH_SWAPS descriptor used by the env's full-graph
-        construction, so own/opp slots line up as the opposite player's POV.
-        """
-        out = np.copy(estimate)
-        for s0, s1 in PARTIAL_GRAPH_SWAPS:
-            tmp = out[:, s0].copy()
-            out[:, s0] = out[:, s1]
-            out[:, s1] = tmp
-        return out
-
     # ════════════════════════════════════════════════════════════════════
     # Helpers moved verbatim from EnvWrapper (rendering atoms)
     # ════════════════════════════════════════════════════════════════════
+
+    def _draw_unit_glyph(self, ax, unit_type, cx, cy, color, *,
+                         alpha=1.0, outline=False, effects=None,
+                         fontsize_main=22, fontsize_pair=14,
+                         linewidth=1.4, zorder=5):
+        """Render a unit's glyph (and any composite extras) at tile-center
+        ``(cx, cy)``. Used both for live units and hidden-tile silhouettes.
+
+        ``outline=True`` switches every text glyph to a `TextPath` traced by
+        a `PathPatch(fill=False)` — guaranteed outline-only regardless of
+        backend. The sword/shield decorations are skipped in outline mode.
+        """
+        top_glyph, extra = _UNIT_GLYPH[unit_type]
+
+        def _draw_text(text, x, y, sz):
+            if outline:
+                fp = FontProperties(family='DejaVu Sans', size=sz)
+                tp = TextPath((0, 0), text, prop=fp)
+                bb = tp.get_extents()
+                target_h = 0.55 * (sz / 22.0)
+                scale = target_h / max(bb.height, 1e-6)
+                tx = x - (bb.x0 + bb.width  / 2) * scale
+                ty = y - (bb.y0 + bb.height / 2) * scale
+                ax.add_patch(PathPatch(
+                    tp.transformed(Affine2D().scale(scale).translate(tx, ty)),
+                    fill=False, edgecolor=color, linewidth=linewidth,
+                    alpha=alpha, joinstyle='round', capstyle='round',
+                    zorder=zorder,
+                ))
+            else:
+                ax.text(x, y, text,
+                        ha='center', va='center', fontsize=sz, color=color,
+                        fontfamily='DejaVu Sans', zorder=zorder,
+                        alpha=alpha, path_effects=effects)
+
+        if extra is None:
+            _draw_text(top_glyph, cx, cy + 0.04, fontsize_main)
+        elif extra == 'sword':
+            _draw_text(top_glyph, cx - 0.05, cy + 0.04, fontsize_main)
+            if not outline:
+                ax.plot([cx + 0.10, cx + 0.24], [cy - 0.10, cy + 0.16],
+                        color='#C0C0C0', lw=2.2, zorder=zorder + 1,
+                        solid_capstyle='round', path_effects=effects, alpha=alpha)
+                ax.plot([cx + 0.07, cx + 0.17], [cy - 0.04, cy - 0.14],
+                        color='#8B4513', lw=2.0, zorder=zorder + 1,
+                        solid_capstyle='round', path_effects=effects, alpha=alpha)
+        elif extra == 'shield':
+            _draw_text(top_glyph, cx - 0.05, cy + 0.04, fontsize_main)
+            if not outline:
+                shield = Polygon(
+                    [(cx + 0.10, cy + 0.18), (cx + 0.26, cy + 0.18),
+                     (cx + 0.26, cy - 0.02), (cx + 0.18, cy - 0.16),
+                     (cx + 0.10, cy - 0.02)],
+                    closed=True, facecolor='#B0B0B0',
+                    edgecolor='#7A4A1A', linewidth=1.2, zorder=zorder + 1, alpha=alpha,
+                )
+                if effects is not None:
+                    shield.set_path_effects(effects)
+                ax.add_patch(shield)
+        else:
+            # composite: queen atop a chess-knight
+            _draw_text(top_glyph, cx, cy + 0.16, fontsize_pair)
+            _draw_text(extra,     cx, cy - 0.12, fontsize_pair)
 
     def _draw_unit(self, ax, unit, x, y, walled):
         cx, cy = x + 0.5, y + 0.5
@@ -529,43 +594,11 @@ class BoardRenderer:
             size = 0.12 if (unit.def_bonus == DefenseBonus.Wall or walled) else 0.07
             self._draw_shield(ax, x + 0.14, cy + 0.02, size)
 
-        top_glyph, extra = _UNIT_GLYPH[unit.unit_type]
-        if extra is None:
-            ax.text(cx, cy + 0.04, top_glyph,
-                    ha='center', va='center', fontsize=22, color=color,
-                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
-        elif extra == 'sword':
-            ax.text(cx - 0.05, cy + 0.04, top_glyph,
-                    ha='center', va='center', fontsize=22, color=color,
-                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
-            ax.plot([cx + 0.10, cx + 0.24], [cy - 0.10, cy + 0.16],
-                    color='#C0C0C0', lw=2.2, zorder=6, solid_capstyle='round',
-                    path_effects=effects)
-            ax.plot([cx + 0.07, cx + 0.17], [cy - 0.04, cy - 0.14],
-                    color='#8B4513', lw=2.0, zorder=6, solid_capstyle='round',
-                    path_effects=effects)
-        elif extra == 'shield':
-            ax.text(cx - 0.05, cy + 0.04, top_glyph,
-                    ha='center', va='center', fontsize=22, color=color,
-                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
-            shield = Polygon(
-                [(cx + 0.10, cy + 0.18), (cx + 0.26, cy + 0.18),
-                 (cx + 0.26, cy - 0.02), (cx + 0.18, cy - 0.16),
-                 (cx + 0.10, cy - 0.02)],
-                closed=True, facecolor='#B0B0B0',
-                edgecolor='#7A4A1A', linewidth=1.2, zorder=6,
-            )
-            if effects is not None:
-                shield.set_path_effects(effects)
-            ax.add_patch(shield)
-        else:
-            # composite: queen atop a chess-knight
-            ax.text(cx, cy + 0.16, top_glyph,
-                    ha='center', va='center', fontsize=14, color=color,
-                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
-            ax.text(cx, cy - 0.12, extra,
-                    ha='center', va='center', fontsize=14, color=color,
-                    fontfamily='DejaVu Sans', zorder=5, path_effects=effects)
+        self._draw_unit_glyph(
+            ax, unit.unit_type, cx, cy, color,
+            outline=False, effects=effects,
+            fontsize_main=22, fontsize_pair=14, zorder=5,
+        )
 
         # HP text (top of tile so it never collides with the city marker) + heal glow
         hp_y = y + 0.88

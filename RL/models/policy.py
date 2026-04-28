@@ -1077,25 +1077,61 @@ class PolicyNetwork(nn.Module):
     # compute_values_batch — critic-only, fully batched
     # ══════════════════════════════════════════════════════════════════════
 
-    def estimate_hidden(
+    @torch.no_grad()
+    def estimate_hidden(self, obs: dict) -> np.ndarray:
+        """Run the encoder + hidden estimator on a single player's POV.
+
+        Toggles `eval()` for the duration of the call so dropout / etc.
+        are deterministic, then restores the previous training state.
+
+        Parameters
+        ──────────
+        obs : dict — must contain `partial_graph` and (optionally)
+                     `scalar_state`.  Same keys as the current player's
+                     view returned by `EnvWrapper._get_obs()`.
+
+        Returns
+        ───────
+        np.ndarray (N_tiles, REDUCED_FEAT_DIM) — softmaxed/sigmoided
+            per-tile reduced-feature probabilities.  Layout: see the
+            `REDUCED_*_SLICE` constants in `game/enums.py`.
+        """
+        was_training = self.training
+        self.eval()
+        try:
+            graph_np = np.asarray(obs['partial_graph'])
+            N_tiles  = graph_np.shape[0]
+            Nx = Ny  = int(round(N_tiles ** 0.5))
+            scalar   = obs.get('scalar_state')
+
+            node_emb, _ = self.encoder.encode(graph_np, Nx, Ny, scalar)
+            probs       = self.hidden_estimator.predict_proba(node_emb)
+        finally:
+            if was_training:
+                self.train()
+
+        return probs.detach().cpu().numpy()
+
+    @torch.no_grad()
+    def estimate_hidden_dual(
         self,
-        obs:  dict,
-    ) -> torch.Tensor:
-        """
-        TODO:
-        Calculate the estimation for the hidden tiles based players partial graph
-        """
-        graph_np = np.asarray(obs['partial_graph'])
-        N_tiles  = graph_np.shape[0]
-        Nx = Ny  = int(round(N_tiles ** 0.5))
-        scalar   = obs.get('scalar_state')
+        obs: dict,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Return reduced per-tile estimates for both players' POVs.
 
-        # ── Encode ─────────────────────────────────────────────────────────
-        node_emb, _ = self.encoder.encode(graph_np, Nx, Ny, scalar)
-        # node_emb   : (N_tiles, D)
-        # global_emb : (1, D)  — already includes scalar fusion when given
+        Pulls the current player's POV from `obs['partial_graph']` /
+        `obs['scalar_state']`, and the opponent's POV from the
+        `obs['opp_partial_graph']` / `obs['opp_scalar_state']` keys
+        populated by `EnvWrapper._get_obs()`.
 
-        return self.hidden_estimator.predict_proba(node_emb)
+        Returns `(est_pov_current, est_pov_opponent)` — feed straight
+        into `env.render(show_hidden=True, hidden_estimate=...)`.
+        """
+        obs_b = {
+            'partial_graph': obs['opp_partial_graph'],
+            'scalar_state':  obs['opp_scalar_state'],
+        }
+        return self.estimate_hidden(obs), self.estimate_hidden(obs_b)
     
     def compute_values_batch(
         self,

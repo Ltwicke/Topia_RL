@@ -158,6 +158,34 @@ PARTIAL_GRAPH_SWAPS: list[tuple[slice, slice]] = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Reduced-feature layout for the HiddenTileEstimator
+# ---------------------------------------------------------------------------
+# The HiddenTileEstimator predicts only opponent-side info on hidden tiles
+# (own units / own cities / own ctrl are mathematically zero on hidden tiles
+# by the rules of the game). Every dimension below is derived from the
+# existing enum-size constants — adding a new TileType / UnitType / city
+# level extends the reduced layout automatically with no manual edits.
+# ---------------------------------------------------------------------------
+MAX_CITY_LEVEL_HIDDEN  = 8                                              # caps the level histogram (last bucket = "L_cap+")
+_HIDDEN_N_CITY_LEVELS  = min(N_CITY_TYPES, MAX_CITY_LEVEL_HIDDEN)       # L1..L_cap
+_HIDDEN_N_CITY         = 2 + _HIDDEN_N_CITY_LEVELS                      # None + Village + levels
+_HIDDEN_N_OPP_UNIT     = 1 + N_UNIT_TYPES                               # None + each unit type
+
+_REDUCED_TILE_TYPE_START = 0
+_REDUCED_ROAD_START      = _REDUCED_TILE_TYPE_START + N_TILE_TYPES
+_REDUCED_OPP_CTRL_START  = _REDUCED_ROAD_START      + 1
+_REDUCED_CITY_START      = _REDUCED_OPP_CTRL_START  + 1
+_REDUCED_OPP_UNIT_START  = _REDUCED_CITY_START      + _HIDDEN_N_CITY
+REDUCED_FEAT_DIM         = _REDUCED_OPP_UNIT_START  + _HIDDEN_N_OPP_UNIT
+
+REDUCED_TILE_TYPE_SLICE = slice(_REDUCED_TILE_TYPE_START, _REDUCED_ROAD_START)
+REDUCED_ROAD_SLICE      = slice(_REDUCED_ROAD_START,      _REDUCED_OPP_CTRL_START)
+REDUCED_OPP_CTRL_SLICE  = slice(_REDUCED_OPP_CTRL_START,  _REDUCED_CITY_START)
+REDUCED_CITY_SLICE      = slice(_REDUCED_CITY_START,      _REDUCED_OPP_UNIT_START)
+REDUCED_OPP_UNIT_SLICE  = slice(_REDUCED_OPP_UNIT_START,  REDUCED_FEAT_DIM)
+
+
 
 
 
