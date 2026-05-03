@@ -33,7 +33,7 @@ This repository contains two interconnected projects:
 
 ### Training and logging
 
-Not important for now.
+Under construction!
 
 ## Development Commands
 

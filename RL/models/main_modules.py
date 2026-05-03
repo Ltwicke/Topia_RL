@@ -467,8 +467,11 @@ class HiddenTileEstimator(nn.Module):
 
         Returns
         ───────
-        Tensor () — sum over groups of the mean per-tile group loss.
-                    Returns 0 when `hidden_mask` selects nothing.
+        Tensor () — sum over hidden tiles of the per-tile group-loss sum.
+                    Reduction is `sum` so callers can apply explicit per-tile
+                    normalisation (divide by n_hidden) in their own
+                    aggregation step.  Returns 0 when `hidden_mask` selects
+                    nothing.
         """
         if hidden_mask.dtype != torch.bool:
             hidden_mask = hidden_mask.bool()
@@ -489,7 +492,7 @@ class HiddenTileEstimator(nn.Module):
 
             if name in ("road", "opp_ctrl"):
                 total = total + F.binary_cross_entropy_with_logits(
-                    logits.squeeze(-1), tgt.squeeze(-1), reduction="mean",
+                    logits.squeeze(-1), tgt.squeeze(-1), reduction="sum",
                 )
                 continue
 
@@ -497,7 +500,7 @@ class HiddenTileEstimator(nn.Module):
             # so every row is a valid target — no row-masking needed.
             class_idx = tgt.argmax(dim=-1)
             total = total + F.cross_entropy(
-                logits, class_idx, reduction="mean",
+                logits, class_idx, reduction="sum",
             )
 
         return total

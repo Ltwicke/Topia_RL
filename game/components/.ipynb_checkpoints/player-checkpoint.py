@@ -4,6 +4,7 @@ from copy import copy
 
 from game.enums import PlayerId, BoardType, Tribes, PARTIAL_GRAPH_SWAPS
 from game.components.board import Board
+from game.components.units import _UNIT_COSTS
 
 
 _SCORE_PER_CITY = {
@@ -74,10 +75,22 @@ class Player(object):
         return spt
 
     @property
-    def current_score(self) -> int:
+    def player_score_official(self) -> int:
+        """
+        Score based on the official polytopia Scoring system (May 26)
+        """
         score = 0
-        
+        ## Army and territory
+        for unit in self.units_under_control.values():
+            score += _UNIT_COSTS[unit.unit_type] * 5.0
 
+        score += len(self.uncovered_tile_ids) * 5.0 # 5 points for each uncovered tile
+
+        ## cities and territory
+        for city in self.cities_under_control:
+            score += 100. + city.times_upgraded * 50. + 20. * len(city.controlled_tile_ids)
+            score += np.sum(city.choices[3:]) * 250. # parks
+        
 
     def construct_partial_graph_2players(self, board):
         """

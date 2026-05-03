@@ -132,8 +132,9 @@ class EnvWrapper(object):
         player   = self.game.players[self.game.player_go_id]
         opponent = self.game.players[(self.game.player_go_id + 1) % 2]
 
-        own_score = player.current_score   if player.current_score   is not None else 0
-        opp_score = opponent.current_score if opponent.current_score is not None else 0
+        own_score = player.player_score_official   if player.player_score_official   is not None else 0
+        opp_score = opponent.player_score_official if opponent.player_score_official is not None else 0
+        
         turn_norm = float(self.game.turn) / max(1.0, float(self.max_turns_per_game))
 
         return {
@@ -220,7 +221,7 @@ class EnvWrapper(object):
                  
             elif message["action_type"] == ActionTypes.UpgradeCity:
                 pass
-                ## TODO: implement the rewards for city upgrades; must be done by a human!
+                ## Do I even need rewards here? Because it drives all other rewards essentially
 
             elif message["action_type"] == ActionTypes.Upgrade2Vet:
                 reward += message["hp_diff"] * 0.1 # reward greater healing with the upgrade2vet mechanic
@@ -420,16 +421,23 @@ class EnvWrapper(object):
         if valid_actions[6].sum() > 0:
             valid_actions[0][ActionTypes.UpgradeCity] = 1.0
 
-        # place road
-        if player.stars >= 5:                                   ## ROAD PRICE
+        # place road / bridge
+        if player.stars >= 5:
             for tile_id in player.uncovered_tile_ids:
                 tile = self.game.game_board.board[tile_id]
                 if (not tile.has_road
                         and tile.tile_type == TileType.field
                         and (tile.cntrl is None or tile.cntrl == player.player_id)):
                     valid_actions[7][tile_id] = 1.0
-            if valid_actions[7].sum() > 0:
-                valid_actions[0][ActionTypes.PlaceRoad] = 1.0
+        if player.stars >= 9:                                   ## BRIDGE PRICE
+            for tile_id in player.uncovered_tile_ids:
+                tile = self.game.game_board.board[tile_id]
+                if (not tile.has_road
+                        and tile.tile_type == TileType.water
+                        and self.game._bridge_axis(tile) is not None):
+                    valid_actions[7][tile_id] = 1.0
+        if valid_actions[7].sum() > 0:
+            valid_actions[0][ActionTypes.PlaceRoad] = 1.0
 
         # upgrade unit to veteran
         for pos, unit in enumerate(player_units):

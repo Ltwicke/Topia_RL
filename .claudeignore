@@ -1,10 +1,11 @@
 Project_development_book.txt
 Check_metrics_and_loss_curves.ipynb
 Run_different_policies_against_each_other.ipynb
+run_random_games.ipynb
+testing_new_architecture.ipynb
 /visual_examples
 /old
 /RL/logs
-/RL/ppo
 /RL/checkpoints_training
 /RL/checkpoints_win_reward
 /RL/.ipynb_checkpoints

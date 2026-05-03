@@ -60,9 +60,10 @@ if _PROJECT_ROOT not in sys.path:
 from models.policy import PolicyNetwork, model_summary
 
 # ── PPO modules ───────────────────────────────────────────────────────────────
-from ppo.game_manager    import TrainConfig, EnvManager
-from ppo.batch_processing import BatchProcessor
-from ppo.ppo   import PPOTrainer
+from ppo.game_manager      import TrainConfig, EnvManager
+from ppo.batch_processing  import BatchProcessor, EstimatorBatchProcessor
+from ppo.ppo               import PPOTrainer
+from ppo.estimator_trainer import EstimatorPretrainer
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -75,9 +76,11 @@ MAX_CKPT  = 3
 
 _CSV_FIELDS = [
     "update",
-    "wall_time_s", "t_dist_s", "t_collect_s", "t_gae_s", "t_ppo_s",
+    "wall_time_s", "t_dist_s", "t_collect_s",
+    "t_est_s", "t_gae_s", "t_ppo_s",
     "n_finished", "n_won", "win_rate",
     "avg_ep_len", "avg_reward",
+    "est_loss", "est_steps",
     "p_loss", "v_loss", "entropy",
     "vram_alloc_before_mb", "vram_reserved_before_mb",
     "vram_alloc_after_mb",  "vram_reserved_after_mb",
@@ -187,9 +190,11 @@ def main() -> None:
     policy.train()
 
     # ── Module construction ───────────────────────────────────────────────────
-    env_manager    = EnvManager(cfg)
-    batch_proc     = BatchProcessor(cfg)
-    trainer        = PPOTrainer(policy, cfg, device)
+    env_manager     = EnvManager(cfg)
+    ppo_batch_proc  = BatchProcessor(cfg)
+    est_batch_proc  = EstimatorBatchProcessor(cfg)
+    ppo_trainer     = PPOTrainer(policy, cfg, device)
+    est_pretrainer  = EstimatorPretrainer(policy, cfg, device)
 
     # ── Console banner ─────────────────────────────────────────────────────────
     lo, hi = cfg.board_size_range
@@ -197,13 +202,16 @@ def main() -> None:
                             int(cfg.batch_size * cfg.train_fraction))
     n_mb_per_epoch = n_train_per_epoch // cfg.minibatch_size
 
+    board_type_names = ", ".join(bt.name for bt in cfg.board_type_pool)
+
     banner_lines = [
         "",
         "=" * 72,
-        "  POLYTOPIA RL — PPO  (per-player MDP streams)",
+        "  POLYTOPIA RL — dual-objective  (estimator pretrain + per-player PPO)",
         "=" * 72,
         f"  Device            : {device}",
         f"  Board size        : random square [{lo}×{lo} … {hi}×{hi}]",
+        f"  Board types       : {{{board_type_names}}}  (sampled per env)",
         f"  Workers × envs    : {cfg.n_processes} × {cfg.n_envs_per_process}"
         f"  =  {cfg.n_envs_total} parallel envs",
         f"  Rollout steps     : {cfg.n_steps}",
@@ -217,6 +225,12 @@ def main() -> None:
         f"  γ / λ             : {cfg.gamma} / {cfg.gae_lambda}",
         f"  LR                : {cfg.lr}",
         f"  AMP               : {cfg.use_amp}",
+        "",
+        f"  Estimator epochs  : {cfg.estimator_n_epochs}",
+        f"  Estimator mb size : {cfg.estimator_minibatch_size}",
+        f"  Estimator LR      : {cfg.estimator_lr}",
+        f"  Estimator frac    : {cfg.estimator_train_fraction:.2f}",
+        "",
         f"  Encoder           : {cfg.encoder_depth} layers "
         f"× {cfg.encoder_hidden_dim}d ({cfg.encoder_n_heads} heads)",
         f"  Selection heads   : {cfg.sel_n_layers} layers "
@@ -265,8 +279,18 @@ def main() -> None:
         raw_batch, t_collect = env_manager.collect()
         logger.info(f"[update {update:04d}] all workers done in {t_collect:.2f}s")
 
-        # ── 3. Per-player GAE + normalisation ─────────────────────────────
-        processed_batch, t_gae = batch_proc.process(raw_batch)
+        # ── 3a. Phase A — estimator pretrain ───────────────────────────────
+        t0        = time.time()
+        est_stats = est_pretrainer.update(raw_batch, est_batch_proc)
+        t_est     = time.time() - t0
+        logger.info(
+            f"[update {update:04d}] estimator pretrain: "
+            f"loss={est_stats['est_loss']:.4f} "
+            f"({est_stats['n_steps']} steps) in {t_est:.2f}s"
+        )
+
+        # ── 3b. Phase B — per-player GAE + normalisation ──────────────────
+        processed_batch, t_gae = ppo_batch_proc.process(raw_batch)
         logger.info(f"[update {update:04d}] per-player GAE in {t_gae:.4f}s")
 
         # Release the raw batch now — large numpy arrays no longer needed.
@@ -284,7 +308,7 @@ def main() -> None:
 
         # ── 5. PPO gradient updates ────────────────────────────────────────
         t0    = time.time()
-        stats = trainer.update(processed_batch, batch_proc)
+        stats = ppo_trainer.update(processed_batch, ppo_batch_proc)
         t_ppo = time.time() - t0
         logger.info(f"[update {update:04d}] PPO update done in {t_ppo:.2f}s")
 
@@ -329,7 +353,7 @@ def main() -> None:
             logger.info(
                 f"║  Wall time     : {t_total:.1f}s  "
                 f"(dist {t_dist:.2f}s | collect {t_collect:.2f}s "
-                f"| GAE {t_gae:.4f}s | PPO {t_ppo:.2f}s)"
+                f"| EST {t_est:.2f}s | GAE {t_gae:.4f}s | PPO {t_ppo:.2f}s)"
             )
             logger.info(
                 f"║  Games finished: {n_finished:6d}  "
@@ -338,6 +362,10 @@ def main() -> None:
             logger.info(f"║  Win rate      : {win_rate:.3f}")
             logger.info(f"║  Avg ep length : {avg_ep_len:.1f} steps")
             logger.info(f"║  Avg reward/ep : {avg_reward:.3f}")
+            logger.info(
+                f"║  est_loss      : {est_stats['est_loss']:.4f}  "
+                f"({est_stats['n_steps']} steps)"
+            )
             logger.info(f"║  p_loss        : {pl:.4f}")
             logger.info(f"║  v_loss        : {vl:.4f}")
             logger.info(f"║  entropy       : {el:.4f}")
@@ -350,11 +378,12 @@ def main() -> None:
             logger.info("")
 
         outer_bar.set_postfix(
-            fin = n_finished,
-            win = f"{win_rate:.2f}",
-            p   = f"{pl:.3f}",
-            v   = f"{vl:.3f}",
-            ent = f"{el:.3f}",
+            fin  = n_finished,
+            win  = f"{win_rate:.2f}",
+            est  = f"{est_stats['est_loss']:.3f}",
+            p    = f"{pl:.3f}",
+            v    = f"{vl:.3f}",
+            ent  = f"{el:.3f}",
         )
 
         # ── 11. CSV metrics row ────────────────────────────────────────────
@@ -363,6 +392,7 @@ def main() -> None:
             "wall_time_s":             f"{t_total:.3f}",
             "t_dist_s":                f"{t_dist:.3f}",
             "t_collect_s":             f"{t_collect:.3f}",
+            "t_est_s":                 f"{t_est:.3f}",
             "t_gae_s":                 f"{t_gae:.4f}",
             "t_ppo_s":                 f"{t_ppo:.3f}",
             "n_finished":              n_finished,
@@ -370,6 +400,8 @@ def main() -> None:
             "win_rate":                f"{win_rate:.4f}",
             "avg_ep_len":              f"{avg_ep_len:.2f}",
             "avg_reward":              f"{avg_reward:.4f}",
+            "est_loss":                f"{est_stats['est_loss']:.6f}",
+            "est_steps":               est_stats["n_steps"],
             "p_loss":                  f"{pl:.6f}",
             "v_loss":                  f"{vl:.6f}",
             "entropy":                 f"{el:.6f}",

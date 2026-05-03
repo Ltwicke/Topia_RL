@@ -93,15 +93,28 @@ class TrainConfig:
     n_envs_per_process: int = 8
 
     # ── Environment ───────────────────────────────────────────────────────────
+    # board_type is randomised per env from board_type_pool — Dummy is dropped.
     board_config_dict: dict = field(default_factory=lambda: {
-        "board_type": BoardType.Dummy,
         "n_players":  2,
     })
+    board_type_pool: tuple = field(
+        default_factory=lambda: (
+            BoardType.Drylands,
+            BoardType.Lakes,
+            BoardType.Archipelago,
+        )
+    )
     player_tribes:      list  = field(
         default_factory=lambda: [Tribes.Omaji, Tribes.Imperius]
     )
     max_turns_per_game: int   = 1000
-    board_size_range:   tuple = (10, 16)
+    board_size_range:   tuple = (11, 16)
+
+    # ── Estimator pretraining (Phase A of each update) ────────────────────────
+    estimator_lr:             float = 3e-4
+    estimator_n_epochs:       int   = 8
+    estimator_minibatch_size: int   = 128
+    estimator_train_fraction: float = 1.0    # full dataset by default
 
     # ── Rollout ───────────────────────────────────────────────────────────────
     n_steps: int = 256
@@ -185,10 +198,11 @@ def _random_board_size(cfg: TrainConfig) -> tuple:
 
 
 def _make_env(cfg: TrainConfig) -> EnvWrapper:
-    board_size   = _random_board_size(cfg)
+    n          = random.randint(*cfg.board_size_range)
+    board_type = random.choice(cfg.board_type_pool)
     board_config = {
-        "board_size": list(board_size),
-        "board_type": cfg.board_config_dict["board_type"],
+        "board_size": [n, n],
+        "board_type": board_type,
         "n_players":  cfg.board_config_dict["n_players"],
     }
     return EnvWrapper(

@@ -1252,9 +1252,19 @@ class PolicyNetwork(nn.Module):
 
         For each snapshot, the encoder produces node embeddings from the
         partial (fogged) graph; the estimator predicts per-tile feature
-        groups; the loss is the sum of per-group cross-entropies (plus the
-        BCE on the road bit), restricted to the tiles currently hidden from
-        the acting player.  Gradients flow back into the encoder.
+        groups; the per-sample loss is the sum of per-group cross-entropies
+        (plus BCE on road / opp_ctrl bits), summed over hidden tiles, then
+        divided by the number of hidden tiles (per-tile normalisation).
+        The minibatch loss is the mean of per-sample losses.  Gradients flow
+        back into the encoder and the estimator.
+
+        Per-tile normalisation rationale
+        ────────────────────────────────
+        Hidden-tile counts vary widely across samples (an early-game player
+        sees few tiles; a fully-explored map has almost none).  Without
+        per-tile normalisation, samples with many hidden tiles would
+        dominate the gradient.  Dividing by ``n_hidden`` keeps every sample's
+        contribution comparable.
 
         Intended pretraining loop
         ─────────────────────────
@@ -1270,7 +1280,8 @@ class PolicyNetwork(nn.Module):
 
         Returns
         ───────
-        loss : ()  scalar; mean of per-board losses (differentiable).
+        loss : ()  scalar; mean over samples of per-tile-averaged group loss
+                   sums (differentiable).
         """
         graphs      = [s['graph']      for s in obs_snaps]
         full_graphs = [s['full_graph'] for s in obs_snaps]
@@ -1281,7 +1292,7 @@ class PolicyNetwork(nn.Module):
         node_embs, _ = self.encoder.encode_batch(graphs, board_sizes, scalars)
 
         losses: List[torch.Tensor] = []
-        for b, snap in enumerate(obs_snaps): ## why cant this be done in parallel for each batch? batch processing has to be reworked!
+        for b, snap in enumerate(obs_snaps):
             node_emb = node_embs[b]                                  # (N_b, D)
             N        = node_emb.shape[0]
             dev      = node_emb.device
@@ -1297,7 +1308,11 @@ class PolicyNetwork(nn.Module):
                     torch.as_tensor(uncovered, dtype=torch.long, device=dev)
                 ] = False
 
-            losses.append(self.hidden_estimator.loss(pred, target, hidden_mask))
+            n_hidden = int(hidden_mask.sum().item())
+            sample_loss = self.hidden_estimator.loss(pred, target, hidden_mask)
+            # Per-tile normalisation; max(.,1) guards the no-hidden-tile case
+            # (where sample_loss is already a 0-with-grad tensor).
+            losses.append(sample_loss / max(n_hidden, 1))
 
         return torch.stack(losses).mean()
 

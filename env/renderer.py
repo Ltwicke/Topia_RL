@@ -60,7 +60,7 @@ _TERRAIN_PALETTE = {
     int(TileType.deep_water): '#00008B',
     int(TileType.water):      '#4169E1',
     int(TileType.field):      '#90EE90',
-    int(TileType.mountain):   '#8A8A80',
+    int(TileType.mountain):   '#90EE90',
 }
 _TERRAIN_FALLBACK = '#F5F5DC'
 
@@ -249,6 +249,10 @@ class BoardRenderer:
                     (x, y), 1, 1, facecolor=fc,
                     edgecolor='black', linewidth=0.5,
                 ))
+
+                # Mountain watermark icon
+                if tile_row[_TILE_TYPE_START + int(TileType.mountain)] > 0:
+                    self._draw_mountain_icon(ax, x, y)
 
                 # Road cross
                 if tile_row[_ROAD_START] > 0:
@@ -614,6 +618,33 @@ class BoardRenderer:
                 fontweight='bold', color='black', zorder=7,
                 bbox=dict(boxstyle='round,pad=0.12', facecolor='white',
                           edgecolor='none', alpha=0.7))
+
+    def _draw_mountain_icon(self, ax, x, y, alpha=0.78, color='#5A5A52'):
+        """Watermark mountain silhouette on a visible mountain tile."""
+        # Back (left) peak — slightly shorter
+        back_peak = Polygon(
+            [(x + 0.15, y + 0.20), (x + 0.50, y + 0.78), (x + 0.72, y + 0.20)],
+            closed=True, facecolor=color, edgecolor='none',
+            alpha=alpha * 0.8, zorder=1.5,
+        )
+        ax.add_patch(back_peak)
+        # Front (right) main peak — taller and wider
+        front_peak = Polygon(
+            [(x + 0.30, y + 0.16), (x + 0.68, y + 0.86), (x + 0.90, y + 0.16)],
+            closed=True, facecolor=color, edgecolor='none',
+            alpha=alpha, zorder=1.6,
+        )
+        ax.add_patch(front_peak)
+        # Snow cap on front peak
+        snow_h = 0.16
+        snow_pts = [
+            (x + 0.59, y + 0.86 - snow_h * 0.5),
+            (x + 0.68, y + 0.86),
+            (x + 0.77, y + 0.86 - snow_h * 0.5),
+        ]
+        ax.add_patch(Polygon(snow_pts, closed=True,
+            facecolor='white', edgecolor='none',
+            alpha=alpha * 1.2, zorder=1.7))
 
     def _draw_shield(self, ax, cx, cy, s):
         pts = np.array([

@@ -1319,6 +1319,57 @@ IGNORE FOR NOW!
 
 
 
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+
+
+
+
+
+
+
+
+
+
+
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+
+
+
+
+
+
+
+
+
+
+
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!!
+
+
+29.04. 14:43 Uhr: READ ABOUT THE MANUAL LABOR BELOW!
+
+Im having the ppo and training_manager files be autocoded. While the original idea was to do it all by myself, maybe i should start a little bit smaller. The full implementation includes batching logic, worker paralelization and mixed prec training, all of which not being super important for me to understand line by line.
+Much better is the following plan: Run a single environment in a jupyter notebook. --> Collect the two streams MDPs for either player ---> Calculate the GAE and other valuables for PPO and its variants. ---> Manually do the loss calculation and actually have a look at the values once the agent is already trained!
+---> This will give not only insight into the ppo method (and its derivatives) but also into how the training is actually going for my agent and if it makes intuitive sense.
+
+I want to stress again: Your starting point is ONLY the environment and the observations. The rest must be done only with assistance of the formula sheet. 
+This will probably be done when the time of the phd draws nearer, because then, I will feel the need to learn it!
+
+
+
+
 
 
 
