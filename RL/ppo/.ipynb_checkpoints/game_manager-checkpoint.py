@@ -35,9 +35,9 @@ import torch.multiprocessing as mp
 # ── Project root ─────────────────────────────────────────────────────────────
 # Must be set before any project-relative imports, both here (main process)
 # and inside worker_fn (each spawned subprocess reimports this module).
-#_PROJECT_ROOT: str = r"C:\Users\laure\1own_projects\1polytopia_score"
-#if _PROJECT_ROOT not in sys.path:
-#    sys.path.insert(0, _PROJECT_ROOT)
+_PROJECT_ROOT: str = r"C:\Users\laure\1own_projects\1polytopia_score"
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 from env.wrapper import EnvWrapper
 from game.enums  import BoardType, Tribes
@@ -69,7 +69,7 @@ class TrainConfig:
     start_update:    int = 0    # first update index (set > 0 when resuming)
 
     # ── Encoder ───────────────────────────────────────────────────────────────
-    encoder_hidden_dim: int = 64
+    encoder_hidden_dim: int = 48
     encoder_n_heads:    int = 4
     encoder_depth:      int = 4
 
@@ -78,7 +78,7 @@ class TrainConfig:
     sel_n_layers: int = 2
 
     # ── MLP ───────────────────────────────────────────────────────────────────
-    mlp_hidden_dim: int = 128
+    mlp_hidden_dim: int = 64
     mlp_depth:      int = 3
 
     # ── Multi-scale convolutions ──────────────────────────────────────────────
@@ -89,26 +89,52 @@ class TrainConfig:
     context_bias: int = 4
 
     # ── Parallelism ───────────────────────────────────────────────────────────
-    n_processes:        int = 8
+    n_processes:        int = 4
     n_envs_per_process: int = 4
 
     # ── Environment ───────────────────────────────────────────────────────────
+    # board_type is randomised per env from board_type_pool — Dummy is dropped.
     board_config_dict: dict = field(default_factory=lambda: {
-        "board_type": BoardType.Dummy,
         "n_players":  2,
     })
+    board_type_pool: tuple = field(
+        default_factory=lambda: (
+            BoardType.Drylands,
+            BoardType.Lakes,
+            BoardType.Archipelago,
+        )
+    )
     player_tribes:      list  = field(
         default_factory=lambda: [Tribes.Omaji, Tribes.Imperius]
     )
-    max_turns_per_game: int   = 100
-    board_size_range:   tuple = (10, 16)
+    max_turns_per_game: int   = 1000
+    board_size_range:   tuple = (11, 16)
+
+    # ── Estimator pretraining (Phase A of each update) ────────────────────────
+    estimator_lr:             float = 1e-4
+    estimator_n_epochs:       int   = 8
+    estimator_minibatch_size: int   = 128
+    estimator_train_fraction: float = 1.0    # full dataset by default
+
+    # ── Scenario eval (Phase C — runs after PPO update) ───────────────────────
+    scenario_dir:             str   = "scenarios/scenarios"
+    scenario_eval_interval:   int   = 1      # run scenarios every N updates; 0 disables
+    scenario_names:           list  = field(
+        default_factory=lambda: [
+            "Knight_chain_choice",
+            "Rider_leapfrogging",
+            "Simple_dash_dancing2",
+            "road_for_kill",
+            "estimate_lakes11",
+        ]
+    )
 
     # ── Rollout ───────────────────────────────────────────────────────────────
     n_steps: int = 256
 
     # ── PPO epochs & batching ─────────────────────────────────────────────────
-    n_epochs:       int   = 2
-    n_minibatches:  int   = 16   # determines cfg.minibatch_size
+    n_epochs:       int   = 6
+    n_minibatches:  int   = 64   # determines cfg.minibatch_size
     # Fraction ∈ (0,1]: what share of the assembled minibatches to train on
     # per epoch.  Reduces PPO update time without wasting simulation data.
     train_fraction: float = 1.0
@@ -127,13 +153,13 @@ class TrainConfig:
     lr: float = 3e-4
 
     # ── Training loop ─────────────────────────────────────────────────────────
-    n_updates:     int = 500
+    n_updates:     int = 10
     log_interval:  int = 1
     ckpt_interval: int = 1
 
     # ── Speed / diagnostic ────────────────────────────────────────────────────
-    use_amp:    bool = True   # AMP — strongly recommended on CUDA
-    track_vram: bool = True   # print VRAM stats each update
+    use_amp:    bool = True   # AMP mixed precision training
+    track_vram: bool = False   # print VRAM stats each update
 
     # ── Derived properties ────────────────────────────────────────────────────
     @property
@@ -185,10 +211,11 @@ def _random_board_size(cfg: TrainConfig) -> tuple:
 
 
 def _make_env(cfg: TrainConfig) -> EnvWrapper:
-    board_size   = _random_board_size(cfg)
+    n          = random.randint(*cfg.board_size_range)
+    board_type = random.choice(cfg.board_type_pool)
     board_config = {
-        "board_size": list(board_size),
-        "board_type": cfg.board_config_dict["board_type"],
+        "board_size": [n, n],
+        "board_type": board_type,
         "n_players":  cfg.board_config_dict["n_players"],
     }
     return EnvWrapper(

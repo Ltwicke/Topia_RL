@@ -1,0 +1,108 @@
+name: random_Lakes_11
+description: ''
+board_size: [11, 11]
+default_terrain: field
+n_players: 2
+player_tribes: [Omaji, Imperius]
+current_player: 0
+turn: 4
+map: |
+  ...........
+  ....~~...~.
+  ..~~~~~^...
+  .~~~~~.....
+  .~~.~~~....
+  .~~~~~^....
+  ...~~~.....
+  ....~~.....
+  ...~~.^....
+  ...~~~...^.
+  ...........
+tiles:
+- pos: [9, 7]
+  road: true
+villages:
+- [3, 4]
+- [2, 8]
+- [5, 8]
+players:
+- id: 0
+  stars: 5
+  uncovered: all
+  cities:
+  - pos: [8, 1]
+    level: lvl3_resources
+    is_capital: true
+  units:
+  - pos: [8, 4]
+    type: Warrior
+    state: idle
+- id: 1
+  stars: 11
+  uncovered:
+  - [8, 9]
+  - [8, 8]
+  - [7, 8]
+  - [7, 9]
+  - [7, 7]
+  - [8, 7]
+  - [9, 7]
+  - [9, 9]
+  - [9, 8]
+  - [6, 6]
+  - [6, 7]
+  - [5, 7]
+  - [5, 8]
+  - [5, 9]
+  - [6, 9]
+  - [6, 8]
+  - [4, 8]
+  - [6, 10]
+  - [7, 10]
+  - [8, 10]
+  - [9, 10]
+  - [10, 10]
+  - [10, 9]
+  - [10, 8]
+  - [10, 7]
+  - [10, 6]
+  - [9, 6]
+  - [8, 6]
+  - [7, 6]
+  - [7, 5]
+  - [6, 5]
+  - [8, 5]
+  - [9, 5]
+  - [10, 5]
+  - [10, 4]
+  - [9, 4]
+  - [6, 4]
+  - [5, 4]
+  - [5, 5]
+  - [5, 6]
+  - [8, 4]
+  - [7, 4]
+  - [7, 3]
+  - [6, 3]
+  - [6, 2]
+  - [5, 2]
+  - [5, 3]
+  - [6, 1]
+  - [7, 1]
+  - [7, 2]
+  - [8, 2]
+  - [9, 3]
+  - [8, 3]
+  cities:
+  - pos: [8, 4]
+    level: lvl2_workshop
+    is_capital: true
+  - pos: [8, 8]
+    level: lvl3_wall
+    is_capital: true
+  units:
+  - pos: [7, 9]
+    type: Rider
+  - pos: [8, 8]
+    type: Rider
+    def_bonus: Wall

@@ -24,8 +24,13 @@ Is this needed? With the hidden tile estimator, the estimation should learn the 
 
 ### Custom game state editor
 
-- For the unit tests after every update of the PPO line, I need a comfortable way to edit user-defined game states.
-- A game state is a user-defined state of the game board and player states. From the pre-defined state, the game simulation can unfolds without any furhter disturbances as if it were to happen in a real game.
+The editor works and is very handy to work with, now there is only a couple of glitches left to fix:
+- In the unit radiobutton, for the units features, add the options for defense bonus, wall and the unit-internal count variable of how many kills this unit has, so that the environment can register this unit as eligible to upgrade to veteran
+- Also, when the unit is a veteran, the max hp becomes the original hp+5, this needs to be added
+- Villages are not handled right in the editor, they appear to be falsely attributed to the selected player and drawing player controll tiles, but villages are unclaimed and therefore have no player controll area
+- Add the option for the extended player controll area with a radius of 2 tiles around the city instead of the usual 1.
+- Ideally, I would like the opportunity in the editor to generate random board maps of the desired board_type with a specified map size N x N. 
+
 
 
 ### Rendering function visual changes

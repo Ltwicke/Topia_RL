@@ -65,11 +65,11 @@ class TrainConfig:
     """
 
     # ── Checkpoint / resume ───────────────────────────────────────────────────
-    pretrained_ckpt: str = ".\checkpoints_training\policy_update_00353.pt"   # path to .pt; "" = train from scratch
+    pretrained_ckpt: str = ""   # path to .pt; "" = train from scratch
     start_update:    int = 0    # first update index (set > 0 when resuming)
 
     # ── Encoder ───────────────────────────────────────────────────────────────
-    encoder_hidden_dim: int = 64
+    encoder_hidden_dim: int = 48
     encoder_n_heads:    int = 4
     encoder_depth:      int = 4
 
@@ -78,7 +78,7 @@ class TrainConfig:
     sel_n_layers: int = 2
 
     # ── MLP ───────────────────────────────────────────────────────────────────
-    mlp_hidden_dim: int = 128
+    mlp_hidden_dim: int = 64
     mlp_depth:      int = 3
 
     # ── Multi-scale convolutions ──────────────────────────────────────────────
@@ -89,8 +89,8 @@ class TrainConfig:
     context_bias: int = 4
 
     # ── Parallelism ───────────────────────────────────────────────────────────
-    n_processes:        int = 16
-    n_envs_per_process: int = 8
+    n_processes:        int = 4
+    n_envs_per_process: int = 4
 
     # ── Environment ───────────────────────────────────────────────────────────
     # board_type is randomised per env from board_type_pool — Dummy is dropped.
@@ -111,20 +111,33 @@ class TrainConfig:
     board_size_range:   tuple = (11, 16)
 
     # ── Estimator pretraining (Phase A of each update) ────────────────────────
-    estimator_lr:             float = 3e-4
+    estimator_lr:             float = 1e-4
     estimator_n_epochs:       int   = 8
     estimator_minibatch_size: int   = 128
     estimator_train_fraction: float = 1.0    # full dataset by default
+
+    # ── Scenario eval (Phase C — runs after PPO update) ───────────────────────
+    scenario_dir:             str   = "scenarios/scenarios"
+    scenario_eval_interval:   int   = 1      # run scenarios every N updates; 0 disables
+    scenario_names:           list  = field(
+        default_factory=lambda: [
+            "Knight_chain_choice",
+            "Rider_leapfrogging",
+            "Simple_dash_dancing2",
+            "road_for_kill",
+            "estimate_lakes11",
+        ]
+    )
 
     # ── Rollout ───────────────────────────────────────────────────────────────
     n_steps: int = 256
 
     # ── PPO epochs & batching ─────────────────────────────────────────────────
-    n_epochs:       int   = 3
-    n_minibatches:  int   = 128   # determines cfg.minibatch_size
+    n_epochs:       int   = 6
+    n_minibatches:  int   = 64   # determines cfg.minibatch_size
     # Fraction ∈ (0,1]: what share of the assembled minibatches to train on
     # per epoch.  Reduces PPO update time without wasting simulation data.
-    train_fraction: float = 0.1
+    train_fraction: float = 1.0
 
     # ── PPO loss coefficients ─────────────────────────────────────────────────
     clip_eps:      float = 0.2
@@ -140,7 +153,7 @@ class TrainConfig:
     lr: float = 3e-4
 
     # ── Training loop ─────────────────────────────────────────────────────────
-    n_updates:     int = 500
+    n_updates:     int = 10
     log_interval:  int = 1
     ckpt_interval: int = 1
 

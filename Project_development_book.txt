@@ -1374,6 +1374,16 @@ This will probably be done when the time of the phd draws nearer, because then, 
 
 
 
+05.05. 21:04 Uhr
+
+The next steps are:
+
+1. Finish all scenarios (or most of them)
+2. Start training with dense rewards (still needs dense rewards in city upgrades)
+3. Train with ending score in a 0-sum setting considering there will be weak solution algorithms once most of the villages are claimed and most of the map is uncovered. Train while I am abroad.
+
+
+
 
 
 

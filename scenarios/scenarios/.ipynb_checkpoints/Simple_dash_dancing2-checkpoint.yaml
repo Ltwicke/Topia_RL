@@ -1,0 +1,96 @@
+name: random_Drylands_11
+description: ''
+board_size: [11, 11]
+default_terrain: field
+n_players: 2
+player_tribes: [Omaji, Imperius]
+current_player: 0
+turn: 3
+map: |
+  ^..........
+  .........^.
+  .......^..^
+  ...........
+  .......^...
+  ....^.^....
+  ..^........
+  ^..^.......
+  ..........^
+  ..^.^.....^
+  .^..^......
+villages:
+- [5, 3]
+- [8, 4]
+- [5, 7]
+- [8, 8]
+players:
+- id: 0
+  stars: 5
+  uncovered: all
+  cities:
+  - pos: [2, 1]
+    level: lvl2_workshop
+    is_capital: true
+  units:
+  - pos: [2, 2]
+    type: Warrior
+    fortify: true
+  - pos: [5, 3]
+    type: Warrior
+    hp: 5.0
+    state: idle
+- id: 1
+  stars: 0
+  uncovered:
+  - [0, 5]
+  - [0, 6]
+  - [0, 7]
+  - [0, 8]
+  - [0, 9]
+  - [1, 5]
+  - [1, 6]
+  - [1, 7]
+  - [1, 8]
+  - [1, 9]
+  - [2, 5]
+  - [2, 6]
+  - [2, 7]
+  - [2, 8]
+  - [2, 9]
+  - [3, 5]
+  - [3, 6]
+  - [3, 7]
+  - [3, 8]
+  - [3, 9]
+  - [4, 5]
+  - [4, 6]
+  - [4, 7]
+  - [4, 8]
+  - [4, 9]
+  - [3, 4]
+  - [4, 4]
+  - [5, 3]
+  - [5, 4]
+  - [5, 5]
+  - [6, 3]
+  - [6, 4]
+  - [4, 3]
+  - [6, 5]
+  - [2, 4]
+  - [3, 3]
+  - [5, 6]
+  - [6, 6]
+  - [6, 7]
+  - [5, 7]
+  - [2, 3]
+  cities:
+  - pos: [2, 7]
+    level: lvl2_explorer
+    is_capital: true
+  units:
+  - pos: [5, 4]
+    type: Warrior
+  - pos: [2, 7]
+    type: Rider
+    state: idle
+    def_bonus: Shield

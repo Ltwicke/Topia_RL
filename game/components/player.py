@@ -90,7 +90,8 @@ class Player(object):
         for city in self.cities_under_control:
             score += 100. + city.times_upgraded * 50. + 20. * len(city.controlled_tile_ids)
             score += np.sum(city.choices[3:]) * 250. # parks
-        
+
+        return int(score)
 
     def construct_partial_graph_2players(self, board):
         """

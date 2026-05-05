@@ -1,0 +1,82 @@
+name: random_Drylands_14
+description: ''
+board_size: [14, 14]
+default_terrain: field
+n_players: 2
+player_tribes: [Omaji, Imperius]
+current_player: 0
+turn: 0
+map: |
+  ....^.........
+  ...^^.......^^
+  .....^......^.
+  .......^^.....
+  ^.............
+  ..^...........
+  ........^.....
+  ^....^.^......
+  .........^..^.
+  ..^...^...^^..
+  ...^.^.....^..
+  ..^.^.^.......
+  ......^.^.^...
+  ..........^...
+villages:
+- [8, 2]
+- [3, 6]
+- [9, 7]
+- [3, 9]
+- [6, 10]
+- [11, 11]
+players:
+- id: 0
+  stars: 1
+  uncovered:
+  - [1, 1]
+  - [1, 2]
+  - [1, 3]
+  - [1, 4]
+  - [1, 5]
+  - [2, 1]
+  - [2, 2]
+  - [2, 3]
+  - [2, 4]
+  - [2, 5]
+  - [3, 1]
+  - [3, 2]
+  - [3, 4]
+  - [3, 5]
+  - [4, 1]
+  - [4, 2]
+  - [4, 3]
+  - [4, 4]
+  - [4, 5]
+  - [5, 1]
+  - [5, 2]
+  - [5, 3]
+  - [5, 4]
+  - [5, 5]
+  - [3, 3]
+  cities:
+  - pos: [3, 3]
+    level: lvl1
+    is_capital: true
+    times_upgraded: 0
+  units:
+  - pos: [3, 3]
+    type: Rider
+    def_bonus: Shield
+  - pos: [4, 4]
+    type: Rider
+- id: 1
+  stars: 5
+  uncovered: all
+  cities:
+  - pos: [11, 4]
+    level: lvl1
+    is_capital: true
+    times_upgraded: 0
+  units:
+  - pos: [11, 4]
+    type: Warrior
+    fortify: true
