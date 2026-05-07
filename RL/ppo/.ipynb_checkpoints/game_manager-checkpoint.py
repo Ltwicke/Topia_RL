@@ -65,8 +65,8 @@ class TrainConfig:
     """
 
     # ── Checkpoint / resume ───────────────────────────────────────────────────
-    pretrained_ckpt: str = ""   # path to .pt; "" = train from scratch
-    start_update:    int = 0    # first update index (set > 0 when resuming)
+    pretrained_ckpt: str = r".\checkpoints_training\policy_update_00031.pt"   # path to .pt; "" = train from scratch
+    start_update:    int = 32    # first update index (set > 0 when resuming)
 
     # ── Encoder ───────────────────────────────────────────────────────────────
     encoder_hidden_dim: int = 48
@@ -89,7 +89,7 @@ class TrainConfig:
     context_bias: int = 4
 
     # ── Parallelism ───────────────────────────────────────────────────────────
-    n_processes:        int = 4
+    n_processes:        int = 16
     n_envs_per_process: int = 4
 
     # ── Environment ───────────────────────────────────────────────────────────
@@ -107,25 +107,31 @@ class TrainConfig:
     player_tribes:      list  = field(
         default_factory=lambda: [Tribes.Omaji, Tribes.Imperius]
     )
-    max_turns_per_game: int   = 1000
+    max_turns_per_game: int   = 30
     board_size_range:   tuple = (11, 16)
 
     # ── Estimator pretraining (Phase A of each update) ────────────────────────
-    estimator_lr:             float = 1e-4
-    estimator_n_epochs:       int   = 8
-    estimator_minibatch_size: int   = 128
-    estimator_train_fraction: float = 1.0    # full dataset by default
+    estimator_lr:             float = 2e-5
+    estimator_n_epochs:       int   = 4
+    estimator_minibatch_size: int   = 256
+    estimator_train_fraction: float = 0.5    
 
     # ── Scenario eval (Phase C — runs after PPO update) ───────────────────────
     scenario_dir:             str   = "scenarios/scenarios"
     scenario_eval_interval:   int   = 1      # run scenarios every N updates; 0 disables
     scenario_names:           list  = field(
         default_factory=lambda: [
-            "Knight_chain_choice",
+            "Knight_choice_no_village",
             "Rider_leapfrogging",
             "Simple_dash_dancing2",
             "road_for_kill",
             "estimate_lakes11",
+            "Escaping_riders2",
+            "Upgrade_city_order2",
+            "Giant_Houdini",
+            "Defender_ZoC",
+            "Estimate_Drylands_endgame",
+            "Rider_hit_and_run",
         ]
     )
 
@@ -133,11 +139,11 @@ class TrainConfig:
     n_steps: int = 256
 
     # ── PPO epochs & batching ─────────────────────────────────────────────────
-    n_epochs:       int   = 6
+    n_epochs:       int   = 3
     n_minibatches:  int   = 64   # determines cfg.minibatch_size
     # Fraction ∈ (0,1]: what share of the assembled minibatches to train on
     # per epoch.  Reduces PPO update time without wasting simulation data.
-    train_fraction: float = 1.0
+    train_fraction: float = 0.20
 
     # ── PPO loss coefficients ─────────────────────────────────────────────────
     clip_eps:      float = 0.2
@@ -153,7 +159,7 @@ class TrainConfig:
     lr: float = 3e-4
 
     # ── Training loop ─────────────────────────────────────────────────────────
-    n_updates:     int = 10
+    n_updates:     int = 100
     log_interval:  int = 1
     ckpt_interval: int = 1
 

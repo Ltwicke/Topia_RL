@@ -32,10 +32,8 @@ This repository contains two interconnected projects:
 - `RL/ppo`: This folder contains all the necessary logic for the ppo training algorithm to work, including game_manager.py to manage the creations of the environment and batch_processing.py to manage the batch creation. The actual training is run with a script in the RL folder.
 
 ### Training and logging
+- `RL/logs`: This folder holds the training and scenario logs; png are inside the update folders that can be found in each run. If a run is continued, multiple run folders are emerging and can be stitched together for post trainig analysis
 
-Under construction!
-
-## Development Commands
 
 ### Testing game simulations
 

@@ -13,12 +13,14 @@ from scenarios.eval.adapter import GameEnvAdapter
 from scenarios.eval.bank    import ScenarioBank
 from scenarios.eval.runner  import (
     DecisionRecord,
+    EstimatorRunner,
     RunnerResult,
     ScenarioRunner,
 )
 
 __all__ = [
     "DecisionRecord",
+    "EstimatorRunner",
     "GameEnvAdapter",
     "RunnerResult",
     "ScenarioBank",

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 from game.enums import (
     UnitType, TileType, BoardType, CityType, PlayerId, TileStatus, Tribes, ActionTypes, UnitState, DefenseBonus,
-    OWN_TYPE_SLICE, OPP_TYPE_SLICE, _TILE_TYPE_START,
+    OWN_TYPE_SLICE, OPP_TYPE_SLICE, _TILE_TYPE_START, _ROAD_START,
 )
 from game.components.board import Board
 from game.components.city import _CITY_UPGRADES, _CITY_UPGRADE_COST
@@ -152,10 +152,7 @@ class Game(object):
                     unit_tile.unit = None ## attacker moves tile!
                     o_unit_tile.unit = unit ## former defender tile now points to attacker
                     unit.tile = o_unit_tile
-                    if o_unit_tile.city != None:
-                        self._apply_unit_def_bonus(unit)
-                    else:
-                        unit.def_bonus = DefenseBonus.NoBonus
+                    self._apply_unit_def_bonus(unit)
                     self.apply_unit_vision(unit, attack_path)
                 else:
                     # ranged kill: attacker stays put; just clear the dead defender from its tile
@@ -268,7 +265,7 @@ class Game(object):
             city = player.cities_under_control[action["city"]]
             choice = action["choice"]
             next_lvl = _CITY_UPGRADES[city.lvl][choice]
-            cost = max(0, _CITY_UPGRADE_COST[next_lvl] - city.pending_discount)
+            cost = max(0, _CITY_UPGRADE_COST[next_lvl] - city.pending_discount) #increase cost by 2 stars for every enemy unit inside city borders
             city.pending_discount = 0
             player.stars -= cost
 
@@ -302,9 +299,13 @@ class Game(object):
 
         elif action["type"] == ActionTypes.PlaceRoad:
             tile = self.game_board.board[action["tile_id"]]
-            assert tile.tile_type == TileType.field, "roads cannot be placed on non-field tiles"
-            tile.has_road = True
-            player.stars -= 5                                    ## ROAD PRICE
+            if tile.tile_type == TileType.field:
+                tile.has_road = True
+                player.stars -= 5
+            elif tile.tile_type == TileType.water:
+                assert self._bridge_axis(tile) is not None, "invalid bridge placement"
+                tile.has_road = True
+                player.stars -= 9
             self.game_board._update_road_edge_weights()
 
         elif action["type"] == ActionTypes.Upgrade2Vet:
@@ -379,7 +380,28 @@ class Game(object):
         bx, by = self.game_board.int_to_tup[tid_b]
         return max(abs(ax - bx), abs(ay - by))
 
+    def _bridge_axis(self, tile):
+        """Return 'NS', 'WE', or None for the valid bridge orientation of a water tile."""
+        H, W = self.game_board.board_size
+        r, c = self.game_board.int_to_tup[tile.id]
+        walkable = {TileType.field, TileType.mountain}
+
+        def neighbour_type(dr, dc):
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < H and 0 <= nc < W:
+                return self.game_board.board[self.game_board.tup_to_int[(nr, nc)]].tile_type
+            return None
+
+        if neighbour_type(-1, 0) in walkable and neighbour_type(+1, 0) in walkable:
+            return 'NS'
+        if neighbour_type(0, -1) in walkable and neighbour_type(0, +1) in walkable:
+            return 'WE'
+        return None
+
     def _apply_unit_def_bonus(self, unit):
+        if unit.tile.tile_type == TileType.mountain:
+            unit.def_bonus = DefenseBonus.Shield
+            return
         city = unit.tile.city
         if (city is None
                 or city.player_id is None
@@ -458,8 +480,11 @@ class Game(object):
         # Phase 0 — classify tiles
         field_bit      = partial_graph[:, _TILE_TYPE_START]                    # 1 if field, else 0
         mountain_bit   = partial_graph[:, _TILE_TYPE_START + int(TileType.mountain)]
-        cant_transit   = field_bit == 0                                        # only fields can be traversed
-        cant_stop      = (field_bit == 0) & (mountain_bit == 0)                # hidden/water block stopping; mountain allowed
+        water_bit      = partial_graph[:, _TILE_TYPE_START + int(TileType.water)]
+        road_bit       = partial_graph[:, _ROAD_START]
+        bridge_bit     = (water_bit > 0) & (road_bit > 0)                     # water tile with a bridge
+        cant_transit   = (field_bit == 0) & ~bridge_bit                        # fields and bridges can be traversed
+        cant_stop      = (field_bit == 0) & (mountain_bit == 0) & ~bridge_bit  # bridges are valid stopping tiles
         own_occupied   = (partial_graph[:, OWN_TYPE_SLICE] != 0).any(axis=-1)
         enemy_occupied = (partial_graph[:, OPP_TYPE_SLICE] != 0).any(axis=-1)
         any_occupied   = own_occupied | enemy_occupied
@@ -589,11 +614,12 @@ class Game(object):
         delta_uncovered_tiles = 0
         player_uncovered_tiles = self.players[unit.player_id].uncovered_tile_ids
         delta_uncovered_tiles -= len(player_uncovered_tiles)
-        
+
         for tile_id in path:
-            visioned_tile_ids = self.tiles_in_range(tile_id, distance=unit.vision_range)
-            player_uncovered_tiles.update(visioned_tile_ids)
-            
+            is_mountain = self.game_board.board[tile_id].tile_type == TileType.mountain
+            dist = 2 if is_mountain else unit.vision_range
+            player_uncovered_tiles.update(self.tiles_in_range(tile_id, distance=dist))
+
         delta_uncovered_tiles += len(player_uncovered_tiles)
         return delta_uncovered_tiles
 

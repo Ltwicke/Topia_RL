@@ -44,6 +44,7 @@ from scenarios.eval.runner     import ScenarioRunner
 
 _log = logging.getLogger("polytopia_rl")
 
+_PROJECT_ROOT = r"C:\Users\laure\1own_projects\1polytopia_score\\"
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ScenarioBank
@@ -58,7 +59,7 @@ class ScenarioBank:
         scenario_dir:   str | Path,
         scenario_names: List[str],
     ) -> None:
-        self.scenario_dir = Path(scenario_dir)
+        self.scenario_dir = Path(_PROJECT_ROOT+scenario_dir)
         self.entries: List[Tuple[str, Scenario, ScenarioRunner]] = []
         for name in scenario_names:
             self._load_one(name)
@@ -132,7 +133,9 @@ class ScenarioBank:
                     t0 = time.time()
                     try:
                         result = runner.play(policy, scenario, device)
-                        runner.render(scenario, result, output_dir / f"{name}.png")
+                        if getattr(runner, "render_enabled", True):
+                            runner.render(scenario, result,
+                                          output_dir / f"{name}.png")
                     except Exception:
                         tb = traceback.format_exc()
                         _log.error(f"[scenarios] {name} failed:\n{tb}")

@@ -53,16 +53,19 @@ import torch.multiprocessing as mp
 from tqdm import tqdm
 
 # ── Project root ──────────────────────────────────────────────────────────────
-#_PROJECT_ROOT = r"C:\Users\laure\1own_projects\1polytopia_score"
-#if _PROJECT_ROOT not in sys.path:
-#    sys.path.insert(0, _PROJECT_ROOT)
+_PROJECT_ROOT = r"C:\Users\laure\1own_projects\1polytopia_score"
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 from models.policy import PolicyNetwork, model_summary
 
 # ── PPO modules ───────────────────────────────────────────────────────────────
-from ppo.env_manager    import TrainConfig, EnvManager
-from ppo.batch_processor import BatchProcessor
-from ppo.ppo_trainer    import PPOTrainer
+from ppo.game_manager      import TrainConfig, EnvManager
+from ppo.batch_processing  import BatchProcessor, EstimatorBatchProcessor
+from ppo.ppo               import PPOTrainer
+from ppo.estimator_trainer import EstimatorPretrainer
+
+from scenarios.eval        import ScenarioBank
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -70,14 +73,16 @@ from ppo.ppo_trainer    import PPOTrainer
 # ══════════════════════════════════════════════════════════════════════════════
 
 LOG_DIR   = Path("logs")
-CKPT_DIR  = "checkpoints_per_player"
+CKPT_DIR  = "checkpoints_training"
 MAX_CKPT  = 3
 
 _CSV_FIELDS = [
     "update",
-    "wall_time_s", "t_dist_s", "t_collect_s", "t_gae_s", "t_ppo_s",
+    "wall_time_s", "t_dist_s", "t_collect_s",
+    "t_est_s", "t_gae_s", "t_ppo_s", "t_scenarios_s",
     "n_finished", "n_won", "win_rate",
     "avg_ep_len", "avg_reward",
+    "est_loss", "est_steps",
     "p_loss", "v_loss", "entropy",
     "vram_alloc_before_mb", "vram_reserved_before_mb",
     "vram_alloc_after_mb",  "vram_reserved_after_mb",
@@ -131,14 +136,30 @@ def _vram_mb(device: torch.device) -> Tuple[float, float]:
 
 
 def _save_checkpoint(
-    policy:     PolicyNetwork,
-    update:     int,
-    ckpt_queue: deque,
-    logger:     logging.Logger,
+    policy:         PolicyNetwork,
+    ppo_trainer:    PPOTrainer,
+    est_pretrainer: EstimatorPretrainer,
+    update:         int,
+    ckpt_queue:     deque,
+    logger:         logging.Logger,
 ) -> None:
+    """Persist a resumable bundle: policy weights + both Adam optimisers
+    + both GradScalers + the current update index. Old training-loop runs
+    that wrote bare `state_dict`s are no longer compatible — those
+    checkpoints can be discarded."""
     os.makedirs(CKPT_DIR, exist_ok=True)
     path = os.path.join(CKPT_DIR, f"policy_update_{update:05d}.pt")
-    torch.save(policy.state_dict(), path)
+    torch.save(
+        {
+            "policy":        policy.state_dict(),
+            "ppo_optimizer": ppo_trainer.optimizer.state_dict(),
+            "ppo_scaler":    ppo_trainer.scaler.state_dict(),
+            "est_optimizer": est_pretrainer.optimizer.state_dict(),
+            "est_scaler":    est_pretrainer.scaler.state_dict(),
+            "update":        int(update),
+        },
+        path,
+    )
     ckpt_queue.append(path)
     if len(ckpt_queue) > MAX_CKPT:
         oldest = ckpt_queue.popleft()
@@ -146,6 +167,28 @@ def _save_checkpoint(
             os.remove(oldest)
             logger.info(f"  [ckpt] removed old checkpoint: {oldest}")
     logger.info(f"  [ckpt] saved → {path}  (keeping last {MAX_CKPT})")
+
+
+def _load_checkpoint(
+    path:           str,
+    policy:         PolicyNetwork,
+    ppo_trainer:    PPOTrainer,
+    est_pretrainer: EstimatorPretrainer,
+    device:         torch.device,
+    logger:         logging.Logger,
+) -> None:
+    """Restore the full training state from a bundle written by
+    `_save_checkpoint`. Five hard-required keys; mismatches raise."""
+    blob = torch.load(path, map_location=device, weights_only=False)
+    policy.load_state_dict(blob["policy"])
+    ppo_trainer.optimizer   .load_state_dict(blob["ppo_optimizer"])
+    ppo_trainer.scaler      .load_state_dict(blob["ppo_scaler"])
+    est_pretrainer.optimizer.load_state_dict(blob["est_optimizer"])
+    est_pretrainer.scaler   .load_state_dict(blob["est_scaler"])
+    logger.info(
+        f"Checkpoint loaded (policy + 2 optimisers + 2 scalers). "
+        f"update_in_ckpt={blob.get('update', '?')}"
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -167,15 +210,26 @@ def main() -> None:
 
     # ── Policy construction ───────────────────────────────────────────────────
     policy = PolicyNetwork(cfg).to(device)
+    policy.train()
 
+    # ── Module construction ───────────────────────────────────────────────────
+    env_manager     = EnvManager(cfg)
+    ppo_batch_proc  = BatchProcessor(cfg)
+    est_batch_proc  = EstimatorBatchProcessor(cfg)
+    ppo_trainer     = PPOTrainer(policy, cfg, device)
+    est_pretrainer  = EstimatorPretrainer(policy, cfg, device)
+
+    # ── Resume bundle (policy + both optimisers + both scalers) ───────────────
+    # Loading happens AFTER trainer construction so the optimisers exist and
+    # can absorb their saved moments. The bundle was written by
+    # `_save_checkpoint`; legacy bare-state_dict files are no longer
+    # supported — discard old checkpoints if you see a KeyError here.
     if cfg.pretrained_ckpt and os.path.exists(cfg.pretrained_ckpt):
-        logger.info(f"Loading pretrained weights: {cfg.pretrained_ckpt}")
-        state = torch.load(
-            cfg.pretrained_ckpt, weights_only=True, map_location=device
+        logger.info(f"Loading checkpoint bundle: {cfg.pretrained_ckpt}")
+        _load_checkpoint(
+            cfg.pretrained_ckpt, policy, ppo_trainer, est_pretrainer,
+            device, logger,
         )
-        policy.load_state_dict(state)
-        del state
-        logger.info("Checkpoint loaded.")
     elif cfg.pretrained_ckpt:
         logger.warning(
             f"pretrained_ckpt '{cfg.pretrained_ckpt}' not found — "
@@ -184,12 +238,13 @@ def main() -> None:
     else:
         logger.info("No pretrained checkpoint — training from scratch.")
 
-    policy.train()
-
-    # ── Module construction ───────────────────────────────────────────────────
-    env_manager    = EnvManager(cfg)
-    batch_proc     = BatchProcessor(cfg)
-    trainer        = PPOTrainer(policy, cfg, device)
+    # Scenario eval harness — runs after each successful update if enabled.
+    if cfg.scenario_eval_interval > 0 and cfg.scenario_names:
+        scenario_bank = ScenarioBank(cfg.scenario_dir, list(cfg.scenario_names))
+        scenario_summary_csv = LOG_DIR / f"{run_tag}_scenarios" / "summary.csv"
+    else:
+        scenario_bank        = None
+        scenario_summary_csv = None
 
     # ── Console banner ─────────────────────────────────────────────────────────
     lo, hi = cfg.board_size_range
@@ -197,13 +252,16 @@ def main() -> None:
                             int(cfg.batch_size * cfg.train_fraction))
     n_mb_per_epoch = n_train_per_epoch // cfg.minibatch_size
 
+    board_type_names = ", ".join(bt.name for bt in cfg.board_type_pool)
+
     banner_lines = [
         "",
         "=" * 72,
-        "  POLYTOPIA RL — PPO  (per-player MDP streams)",
+        "  POLYTOPIA RL — dual-objective  (estimator pretrain + per-player PPO)",
         "=" * 72,
         f"  Device            : {device}",
         f"  Board size        : random square [{lo}×{lo} … {hi}×{hi}]",
+        f"  Board types       : {{{board_type_names}}}  (sampled per env)",
         f"  Workers × envs    : {cfg.n_processes} × {cfg.n_envs_per_process}"
         f"  =  {cfg.n_envs_total} parallel envs",
         f"  Rollout steps     : {cfg.n_steps}",
@@ -217,6 +275,12 @@ def main() -> None:
         f"  γ / λ             : {cfg.gamma} / {cfg.gae_lambda}",
         f"  LR                : {cfg.lr}",
         f"  AMP               : {cfg.use_amp}",
+        "",
+        f"  Estimator epochs  : {cfg.estimator_n_epochs}",
+        f"  Estimator mb size : {cfg.estimator_minibatch_size}",
+        f"  Estimator LR      : {cfg.estimator_lr}",
+        f"  Estimator frac    : {cfg.estimator_train_fraction:.2f}",
+        "",
         f"  Encoder           : {cfg.encoder_depth} layers "
         f"× {cfg.encoder_hidden_dim}d ({cfg.encoder_n_heads} heads)",
         f"  Selection heads   : {cfg.sel_n_layers} layers "
@@ -265,8 +329,18 @@ def main() -> None:
         raw_batch, t_collect = env_manager.collect()
         logger.info(f"[update {update:04d}] all workers done in {t_collect:.2f}s")
 
-        # ── 3. Per-player GAE + normalisation ─────────────────────────────
-        processed_batch, t_gae = batch_proc.process(raw_batch)
+        # ── 3a. Phase A — estimator pretrain ───────────────────────────────
+        t0        = time.time()
+        est_stats = est_pretrainer.update(raw_batch, est_batch_proc)
+        t_est     = time.time() - t0
+        logger.info(
+            f"[update {update:04d}] estimator pretrain: "
+            f"loss={est_stats['est_loss']:.4f} "
+            f"({est_stats['n_steps']} steps) in {t_est:.2f}s"
+        )
+
+        # ── 3b. Phase B — per-player GAE + normalisation ──────────────────
+        processed_batch, t_gae = ppo_batch_proc.process(raw_batch)
         logger.info(f"[update {update:04d}] per-player GAE in {t_gae:.4f}s")
 
         # Release the raw batch now — large numpy arrays no longer needed.
@@ -284,7 +358,7 @@ def main() -> None:
 
         # ── 5. PPO gradient updates ────────────────────────────────────────
         t0    = time.time()
-        stats = trainer.update(processed_batch, batch_proc)
+        stats = ppo_trainer.update(processed_batch, ppo_batch_proc)
         t_ppo = time.time() - t0
         logger.info(f"[update {update:04d}] PPO update done in {t_ppo:.2f}s")
 
@@ -314,9 +388,36 @@ def main() -> None:
                 f"reserved={vram_res_after:.0f} MB"
             )
 
+        # ── 8b. Scenario eval (Phase C) ───────────────────────────────────
+        t_scenarios = 0.0
+        if (
+            scenario_bank is not None
+            and update % cfg.scenario_eval_interval == 0
+        ):
+            t0 = time.time()
+            sc_out_dir = (
+                LOG_DIR / f"{run_tag}_scenarios" / f"update_{update:05d}"
+            )
+            try:
+                sc_metrics = scenario_bank.run(policy, device, sc_out_dir)
+                ScenarioBank.append_summary_csv(
+                    scenario_summary_csv, update, sc_metrics
+                )
+            except Exception as e:
+                logger.error(f"[update {update:04d}] scenario eval crashed: {e}")
+                sc_metrics = {}
+            t_scenarios = time.time() - t0
+            logger.info(
+                f"[update {update:04d}] scenarios eval'd in {t_scenarios:.2f}s "
+                f"({len(sc_metrics)} scenarios) -> {sc_out_dir}"
+            )
+
         # ── 9. Checkpoint ──────────────────────────────────────────────────
         if update % cfg.ckpt_interval == 0:
-            _save_checkpoint(policy, update, ckpt_queue, logger)
+            _save_checkpoint(
+                policy, ppo_trainer, est_pretrainer,
+                update, ckpt_queue, logger,
+            )
 
         # ── 10. Console logging ────────────────────────────────────────────
         t_total = time.time() - t_update_start
@@ -329,7 +430,8 @@ def main() -> None:
             logger.info(
                 f"║  Wall time     : {t_total:.1f}s  "
                 f"(dist {t_dist:.2f}s | collect {t_collect:.2f}s "
-                f"| GAE {t_gae:.4f}s | PPO {t_ppo:.2f}s)"
+                f"| EST {t_est:.2f}s | GAE {t_gae:.4f}s | PPO {t_ppo:.2f}s "
+                f"| SCN {t_scenarios:.2f}s)"
             )
             logger.info(
                 f"║  Games finished: {n_finished:6d}  "
@@ -338,6 +440,10 @@ def main() -> None:
             logger.info(f"║  Win rate      : {win_rate:.3f}")
             logger.info(f"║  Avg ep length : {avg_ep_len:.1f} steps")
             logger.info(f"║  Avg reward/ep : {avg_reward:.3f}")
+            logger.info(
+                f"║  est_loss      : {est_stats['est_loss']:.4f}  "
+                f"({est_stats['n_steps']} steps)"
+            )
             logger.info(f"║  p_loss        : {pl:.4f}")
             logger.info(f"║  v_loss        : {vl:.4f}")
             logger.info(f"║  entropy       : {el:.4f}")
@@ -350,11 +456,12 @@ def main() -> None:
             logger.info("")
 
         outer_bar.set_postfix(
-            fin = n_finished,
-            win = f"{win_rate:.2f}",
-            p   = f"{pl:.3f}",
-            v   = f"{vl:.3f}",
-            ent = f"{el:.3f}",
+            fin  = n_finished,
+            win  = f"{win_rate:.2f}",
+            est  = f"{est_stats['est_loss']:.3f}",
+            p    = f"{pl:.3f}",
+            v    = f"{vl:.3f}",
+            ent  = f"{el:.3f}",
         )
 
         # ── 11. CSV metrics row ────────────────────────────────────────────
@@ -363,13 +470,17 @@ def main() -> None:
             "wall_time_s":             f"{t_total:.3f}",
             "t_dist_s":                f"{t_dist:.3f}",
             "t_collect_s":             f"{t_collect:.3f}",
+            "t_est_s":                 f"{t_est:.3f}",
             "t_gae_s":                 f"{t_gae:.4f}",
             "t_ppo_s":                 f"{t_ppo:.3f}",
+            "t_scenarios_s":           f"{t_scenarios:.3f}",
             "n_finished":              n_finished,
             "n_won":                   n_won,
             "win_rate":                f"{win_rate:.4f}",
             "avg_ep_len":              f"{avg_ep_len:.2f}",
             "avg_reward":              f"{avg_reward:.4f}",
+            "est_loss":                f"{est_stats['est_loss']:.6f}",
+            "est_steps":               est_stats["n_steps"],
             "p_loss":                  f"{pl:.6f}",
             "v_loss":                  f"{vl:.6f}",
             "entropy":                 f"{el:.6f}",
@@ -384,8 +495,18 @@ def main() -> None:
     # Finalise
     # ══════════════════════════════════════════════════════════════════════════
     final_path = os.path.join(CKPT_DIR, "policy_FINAL.pt")
-    torch.save(policy.state_dict(), final_path)
-    logger.info(f"\nFinal policy saved → {final_path}")
+    torch.save(
+        {
+            "policy":        policy.state_dict(),
+            "ppo_optimizer": ppo_trainer.optimizer.state_dict(),
+            "ppo_scaler":    ppo_trainer.scaler.state_dict(),
+            "est_optimizer": est_pretrainer.optimizer.state_dict(),
+            "est_scaler":    est_pretrainer.scaler.state_dict(),
+            "update":        int(cfg.n_updates - 1),
+        },
+        final_path,
+    )
+    logger.info(f"\nFinal checkpoint bundle saved → {final_path}")
 
     env_manager.shutdown()
     logger.info("All workers shut down.  Training complete.")

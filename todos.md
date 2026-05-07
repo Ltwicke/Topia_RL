@@ -5,32 +5,7 @@ This file lays down some important design choices for the todos that should be e
 ## Game simulator overhaul and additions
 
 
-### Place roads on water (=bridges)
-
-- Needs human verification wether it works
-
 ## Environment wrapper
-
-### Notion of center in each tile
-
-IGNORE THIS FOR NOW!
-
-Is this needed? With the hidden tile estimator, the estimation should learn the value of the center; for example, there are far less villages on the edges. If the prediction does not work, then it could be beneficial to include the below changes.
-
-- Each tile needs a notion of how much in the center of the map it is and how much on the edge it is. 
-- This absolut notion is important because generally, the center of the map is more valuable (like in chess) that the edges and there is no learnable feature that classifies this notion being close to the center.
-- What would be the best way to include this to the raw node features?
-
-
-### Custom game state editor
-
-The editor works and is very handy to work with, now there is only a couple of glitches left to fix:
-- In the unit radiobutton, for the units features, add the options for defense bonus, wall and the unit-internal count variable of how many kills this unit has, so that the environment can register this unit as eligible to upgrade to veteran
-- Also, when the unit is a veteran, the max hp becomes the original hp+5, this needs to be added
-- Villages are not handled right in the editor, they appear to be falsely attributed to the selected player and drawing player controll tiles, but villages are unclaimed and therefore have no player controll area
-- Add the option for the extended player controll area with a radius of 2 tiles around the city instead of the usual 1.
-- Ideally, I would like the opportunity in the editor to generate random board maps of the desired board_type with a specified map size N x N. 
-
 
 
 ### Rendering function visual changes
@@ -45,12 +20,6 @@ IGNORE FOR NOW!
 
 ## RL agent model and PPO pipeline
 
-
-### Per update unit tests
-
-- There is an array of unit tests which consists of predefined game situations, where after every successful update of the PPO, they should be run multiple times (~20 times per situation) and logged.
-- Some tests are logged as pngs. A good naming strategy will be needed here.
-- I also need the ability to hardcode some actions which will be taken before the agent gets to decide.
 
 
 ### Entropy fusing strategy

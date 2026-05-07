@@ -80,7 +80,7 @@ class Player(object):
         Score based on the official polytopia Scoring system (May 26)
         """
         score = 0
-        ## Army and territory
+        ## Army and unc tiles
         for unit in self.units_under_control.values():
             score += _UNIT_COSTS[unit.unit_type] * 5.0
 

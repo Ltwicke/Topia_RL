@@ -177,6 +177,7 @@ class ScenarioRunner:
         # Render from the active player's POV.
         active_pid = adapter.game.player_go_id
         uncovered  = set(adapter.game.players[active_pid].uncovered_tile_ids)
+        
         renderer.draw(
             ax           = ax_board,
             ax_info      = ax_info,
@@ -266,3 +267,67 @@ class ScenarioRunner:
         stacked = np.stack([r.joint_probs for r in records], axis=0)  # (N, n_traj)
         avg     = stacked.mean(axis=0).astype(np.float32)
         return avg, first.traj_actions
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Reusable runner for hidden-tile-estimator scenarios
+# ══════════════════════════════════════════════════════════════════════════════
+
+class EstimatorRunner(ScenarioRunner):
+    """
+    Base runner for "estimate the hidden tiles once and render the dual-POV
+    figure" scenarios.
+
+    Behaviour:
+      • One reset, one `policy.estimate_hidden_dual(obs)` call → (est_a, est_b).
+      • One `policy.estimator_loss([snap])` call to get the scalar loss.
+      • Render via `EnvWrapper.render(show_hidden=True, hidden_estimate=…)`.
+
+    Subclasses normally just need to declare `class Runner(EstimatorRunner): pass`
+    in `scenarios/configs/<name>.py`. Override `pov_player_id` if you want a
+    fixed POV instead of `scenario.current_player`.
+    """
+
+    n_samples      = 1
+    n_decisions    = 0
+    render_enabled = True
+
+    def play(self, policy, scenario, device) -> RunnerResult:
+        # Local import: keep policy.py off the import path of this module so
+        # `scenarios/` stays usable from the editor without a torch + model
+        # round-trip.
+        from RL.models.policy import make_snapshot
+
+        adapter = GameEnvAdapter(scenario)
+        obs     = adapter.reset()
+
+        snap     = make_snapshot(
+            obs, adapter.Nx, adapter.Ny, adapter.game.player_go_id,
+        )
+        loss_t   = policy.estimator_loss([snap])
+        loss_val = float(loss_t.item())
+
+        est_a, est_b = policy.estimate_hidden_dual(obs)
+        est_pair     = (np.asarray(est_a), np.asarray(est_b))
+
+        return RunnerResult(
+            metrics       = {"estimator_loss": loss_val, "n_samples": 1},
+            metrics_extra = {"hidden_estimate": est_pair},
+            title         = f"{scenario.name} — estimator loss = {loss_val:.4f}",
+        )
+
+    def render(self, scenario, result, out_path) -> None:
+        est_pair = result.metrics_extra.get("hidden_estimate")
+        if est_pair is None:
+            return
+
+        adapter = GameEnvAdapter(scenario)
+        adapter.reset()
+
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        adapter.env.render(
+            show_hidden     = True,
+            hidden_estimate = est_pair,
+            save_path       = str(out_path),
+            show            = False,
+        )

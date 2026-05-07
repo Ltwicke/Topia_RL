@@ -1,0 +1,224 @@
+name: Knight choice no village
+description: ''
+board_size: [16, 16]
+default_terrain: field
+n_players: 2
+player_tribes: [Omaji, Imperius]
+current_player: 1
+turn: 14
+map: |
+  .^......^^^^..^^
+  ..^.............
+  ................
+  ...^............
+  ................
+  ......^.^.....^.
+  ................
+  .^.......^^..^..
+  ......^.........
+  .........^.^.^..
+  .....^.....^..^.
+  ^...^....^......
+  ............^^..
+  ....^.....^...^^
+  .....^.^.......^
+  .......^.......^
+tiles:
+- pos: [4, 12]
+  road: true
+- pos: [5, 11]
+  road: true
+- pos: [6, 12]
+  road: true
+- pos: [7, 11]
+  road: true
+- pos: [8, 12]
+  road: true
+- pos: [10, 11]
+  road: true
+- pos: [11, 11]
+  road: true
+villages:
+- [3, 2]
+- [6, 2]
+- [12, 3]
+- [7, 5]
+- [12, 7]
+- [2, 10]
+- [13, 10]
+- [12, 13]
+players:
+- id: 0
+  stars: 5
+  uncovered: all
+  cities:
+  - pos: [3, 5]
+    level: lvl1
+    is_capital: true
+    times_upgraded: 0
+  - pos: [8, 2]
+    level: lvl6_su
+  - pos: [9, 2]
+    level: lvl6_su
+  - pos: [10, 2]
+    level: lvl6_su
+  units:
+  - pos: [5, 8]
+    type: Warrior
+    state: idle
+  - pos: [4, 8]
+    type: Catapult
+    state: idle
+  - pos: [3, 8]
+    type: Catapult
+    state: idle
+  - pos: [2, 7]
+    type: Catapult
+    state: idle
+  - pos: [3, 6]
+    type: Catapult
+    state: idle
+  - pos: [9, 8]
+    type: Catapult
+    state: idle
+  - pos: [9, 7]
+    type: Giant
+    state: idle
+    def_bonus: Shield
+  - pos: [10, 7]
+    type: Giant
+    state: idle
+    def_bonus: Shield
+  - pos: [4, 9]
+    type: Rider
+    hp: 5.0
+    state: idle
+  - pos: [8, 9]
+    type: Rider
+    hp: 5.0
+    state: idle
+- id: 1
+  stars: 0
+  uncovered:
+  - [3, 13]
+  - [2, 13]
+  - [2, 14]
+  - [3, 14]
+  - [4, 14]
+  - [4, 15]
+  - [3, 15]
+  - [2, 15]
+  - [1, 15]
+  - [1, 14]
+  - [1, 13]
+  - [1, 12]
+  - [1, 11]
+  - [2, 11]
+  - [2, 12]
+  - [3, 12]
+  - [3, 11]
+  - [4, 11]
+  - [4, 12]
+  - [4, 13]
+  - [5, 11]
+  - [4, 10]
+  - [5, 10]
+  - [6, 10]
+  - [6, 11]
+  - [6, 12]
+  - [5, 12]
+  - [5, 13]
+  - [6, 13]
+  - [5, 14]
+  - [6, 14]
+  - [7, 14]
+  - [7, 13]
+  - [7, 12]
+  - [7, 11]
+  - [8, 11]
+  - [9, 11]
+  - [9, 12]
+  - [8, 12]
+  - [8, 13]
+  - [9, 13]
+  - [8, 14]
+  - [7, 15]
+  - [6, 15]
+  - [5, 15]
+  - [8, 15]
+  - [9, 15]
+  - [9, 14]
+  - [10, 13]
+  - [10, 14]
+  - [10, 12]
+  - [10, 11]
+  - [11, 12]
+  - [11, 13]
+  - [11, 11]
+  - [10, 10]
+  - [9, 10]
+  - [8, 10]
+  - [7, 10]
+  - [7, 9]
+  - [6, 9]
+  - [5, 9]
+  - [4, 9]
+  - [8, 9]
+  - [8, 8]
+  - [7, 8]
+  - [6, 8]
+  - [5, 8]
+  - [4, 8]
+  - [3, 9]
+  - [3, 8]
+  - [3, 10]
+  - [2, 10]
+  - [2, 7]
+  - [2, 8]
+  - [3, 7]
+  - [9, 9]
+  - [10, 8]
+  - [9, 8]
+  - [9, 7]
+  - [10, 7]
+  - [7, 7]
+  - [8, 7]
+  - [6, 7]
+  - [8, 6]
+  - [7, 6]
+  - [7, 5]
+  - [6, 6]
+  - [5, 7]
+  - [10, 9]
+  - [4, 7]
+  cities:
+  - pos: [3, 13]
+    level: lvl6_su
+    is_capital: true
+    border_radius: 2
+  - pos: [6, 10]
+    level: lvl4_bordergrwth
+  - pos: [6, 13]
+    level: lvl3_resources
+  - pos: [9, 12]
+    level: lvl6_su
+  units:
+  - pos: [5, 13]
+    type: Rider
+    state: idle
+  - pos: [4, 12]
+    type: Rider
+    state: idle
+  - pos: [10, 12]
+    type: Warrior
+    state: idle
+  - pos: [9, 11]
+    type: Giant
+    state: idle
+    def_bonus: Shield
+  - pos: [3, 13]
+    type: Knight
+    def_bonus: Shield
+  - pos: [2, 10]
+    type: Warrior
+    state: idle

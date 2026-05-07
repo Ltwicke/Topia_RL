@@ -1,0 +1,314 @@
+name: random_Drylands_16
+description: ''
+board_size: [16, 16]
+default_terrain: field
+n_players: 2
+player_tribes: [Omaji, Imperius]
+current_player: 0
+turn: 22
+map: |
+  ....^^^.........
+  .........^......
+  ^.....^.........
+  ......^^......^.
+  ....^..........^
+  ........^..^..^.
+  .^........^.....
+  .....^.......^..
+  .........^......
+  ..^..^.^........
+  .^..............
+  ....^...........
+  ................
+  .^.^^....^......
+  ...............^
+  ...............^
+tiles:
+- pos: [7, 10]
+  road: true
+- pos: [8, 9]
+  road: true
+- pos: [8, 8]
+  road: true
+- pos: [11, 12]
+  road: true
+- pos: [12, 12]
+  road: true
+- pos: [10, 11]
+  road: true
+- pos: [5, 12]
+  road: true
+- pos: [4, 12]
+  road: true
+- pos: [3, 12]
+  road: true
+- pos: [9, 5]
+  road: true
+- pos: [12, 6]
+  road: true
+- pos: [13, 5]
+  road: true
+- pos: [8, 3]
+  road: true
+- pos: [7, 4]
+  road: true
+- pos: [10, 3]
+  road: true
+- pos: [11, 3]
+  road: true
+- pos: [12, 3]
+  road: true
+- pos: [5, 5]
+  road: true
+- pos: [4, 6]
+  road: true
+- pos: [3, 7]
+  road: true
+villages:
+- [12, 7]
+- [4, 8]
+- [9, 10]
+- [12, 10]
+players:
+- id: 0
+  stars: 5
+  uncovered:
+  - [1, 5]
+  - [2, 5]
+  - [3, 5]
+  - [9, 5]
+  - [10, 5]
+  - [0, 6]
+  - [1, 6]
+  - [2, 6]
+  - [3, 6]
+  - [4, 6]
+  - [5, 6]
+  - [6, 6]
+  - [7, 6]
+  - [8, 6]
+  - [9, 6]
+  - [10, 6]
+  - [11, 6]
+  - [14, 6]
+  - [15, 6]
+  - [0, 7]
+  - [1, 7]
+  - [2, 7]
+  - [3, 7]
+  - [4, 7]
+  - [5, 7]
+  - [6, 7]
+  - [7, 7]
+  - [8, 7]
+  - [9, 7]
+  - [10, 7]
+  - [11, 7]
+  - [12, 7]
+  - [13, 7]
+  - [14, 7]
+  - [15, 7]
+  - [0, 8]
+  - [1, 8]
+  - [2, 8]
+  - [3, 8]
+  - [4, 8]
+  - [5, 8]
+  - [6, 8]
+  - [7, 8]
+  - [8, 8]
+  - [9, 8]
+  - [10, 8]
+  - [11, 8]
+  - [12, 8]
+  - [13, 8]
+  - [14, 8]
+  - [15, 8]
+  - [0, 9]
+  - [1, 9]
+  - [2, 9]
+  - [3, 9]
+  - [4, 9]
+  - [5, 9]
+  - [6, 9]
+  - [7, 9]
+  - [8, 9]
+  - [9, 9]
+  - [10, 9]
+  - [11, 9]
+  - [12, 9]
+  - [13, 9]
+  - [14, 9]
+  - [15, 9]
+  - [0, 10]
+  - [1, 10]
+  - [2, 10]
+  - [3, 10]
+  - [4, 10]
+  - [5, 10]
+  - [6, 10]
+  - [7, 10]
+  - [8, 10]
+  - [9, 10]
+  - [10, 10]
+  - [11, 10]
+  - [12, 10]
+  - [13, 10]
+  - [14, 10]
+  - [15, 10]
+  - [0, 11]
+  - [1, 11]
+  - [2, 11]
+  - [3, 11]
+  - [4, 11]
+  - [5, 11]
+  - [6, 11]
+  - [7, 11]
+  - [8, 11]
+  - [9, 11]
+  - [10, 11]
+  - [11, 11]
+  - [12, 11]
+  - [13, 11]
+  - [14, 11]
+  - [15, 11]
+  - [0, 12]
+  - [1, 12]
+  - [2, 12]
+  - [3, 12]
+  - [4, 12]
+  - [5, 12]
+  - [6, 12]
+  - [7, 12]
+  - [8, 12]
+  - [9, 12]
+  - [10, 12]
+  - [11, 12]
+  - [12, 12]
+  - [13, 12]
+  - [14, 12]
+  - [15, 12]
+  - [1, 13]
+  - [2, 13]
+  - [3, 13]
+  - [4, 13]
+  - [5, 13]
+  - [6, 13]
+  - [7, 13]
+  - [8, 13]
+  - [9, 13]
+  - [11, 13]
+  - [12, 13]
+  - [13, 13]
+  - [14, 13]
+  - [15, 13]
+  - [1, 14]
+  - [2, 14]
+  - [3, 14]
+  - [4, 14]
+  - [5, 14]
+  - [6, 14]
+  - [7, 14]
+  - [8, 14]
+  - [9, 14]
+  - [10, 14]
+  - [11, 14]
+  - [12, 14]
+  - [13, 14]
+  - [14, 14]
+  - [15, 14]
+  - [8, 15]
+  - [9, 15]
+  - [10, 15]
+  - [11, 15]
+  - [12, 15]
+  - [13, 15]
+  - [14, 15]
+  - [15, 15]
+  - [10, 13]
+  - [8, 5]
+  - [13, 6]
+  - [1, 4]
+  - [3, 4]
+  - [2, 4]
+  - [7, 15]
+  cities:
+  - pos: [10, 13]
+    level: lvl7_su
+    is_capital: true
+  - pos: [13, 13]
+    level: lvl5_su
+    border_radius: 2
+  - pos: [6, 11]
+    level: lvl4_bordergrwth
+    border_radius: 2
+  units:
+  - pos: [12, 10]
+    type: Warrior
+  - pos: [10, 11]
+    type: Giant
+  - pos: [13, 13]
+    type: Giant
+  - pos: [9, 11]
+    type: Giant
+  - pos: [6, 11]
+    type: Knight
+    def_bonus: Shield
+  - pos: [12, 11]
+    type: Catapult
+    is_vet: true
+- id: 1
+  stars: 5
+  uncovered: all
+  cities:
+  - pos: [13, 4]
+    level: lvl8plus
+    is_capital: true
+    border_radius: 2
+  - pos: [9, 4]
+    level: lvl5_su
+  - pos: [6, 4]
+    level: lvl5_su
+  - pos: [3, 5]
+    level: lvl2_explorer
+  - pos: [3, 2]
+    level: lvl4_popgrwth
+  units:
+  - pos: [12, 7]
+    type: Warrior
+    state: idle
+  - pos: [12, 6]
+    type: Giant
+    state: idle
+  - pos: [9, 5]
+    type: Giant
+    state: idle
+  - pos: [8, 6]
+    type: Giant
+    state: idle
+  - pos: [0, 9]
+    type: Rider
+    state: idle
+  - pos: [13, 4]
+    type: Knight
+    state: idle
+    def_bonus: Shield
+  - pos: [11, 5]
+    type: Catapult
+    state: idle
+    def_bonus: Shield
+  - pos: [5, 4]
+    type: Catapult
+    state: idle
+  - pos: [6, 4]
+    type: Catapult
+    state: idle
+  - pos: [5, 5]
+    type: Sword
+    state: idle
+  - pos: [3, 3]
+    type: Sword
+    state: idle
+  - pos: [3, 5]
+    type: Rider
+    state: idle

@@ -16,7 +16,7 @@ from game.components.units import _UNIT_COSTS
 
 class EnvWrapper(object):
 
-    def __init__(self, board_config, player_tribes, max_turns_per_game=999, win_reward=60, dense_reward=False):
+    def __init__(self, board_config, player_tribes, max_turns_per_game=30, win_reward=500, dense_reward=False):
 
         self.Nx, self.Ny = board_config["board_size"][0], board_config["board_size"][1]
         self.n_tiles = self.Nx * self.Ny
@@ -221,22 +221,44 @@ class EnvWrapper(object):
                  
             elif message["action_type"] == ActionTypes.UpgradeCity:
                 pass
-                ## Do I even need rewards here? Because it drives all other rewards essentially
+                ## Do I even need rewards here? Because it drives all other rewards essentially --> dense rewards never upgraded city XD
 
             elif message["action_type"] == ActionTypes.Upgrade2Vet:
                 reward += message["hp_diff"] * 0.1 # reward greater healing with the upgrade2vet mechanic
 
             elif message["action_type"] == ActionTypes.PlaceRoad:
-                #reward -= 0.2 # discourage IF used too much!
+                #reward -= 0.2 # discourage IF used too much! --> Used to much XD
                 pass
                 
             elif message["action_type"] == ActionTypes.CaptureCity:
                 reward += 5.0
             elif message["action_type"] == ActionTypes.EndTurn:
                 reward -= 1.5
-                
+
+        ################################
+        ##### End of dense rewards #####
+        ################################
+
+        ## Calculate the following only when the episode ended:
+
+        player   = self.game.players[self.game.player_go_id]
+        opponent = self.game.players[(self.game.player_go_id + 1) % 2]
+
+        own_score = player.player_score_official
+        opp_score = opponent.player_score_official
+
+        ## uncovered tiles modification
+        own_score *= float(len(player.uncovered_tile_ids)) / float(self.Nx * self.Ny)
+        opp_score *= float(len(opponent.uncovered_tile_ids)) / float(self.Nx * self.Ny)
+
+        ## adding stars and spt
+        own_score += player.current_stars_per_turn * 15. + player.stars * 7.5 
+        opp_score += opponent.current_stars_per_turn * 15. + opponent.stars * 7.5 
+
+        ## Todo: Add win reward to winner score, calculate difference and assign rewards +diff for winner and -diff for loser
+        
         if done and self.winner != None:
-            reward += self.win_reward # biiig reward for winning
+            reward += self.win_reward # biiig reward for winning 
         
         return (done, reward)
 
@@ -415,7 +437,7 @@ class EnvWrapper(object):
         for city_idx, city in enumerate(player.cities_under_control):
             for choice in range(2):
                 next_lvl = _CITY_UPGRADES[city.lvl][choice]
-                cost = max(0, _CITY_UPGRADE_COST[next_lvl] - city.pending_discount)
+                cost = max(0, _CITY_UPGRADE_COST[next_lvl] - city.pending_discount) # increase by 2 stars for every unit inside city borders
                 if player.stars >= cost:
                     valid_actions[6][city_idx, choice] = 1.0
         if valid_actions[6].sum() > 0:

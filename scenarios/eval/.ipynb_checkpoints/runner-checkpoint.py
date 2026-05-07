@@ -94,8 +94,11 @@ class ScenarioRunner:
 
     # ── Knobs (subclass-overridable) ──────────────────────────────────────────
 
-    n_samples:   int = 20         # forward-pass samples to aggregate
-    n_decisions: int = 1          # sequential decisions per rollout
+    n_samples:      int  = 20     # forward-pass samples to aggregate
+    n_decisions:    int  = 1      # sequential decisions per rollout
+    render_enabled: bool = True   # if False, ScenarioBank skips render() entirely
+                                  # and no PNG is written. The metrics dict still
+                                  # flows into summary.csv as usual.
 
     # ── play() ───────────────────────────────────────────────────────────────
 
@@ -174,6 +177,7 @@ class ScenarioRunner:
         # Render from the active player's POV.
         active_pid = adapter.game.player_go_id
         uncovered  = set(adapter.game.players[active_pid].uncovered_tile_ids)
+        
         renderer.draw(
             ax           = ax_board,
             ax_info      = ax_info,

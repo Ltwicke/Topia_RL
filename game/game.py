@@ -265,7 +265,7 @@ class Game(object):
             city = player.cities_under_control[action["city"]]
             choice = action["choice"]
             next_lvl = _CITY_UPGRADES[city.lvl][choice]
-            cost = max(0, _CITY_UPGRADE_COST[next_lvl] - city.pending_discount)
+            cost = max(0, _CITY_UPGRADE_COST[next_lvl] - city.pending_discount) #increase cost by 2 stars for every enemy unit inside city borders
             city.pending_discount = 0
             player.stars -= cost
 
