@@ -301,7 +301,7 @@ class CreateCitySelHead(nn.Module):
         ])
         self.ff_layers = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(node_dim, node_dim * 2), nn.ReLU(),
+                nn.Linear(node_dim, node_dim * 2), nn.Tanh(),
                 nn.Linear(node_dim * 2, node_dim),
             )
             for _ in range(n_layers)
@@ -465,7 +465,7 @@ class CaptureCityHead(nn.Module):
         ])
         self.ff_layers = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(node_dim, node_dim * 2), nn.ReLU(),
+                nn.Linear(node_dim, node_dim * 2), nn.Tanh(),
                 nn.Linear(node_dim * 2, node_dim),
             )
             for _ in range(n_layers)

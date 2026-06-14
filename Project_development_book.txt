@@ -1360,7 +1360,7 @@ OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LABOR!!!!! OMG MANUAL LAB
 
 29.04. 14:43 Uhr: READ ABOUT THE MANUAL LABOR BELOW!
 
-Im having the ppo and training_manager files be autocoded. While the original idea was to do it all by myself, maybe i should start a little bit smaller. The full implementation includes batching logic, worker paralelization and mixed prec training, all of which not being super important for me to understand line by line.
+Im having the ppo and training_manager files be autocoded. While the original idea was to do it all by myself, maybe i should start a little bit smaller. The full implementation includes batching logic, worker parallelization and mixed prec training, all of which not being super important for me to understand line by line.
 Much better is the following plan: Run a single environment in a jupyter notebook. --> Collect the two streams MDPs for either player ---> Calculate the GAE and other valuables for PPO and its variants. ---> Manually do the loss calculation and actually have a look at the values once the agent is already trained!
 ---> This will give not only insight into the ppo method (and its derivatives) but also into how the training is actually going for my agent and if it makes intuitive sense.
 
@@ -1449,6 +1449,19 @@ A starting point of this player terminal utility will be the polytopia score. Ad
 
 
 Lets do a first quick try without more refined added bonuses...
+
+
+
+
+
+21.05. 16 Uhr
+
+Started with the manual jupyter notebook to investigate what went wrong with the 0-sum training. 
+
+The training run with ~385 updates ended in a stalling behaviour, where the agent wont move outside the initial city borders. Therefore, the critic only predicted values of 0.004 constantly and value loss was very small. Additionally, the hidden estimator started to perform worse, because there was no actual game going on and therefore, he only predicts empty field tiles...
+
+
+
 
 
 

@@ -5,7 +5,7 @@ default_terrain: field
 n_players: 2
 player_tribes: [Omaji, Imperius]
 current_player: 0
-turn: 0
+turn: 5
 map: |
   ....^.......
   ........^^.^

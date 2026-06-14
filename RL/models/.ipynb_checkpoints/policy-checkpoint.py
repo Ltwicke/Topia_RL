@@ -249,7 +249,7 @@ class SequenceSelectionHead(nn.Module):
         ])
         self.ff_layers = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(node_dim, node_dim * 2), nn.ReLU(),
+                nn.Linear(node_dim, node_dim * 2), nn.Tanh(),
                 nn.Linear(node_dim * 2, node_dim),
             )
             for _ in range(n_layers)
@@ -448,7 +448,7 @@ class PolicyNetwork(nn.Module):
         # fuse_entropy=True: concatenates per-attacker enemy-selection entropy
         self.attack_unit_sel = SequenceSelectionHead(
             node_dim     = D,
-            n_heads      = sel_heads,
+            n_heads      = 1,#sel_heads,
             n_layers     = sel_layers,
             mlp_hidden   = mlp_hid,
             mlp_depth    = mlp_dep,
@@ -468,7 +468,7 @@ class PolicyNetwork(nn.Module):
         # fuse_entropy=True: concatenates per-city unit-type entropy
         self.create_city_sel = SequenceSelectionHead(
             node_dim     = D,
-            n_heads      = sel_heads,
+            n_heads      = 1,#sel_heads,
             n_layers     = sel_layers,
             mlp_hidden   = mlp_hid,
             mlp_depth    = mlp_dep,
@@ -479,7 +479,7 @@ class PolicyNetwork(nn.Module):
         # No lower head; fuse_entropy=False since there is nothing to fuse.
         self.capture_sel = SequenceSelectionHead(
             node_dim     = D,
-            n_heads      = sel_heads,
+            n_heads      = 1,#sel_heads,
             n_layers     = sel_layers,
             mlp_hidden   = mlp_hid,
             mlp_depth    = mlp_dep,
@@ -490,7 +490,7 @@ class PolicyNetwork(nn.Module):
         # Single-level: pairwise attention picks the unit; no target factor.
         self.heal_sel = HealUnitHead(
             node_dim   = D,
-            n_heads    = sel_heads,
+            n_heads    = 1,#sel_heads,
             n_layers   = sel_layers,
             mlp_hidden = mlp_hid,
             mlp_depth  = mlp_dep,
@@ -499,7 +499,7 @@ class PolicyNetwork(nn.Module):
         # ── Upgrade-2-veteran line ─────────────────────────────────────────
         self.upgrade2vet_sel = Upgrade2VetHead(
             node_dim   = D,
-            n_heads    = sel_heads,
+            n_heads    = 1,#sel_heads,
             n_layers   = sel_layers,
             mlp_hidden = mlp_hid,
             mlp_depth  = mlp_dep,
@@ -1077,25 +1077,61 @@ class PolicyNetwork(nn.Module):
     # compute_values_batch — critic-only, fully batched
     # ══════════════════════════════════════════════════════════════════════
 
-    def estimate_hidden(
+    @torch.no_grad()
+    def estimate_hidden(self, obs: dict) -> np.ndarray:
+        """Run the encoder + hidden estimator on a single player's POV.
+
+        Toggles `eval()` for the duration of the call so dropout / etc.
+        are deterministic, then restores the previous training state.
+
+        Parameters
+        ──────────
+        obs : dict — must contain `partial_graph` and (optionally)
+                     `scalar_state`.  Same keys as the current player's
+                     view returned by `EnvWrapper._get_obs()`.
+
+        Returns
+        ───────
+        np.ndarray (N_tiles, REDUCED_FEAT_DIM) — softmaxed/sigmoided
+            per-tile reduced-feature probabilities.  Layout: see the
+            `REDUCED_*_SLICE` constants in `game/enums.py`.
+        """
+        was_training = self.training
+        self.eval()
+        try:
+            graph_np = np.asarray(obs['partial_graph'])
+            N_tiles  = graph_np.shape[0]
+            Nx = Ny  = int(round(N_tiles ** 0.5))
+            scalar   = obs.get('scalar_state')
+
+            node_emb, _ = self.encoder.encode(graph_np, Nx, Ny, scalar)
+            probs       = self.hidden_estimator.predict_proba(node_emb)
+        finally:
+            if was_training:
+                self.train()
+
+        return probs.detach().cpu().numpy()
+
+    @torch.no_grad()
+    def estimate_hidden_dual(
         self,
-        obs:  dict,
-    ) -> torch.Tensor:
-        """
-        TODO:
-        Calculate the estimation for the hidden tiles based players partial graph
-        """
-        graph_np = np.asarray(obs['partial_graph'])
-        N_tiles  = graph_np.shape[0]
-        Nx = Ny  = int(round(N_tiles ** 0.5))
-        scalar   = obs.get('scalar_state')
+        obs: dict,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Return reduced per-tile estimates for both players' POVs.
 
-        # ── Encode ─────────────────────────────────────────────────────────
-        node_emb, _ = self.encoder.encode(graph_np, Nx, Ny, scalar)
-        # node_emb   : (N_tiles, D)
-        # global_emb : (1, D)  — already includes scalar fusion when given
+        Pulls the current player's POV from `obs['partial_graph']` /
+        `obs['scalar_state']`, and the opponent's POV from the
+        `obs['opp_partial_graph']` / `obs['opp_scalar_state']` keys
+        populated by `EnvWrapper._get_obs()`.
 
-        return self.hidden_estimator.predict_proba(node_emb)
+        Returns `(est_pov_current, est_pov_opponent)` — feed straight
+        into `env.render(show_hidden=True, hidden_estimate=...)`.
+        """
+        obs_b = {
+            'partial_graph': obs['opp_partial_graph'],
+            'scalar_state':  obs['opp_scalar_state'],
+        }
+        return self.estimate_hidden(obs), self.estimate_hidden(obs_b)
     
     def compute_values_batch(
         self,
@@ -1216,9 +1252,19 @@ class PolicyNetwork(nn.Module):
 
         For each snapshot, the encoder produces node embeddings from the
         partial (fogged) graph; the estimator predicts per-tile feature
-        groups; the loss is the sum of per-group cross-entropies (plus the
-        BCE on the road bit), restricted to the tiles currently hidden from
-        the acting player.  Gradients flow back into the encoder.
+        groups; the per-sample loss is the sum of per-group cross-entropies
+        (plus BCE on road / opp_ctrl bits), summed over hidden tiles, then
+        divided by the number of hidden tiles (per-tile normalisation).
+        The minibatch loss is the mean of per-sample losses.  Gradients flow
+        back into the encoder and the estimator.
+
+        Per-tile normalisation rationale
+        ────────────────────────────────
+        Hidden-tile counts vary widely across samples (an early-game player
+        sees few tiles; a fully-explored map has almost none).  Without
+        per-tile normalisation, samples with many hidden tiles would
+        dominate the gradient.  Dividing by ``n_hidden`` keeps every sample's
+        contribution comparable.
 
         Intended pretraining loop
         ─────────────────────────
@@ -1234,7 +1280,8 @@ class PolicyNetwork(nn.Module):
 
         Returns
         ───────
-        loss : ()  scalar; mean of per-board losses (differentiable).
+        loss : ()  scalar; mean over samples of per-tile-averaged group loss
+                   sums (differentiable).
         """
         graphs      = [s['graph']      for s in obs_snaps]
         full_graphs = [s['full_graph'] for s in obs_snaps]
@@ -1245,7 +1292,7 @@ class PolicyNetwork(nn.Module):
         node_embs, _ = self.encoder.encode_batch(graphs, board_sizes, scalars)
 
         losses: List[torch.Tensor] = []
-        for b, snap in enumerate(obs_snaps): ## why cant this be done in parallel for each batch? batch processing has to be reworked!
+        for b, snap in enumerate(obs_snaps):
             node_emb = node_embs[b]                                  # (N_b, D)
             N        = node_emb.shape[0]
             dev      = node_emb.device
@@ -1261,7 +1308,11 @@ class PolicyNetwork(nn.Module):
                     torch.as_tensor(uncovered, dtype=torch.long, device=dev)
                 ] = False
 
-            losses.append(self.hidden_estimator.loss(pred, target, hidden_mask))
+            n_hidden = int(hidden_mask.sum().item())
+            sample_loss = self.hidden_estimator.loss(pred, target, hidden_mask)
+            # Per-tile normalisation; max(.,1) guards the no-hidden-tile case
+            # (where sample_loss is already a 0-with-grad tensor).
+            losses.append(sample_loss / max(n_hidden, 1))
 
         return torch.stack(losses).mean()
 

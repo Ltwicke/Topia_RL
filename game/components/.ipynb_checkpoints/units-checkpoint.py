@@ -35,6 +35,9 @@ class Unit(object):
         self.vision_range = 1
         self.attack_range = 1
 
+        self.fortify = False    # True -> eligible for city Shield/Wall bonus
+        self.stiff   = False    # True -> never deals retaliation damage
+
         self.turn_state = UnitState.idle
         self.current_hp = None
         
@@ -43,6 +46,9 @@ class Unit(object):
 
     def set_ready(self):
         self.turn_state = UnitState.ready
+
+    def set_idle(self):
+        self.turn_state = UnitState.idle
 
     def __str__(self):
         return f"{self.unit_type.name} ({self.current_hp}/{self.hp}) in state {self.turn_state.name}"
@@ -62,6 +68,8 @@ class Warrior(Unit):
 
         self.current_hp = 10.0
 
+        self.fortify = True
+
 
 class Rider(Unit):
     def __init__(self, player_id: PlayerId, city, tile, unit_id: int):
@@ -77,6 +85,8 @@ class Rider(Unit):
 
         self.current_hp = 10.0
 
+        self.fortify = True
+
 
 
 class Knight(Unit):
@@ -85,13 +95,15 @@ class Knight(Unit):
 
         self.unit_type = UnitType.Knight
         self.cost = 13
-        
+
         self.hp = 10.0
         self.atk_stat = 3.5
         self.def_stat = 1
         self.mvpts = 3
 
         self.current_hp = 10.0
+
+        self.fortify = True
 
 
 class Giant(Unit):
@@ -126,6 +138,8 @@ class Archer(Unit):
 
         self.current_hp = 10.0
 
+        self.fortify = True
+
 
 class Catapult(Unit):
     def __init__(self, player_id: PlayerId, city, tile, unit_id: int):
@@ -142,6 +156,8 @@ class Catapult(Unit):
         self.mvpts = 1
 
         self.current_hp = 10.0
+
+        self.stiff = True
 
 
 
@@ -175,4 +191,6 @@ class Defender(Unit):
         self.mvpts = 1
 
         self.current_hp = 15.0
+
+        self.fortify = True
 

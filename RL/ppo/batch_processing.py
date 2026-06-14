@@ -99,18 +99,57 @@ class RunningMeanStd:
 # Per-player Generalised Advantage Estimation
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _lambda_per_step(
+    p:         int,
+    dones_e:   np.ndarray,   # (T,) float32
+    winners_e: np.ndarray,   # (T,) int8   (-1 default; 0/1 at done steps)
+    lam_w:     float,
+    lam_l:     float,
+) -> np.ndarray:
+    """
+    Build a (T,) array assigning each step the GAE-λ to use for player p,
+    based on which game (in env e) that step belongs to:
+      • λ_w  if the game's winner == p
+      • λ_l  if the game's winner == opponent
+      • 0.5 * (λ_w + λ_l) for turn-30 draws (winners_e[d] == -1 at that done)
+      • λ_w for trailing in-progress games (no done in this rollout segment)
+
+    The worker writes `winners_e[d]` at every step where dones_e[d] == 1
+    (both winner-side and loser-side terminal markers, copied to the same
+    value); we walk the done events in order to label each prior segment.
+    """
+    T   = dones_e.shape[0]
+    lam = np.full(T, lam_w, dtype=np.float32)   # default for trailing segment
+    done_idx = np.nonzero(dones_e > 0.5)[0]
+    prev = 0
+    for d in done_idx:
+        w = int(winners_e[d])
+        if w == -1:
+            seg_lam = 0.5 * (lam_w + lam_l)
+        elif w == p:
+            seg_lam = lam_w
+        else:
+            seg_lam = lam_l
+        lam[prev:d + 1] = seg_lam
+        prev = d + 1
+    return lam
+
+
 def compute_gae_per_player(
-    rewards:     np.ndarray,   # (T, N)  float32
-    values:      np.ndarray,   # (T, N)  float32
-    dones:       np.ndarray,   # (T, N)  float32  1.0 = game over
-    last_values: np.ndarray,   # (N,)    float32  bootstrap V(s_T)
-    player_ids:  np.ndarray,   # (T, N)  int32
-    gamma:       float,
-    gae_lam:     float,
-    n_players:   int = 2,
+    rewards:       np.ndarray,   # (T, N)  float32
+    values:        np.ndarray,   # (T, N)  float32
+    dones:         np.ndarray,   # (T, N)  float32  1.0 = trajectory cut
+    last_values:   np.ndarray,   # (N,)    float32  bootstrap V(s_T)
+    player_ids:    np.ndarray,   # (T, N)  int32
+    winners:       np.ndarray,   # (T, N)  int8     winner id at done steps; -1 else
+    gamma:         float,
+    lambda_winner: float,
+    lambda_loser:  float,
+    n_players:     int = 2,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Compute GAE independently for each player's action subsequence.
+    Compute GAE independently for each player's action subsequence with
+    asymmetric per-game GAE-λ (winner / loser / draw).
 
     Unlike a single-agent rollout where t+1 is the globally next step, here
     t+1 for player p is the NEXT step where player p acts — skipping the
@@ -118,17 +157,29 @@ def compute_gae_per_player(
     already encodes expected future value from player p's perspective
     conditioned on the opponent's behaviour.
 
+    Asymmetric λ
+    ────────────
+    For each game segment in env e, the winner side uses λ = lambda_winner
+    (long-horizon credit) and the loser side uses λ = lambda_loser (short
+    horizon → loss penalty only propagates back a few decisions, preventing
+    learned helplessness early in losing games).  γ is shared across both
+    sides so the value-function target stays well-defined.
+
     Parameters
     ──────────
-    rewards     (T, N) float32  — immediate reward after each action
-    values      (T, N) float32  — critic estimate V(s_t) at collection time
-    dones       (T, N) float32  — 1.0 only at game termination (not turn end)
-    last_values (N,)   float32  — V(s_T) bootstrap; used for each player's
-                                  final in-rollout step
-    player_ids  (T, N) int32    — player index who acted at each (t, e) slot
-    gamma       float           — discount factor (applied per player-step)
-    gae_lam     float           — GAE λ
-    n_players   int             — number of players (default 2)
+    rewards       (T, N) float32  — immediate reward after each action
+    values        (T, N) float32  — critic estimate V(s_t) at collection time
+    dones         (T, N) float32  — 1.0 at trajectory cuts (winner's terminal
+                                    step AND the loser's last decision step)
+    last_values   (N,)   float32  — V(s_T) bootstrap; used for each player's
+                                    final in-rollout step
+    player_ids    (T, N) int32    — player index who acted at each (t, e) slot
+    winners       (T, N) int8     — winner id at done steps (0/1, or -1 for
+                                    turn-30 draws); -1 elsewhere
+    gamma         float           — discount factor (applied per player-step)
+    lambda_winner float           — GAE λ for the winning side of a game
+    lambda_loser  float           — GAE λ for the losing side of a game
+    n_players     int             — number of players (default 2)
 
     Returns
     ───────
@@ -156,6 +207,12 @@ def compute_gae_per_player(
                 continue
 
             k = p_steps.size
+
+            # Per-step λ for this (p, e) — constant within each game segment.
+            lam_t = _lambda_per_step(
+                p, dones[:, e], winners[:, e], lambda_winner, lambda_loser,
+            )
+            p_lam = lam_t[p_steps]                    # (k,)
 
             # ── Vectorised next-value lookup ───────────────────────────────
             # next_vals[i] = V(s_{t_{i+1} for player p})
@@ -185,7 +242,7 @@ def compute_gae_per_player(
                     + gamma * next_vals[i] * p_not_done[i]
                     - p_values[i]
                 )
-                gae               = delta + gamma * gae_lam * p_not_done[i] * gae
+                gae = delta + gamma * p_lam[i] * p_not_done[i] * gae
                 advantages[p_steps[i], e] = gae
 
     returns = advantages + values
@@ -254,8 +311,10 @@ class BatchProcessor:
             raw_batch["dones"],
             raw_batch["last_values"],
             raw_batch["player_ids"],
-            gamma   = cfg.gamma,
-            gae_lam = cfg.gae_lambda,
+            raw_batch["winners"],
+            gamma         = cfg.gamma,
+            lambda_winner = cfg.lambda_winner,
+            lambda_loser  = cfg.lambda_loser,
         )
 
         t_gae = time.time() - t0

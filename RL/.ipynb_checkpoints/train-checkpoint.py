@@ -272,7 +272,7 @@ def main() -> None:
         f"({n_mb_per_epoch} minibatches × {cfg.minibatch_size})",
         f"  PPO epochs        : {cfg.n_epochs}  |  Updates: {cfg.n_updates}",
         f"  clip_eps / vf / ent: {cfg.clip_eps} / {cfg.vf_coef} / {cfg.ent_coef}",
-        f"  γ / λ             : {cfg.gamma} / {cfg.gae_lambda}",
+        f"  γ / λ_w / λ_l     : {cfg.gamma} / {cfg.lambda_winner} / {cfg.lambda_loser}",
         f"  LR                : {cfg.lr}",
         f"  AMP               : {cfg.use_amp}",
         "",

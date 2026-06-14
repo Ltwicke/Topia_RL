@@ -249,7 +249,7 @@ class SequenceSelectionHead(nn.Module):
         ])
         self.ff_layers = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(node_dim, node_dim * 2), nn.ReLU(),
+                nn.Linear(node_dim, node_dim * 2), nn.Tanh(),
                 nn.Linear(node_dim * 2, node_dim),
             )
             for _ in range(n_layers)
@@ -448,7 +448,7 @@ class PolicyNetwork(nn.Module):
         # fuse_entropy=True: concatenates per-attacker enemy-selection entropy
         self.attack_unit_sel = SequenceSelectionHead(
             node_dim     = D,
-            n_heads      = sel_heads,
+            n_heads      = 1,#sel_heads,
             n_layers     = sel_layers,
             mlp_hidden   = mlp_hid,
             mlp_depth    = mlp_dep,
@@ -468,7 +468,7 @@ class PolicyNetwork(nn.Module):
         # fuse_entropy=True: concatenates per-city unit-type entropy
         self.create_city_sel = SequenceSelectionHead(
             node_dim     = D,
-            n_heads      = sel_heads,
+            n_heads      = 1,#sel_heads,
             n_layers     = sel_layers,
             mlp_hidden   = mlp_hid,
             mlp_depth    = mlp_dep,
@@ -479,7 +479,7 @@ class PolicyNetwork(nn.Module):
         # No lower head; fuse_entropy=False since there is nothing to fuse.
         self.capture_sel = SequenceSelectionHead(
             node_dim     = D,
-            n_heads      = sel_heads,
+            n_heads      = 1,#sel_heads,
             n_layers     = sel_layers,
             mlp_hidden   = mlp_hid,
             mlp_depth    = mlp_dep,
@@ -490,7 +490,7 @@ class PolicyNetwork(nn.Module):
         # Single-level: pairwise attention picks the unit; no target factor.
         self.heal_sel = HealUnitHead(
             node_dim   = D,
-            n_heads    = sel_heads,
+            n_heads    = 1,#sel_heads,
             n_layers   = sel_layers,
             mlp_hidden = mlp_hid,
             mlp_depth  = mlp_dep,
@@ -499,7 +499,7 @@ class PolicyNetwork(nn.Module):
         # ── Upgrade-2-veteran line ─────────────────────────────────────────
         self.upgrade2vet_sel = Upgrade2VetHead(
             node_dim   = D,
-            n_heads    = sel_heads,
+            n_heads    = 1,#sel_heads,
             n_layers   = sel_layers,
             mlp_hidden = mlp_hid,
             mlp_depth  = mlp_dep,

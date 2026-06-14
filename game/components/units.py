@@ -47,6 +47,9 @@ class Unit(object):
     def set_ready(self):
         self.turn_state = UnitState.ready
 
+    def set_idle(self):
+        self.turn_state = UnitState.idle
+
     def __str__(self):
         return f"{self.unit_type.name} ({self.current_hp}/{self.hp}) in state {self.turn_state.name}"
 

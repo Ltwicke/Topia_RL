@@ -65,11 +65,11 @@ class TrainConfig:
     """
 
     # ── Checkpoint / resume ───────────────────────────────────────────────────
-    pretrained_ckpt: str = r".\checkpoints_training\policy_update_00031.pt"   # path to .pt; "" = train from scratch
-    start_update:    int = 32    # first update index (set > 0 when resuming)
+    pretrained_ckpt: str = r"./checkpoints_training/policy_update_00013.pt"   # path to .pt; "" = train from scratch
+    start_update:    int = 14    # first update index (set > 0 when resuming)
 
     # ── Encoder ───────────────────────────────────────────────────────────────
-    encoder_hidden_dim: int = 48
+    encoder_hidden_dim: int = 128
     encoder_n_heads:    int = 4
     encoder_depth:      int = 4
 
@@ -78,19 +78,19 @@ class TrainConfig:
     sel_n_layers: int = 2
 
     # ── MLP ───────────────────────────────────────────────────────────────────
-    mlp_hidden_dim: int = 64
-    mlp_depth:      int = 3
+    mlp_hidden_dim: int = 128
+    mlp_depth:      int = 2
 
     # ── Multi-scale convolutions ──────────────────────────────────────────────
-    kernel_sizes:  Tuple[int, ...] = (5, 3)
-    n_conv_layers: int             = 1
+    kernel_sizes:  Tuple[int, ...] = (3,)
+    n_conv_layers: int             = 4
 
     # ── Movement context window ───────────────────────────────────────────────
     context_bias: int = 4
 
     # ── Parallelism ───────────────────────────────────────────────────────────
-    n_processes:        int = 16
-    n_envs_per_process: int = 4
+    n_processes:        int = 14
+    n_envs_per_process: int = 3
 
     # ── Environment ───────────────────────────────────────────────────────────
     # board_type is randomised per env from board_type_pool — Dummy is dropped.
@@ -111,7 +111,7 @@ class TrainConfig:
     board_size_range:   tuple = (11, 16)
 
     # ── Estimator pretraining (Phase A of each update) ────────────────────────
-    estimator_lr:             float = 2e-5
+    estimator_lr:             float = 3e-4
     estimator_n_epochs:       int   = 4
     estimator_minibatch_size: int   = 256
     estimator_train_fraction: float = 0.5    
@@ -136,30 +136,34 @@ class TrainConfig:
     )
 
     # ── Rollout ───────────────────────────────────────────────────────────────
-    n_steps: int = 256
+    n_steps: int = 512
 
     # ── PPO epochs & batching ─────────────────────────────────────────────────
     n_epochs:       int   = 3
-    n_minibatches:  int   = 64   # determines cfg.minibatch_size
+    n_minibatches:  int   = 84   # determines cfg.minibatch_size
     # Fraction ∈ (0,1]: what share of the assembled minibatches to train on
     # per epoch.  Reduces PPO update time without wasting simulation data.
-    train_fraction: float = 0.20
+    train_fraction: float = 0.25
 
     # ── PPO loss coefficients ─────────────────────────────────────────────────
     clip_eps:      float = 0.2
     vf_coef:       float = 0.5
-    ent_coef:      float = 0.01
+    ent_coef:      float = 0.005
     max_grad_norm: float = 0.5
 
     # ── GAE / discount ────────────────────────────────────────────────────────
-    gamma:      float = 0.99
-    gae_lambda: float = 0.95
+    gamma:         float = 0.999
+    lambda_winner: float = 0.99   # standard GAE-λ for the winning side
+    lambda_loser:  float = 0.9    # shorter horizon → loss penalty only hits last
+                                   # few decisions, prevents pessimistic play.
+                                   # Draws use 0.5 * (lambda_winner + lambda_loser);
+                                   # mid-rollout truncation uses lambda_winner.
 
     # ── Optimiser ─────────────────────────────────────────────────────────────
     lr: float = 3e-4
 
     # ── Training loop ─────────────────────────────────────────────────────────
-    n_updates:     int = 100
+    n_updates:     int = 2500
     log_interval:  int = 1
     ckpt_interval: int = 1
 
@@ -228,7 +232,8 @@ def _make_env(cfg: TrainConfig) -> EnvWrapper:
         board_config,
         cfg.player_tribes,
         max_turns_per_game=cfg.max_turns_per_game,
-        dense_reward=True,
+        dense_reward=False,                                                 # DENSE REWARDS HERE DENSE REWARDS HERE DENSE REWARDS HERE DENSE REWARDS HERE 
+        zero_sum_terminal=True,
     )
 
 
@@ -257,8 +262,13 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
     log_probs   (T, M)  float32     — log π_θ_old(a_t | s_t)
     values      (T, M)  float32     — V(s_t) at collection time
     rewards     (T, M)  float32     — immediate reward after action
-    dones       (T, M)  float32     — 1.0 only on game termination
+    dones       (T, M)  float32     — 1.0 only on game termination (set on
+                                      BOTH the winner's terminal step and the
+                                      loser's last decision step in zero-sum
+                                      mode, so per-player GAE cuts correctly)
     won_flags   (T, M)  float32     — 1.0 when terminated by conquest
+    winners     (T, M)  int8        — player id of the winning side at done
+                                      steps; -1 elsewhere or on turn-30 draw
     last_values (M,)    float32     — V(s_T) bootstrap
     player_ids  (T, M)  int32       — which player acted at each step
     obs_snaps   list[T] × list[M]   — make_snapshot() dicts (for evaluate_actions)
@@ -287,14 +297,18 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
         policy.load_state_dict(payload)
 
         # Pre-allocate rollout buffers
-        obs_snaps = [[None] * M for _ in range(T)]
-        actions   = [[None] * M for _ in range(T)]
-        masks_buf = [[None] * M for _ in range(T)]
-        log_probs = np.zeros((T, M), dtype=np.float32)
-        values    = np.zeros((T, M), dtype=np.float32)
-        rewards   = np.zeros((T, M), dtype=np.float32)
-        dones     = np.zeros((T, M), dtype=np.float32)
-        won_flags = np.zeros((T, M), dtype=np.float32)
+        obs_snaps  = [[None] * M for _ in range(T)]
+        actions    = [[None] * M for _ in range(T)]
+        masks_buf  = [[None] * M for _ in range(T)]
+        log_probs  = np.zeros((T, M), dtype=np.float32)
+        values     = np.zeros((T, M), dtype=np.float32)
+        rewards    = np.zeros((T, M), dtype=np.float32)
+        dones      = np.zeros((T, M), dtype=np.float32)
+        won_flags  = np.zeros((T, M), dtype=np.float32)
+        winners    = np.full((T, M), -1, dtype=np.int8)
+        # acting-player track filled during rollout so we can back-fill the
+        # opponent's last decision step at game termination
+        player_ids = np.full((T, M), -1, dtype=np.int32)
 
         t0 = time.time()
         with torch.no_grad():
@@ -303,28 +317,54 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
                     obs  = obs_buf[e]
                     mask = env.get_action_mask()
 
+                    # Player who is about to act at this global step
+                    cur_pid = env.game.player_go_id
+
                     # Snapshot must be taken BEFORE env.step() so that the
                     # stored graph / tile IDs match the decision state.
                     snap = make_snapshot(
                         obs, env.Nx, env.Ny,
-                        player_id=env.game.player_go_id,
+                        player_id=cur_pid,
                     )
 
                     # forward() returns:
                     # action, joint_probs, traj_actions, log_prob, entropy, value
                     action, _, _, lp, _, val = policy(obs, mask)
-                    next_obs, rew, done, _   = env.step(action)
+                    next_obs, rew, done, info = env.step(action)
 
-                    obs_snaps[t][e] = snap
-                    actions[t][e]   = action
-                    masks_buf[t][e] = mask
-                    log_probs[t, e] = lp.item()
-                    values[t, e]    = val.item()
-                    rewards[t, e]   = rew
-                    dones[t, e]     = float(done)
+                    obs_snaps[t][e]   = snap
+                    actions[t][e]     = action
+                    masks_buf[t][e]   = mask
+                    log_probs[t, e]   = lp.item()
+                    values[t, e]      = val.item()
+                    rewards[t, e]     = rew
+                    dones[t, e]       = float(done)
+                    player_ids[t, e]  = cur_pid
 
                     if done:
-                        won_flags[t, e] = float(env.winner is not None)
+                        winner_id = info.get("winner_id", None)
+                        r_opp     = float(info.get("reward_opp", 0.0))
+                        won_flags[t, e] = float(winner_id is not None)
+                        winners[t, e]   = -1 if winner_id is None else int(winner_id)
+
+                        # ── Back-fill the opponent's last decision step in
+                        # the CURRENT game segment (since the most recent
+                        # earlier `done` in this env, or 0). Mark that step
+                        # `done=1` so per-player GAE terminates the loser's
+                        # trajectory there, and copy the winner id so the
+                        # asymmetric-λ lookup resolves the right side.
+                        opp_id = (cur_pid + 1) % 2
+                        if t > 0:
+                            prev_dones = np.nonzero(dones[:t, e] > 0.5)[0]
+                            game_start = 0 if prev_dones.size == 0 else int(prev_dones[-1]) + 1
+                            seg_pids = player_ids[game_start:t, e]
+                            opp_steps = np.nonzero(seg_pids == opp_id)[0]
+                            if opp_steps.size > 0:
+                                last_opp_t = game_start + int(opp_steps[-1])
+                                rewards[last_opp_t, e] += r_opp
+                                dones[last_opp_t, e]    = 1.0
+                                winners[last_opp_t, e]  = winners[t, e]
+
                         # Reset to a new random-size episode
                         envs[e]    = _make_env(cfg)
                         obs_buf[e] = envs[e].reset()
@@ -345,12 +385,7 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
                 )
                 last_values[e] = policy.critic(global_emb).item()
 
-        # Build player_ids array from stored snapshots
-        player_ids = np.array(
-            [[obs_snaps[t][e]["player_id"] for e in range(M)]
-             for t in range(T)],
-            dtype=np.int32,
-        )
+        # `player_ids` is already filled in-loop (used for back-fill).
 
         print(
             f"  [worker {worker_id:02d}] rollout done — {time.time() - t0:.2f}s",
@@ -366,6 +401,7 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
             "rewards":     rewards,
             "dones":       dones,
             "won_flags":   won_flags,
+            "winners":     winners,
             "last_values": last_values,
             "player_ids":  player_ids,
         }))
@@ -483,6 +519,7 @@ class EnvManager:
             "rewards":     np.concatenate([c["rewards"]     for c in chunks], axis=1),
             "dones":       np.concatenate([c["dones"]       for c in chunks], axis=1),
             "won_flags":   np.concatenate([c["won_flags"]   for c in chunks], axis=1),
+            "winners":     np.concatenate([c["winners"]     for c in chunks], axis=1),
             # Bootstrap values: concatenate along env axis (axis=0, shape (N,))
             "last_values": np.concatenate([c["last_values"] for c in chunks]),
             "player_ids":  np.concatenate([c["player_ids"]  for c in chunks], axis=1),

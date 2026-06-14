@@ -16,15 +16,17 @@ from game.components.units import _UNIT_COSTS
 
 class EnvWrapper(object):
 
-    def __init__(self, board_config, player_tribes, max_turns_per_game=30, win_reward=500, dense_reward=False):
+    def __init__(self, board_config, player_tribes, max_turns_per_game=30, win_reward=500,
+                 dense_reward=False, zero_sum_terminal=True):
 
         self.Nx, self.Ny = board_config["board_size"][0], board_config["board_size"][1]
         self.n_tiles = self.Nx * self.Ny
         self.n_players = len(player_tribes)
-        
+
         self.game = Game(board_config, player_tribes)
         self.win_reward = win_reward
         self.dense_reward = dense_reward
+        self.zero_sum_terminal = zero_sum_terminal
         self.max_turns_per_game = max_turns_per_game
 
         self.last_action = None
@@ -43,7 +45,12 @@ class EnvWrapper(object):
 
     def step(self, action):
         """
-        Return the tuple for RL training in the 'gymnasium' setting
+        Return the tuple for RL training in the 'gymnasium' setting.
+
+        When `zero_sum_terminal=True`, the opponent's terminal reward
+        (`-diff`) is exposed via `info["reward_opp"]` so the rollout worker
+        can back-fill it onto the opponent's last decision step.
+        `info["winner_id"]` is 0/1 on conquest, None on turn-30 timeout.
         """
         translated_action = self._translate_action(action)
         self._snapshot_overlay_ctx(translated_action)
@@ -56,9 +63,13 @@ class EnvWrapper(object):
 
         obs = self._get_obs()
 
-        done, reward = self._get_done_and_rewards(message)
+        done, reward, reward_opp, winner_id = self._get_done_and_rewards(message)
 
-        info = {"log": message}
+        info = {
+            "log":        message,
+            "reward_opp": reward_opp,
+            "winner_id":  winner_id,
+        }
 
         return obs, reward, done, info
 
@@ -178,89 +189,105 @@ class EnvWrapper(object):
 
     def _get_done_and_rewards(self, message):
         """
-        Win, if you capture the opponents capital
-        Positive Reward for creating units, capturing cities, killing opponent units, clearing fog, ...
-        Negative Reward for loosing units, loosing cities, ...
+        Reward routing controlled by (dense_reward, zero_sum_terminal).
+
+        Returns: (done, r_cur, r_opp, winner_id).
+            r_opp is the terminal reward for the opponent (loser side); the
+            rollout worker back-fills it onto the opponent's last decision
+            step. When zero_sum_terminal=False, r_opp is always 0.0.
         """
         done = False
-        opponent = self.game.players[(self.game.player_go_id + 1) % 2]
-        reward = 0.0
+        self.winner = None
+        cur_id = self.game.player_go_id
+        opp_id = (cur_id + 1) % 2
+        cur = self.game.players[cur_id]
+        opp = self.game.players[opp_id]
+        r_cur, r_opp = 0.0, 0.0
 
-        if len(opponent.cities_under_control) == 0: # game terminates, if opponent has no cities anymore.
+        if len(opp.cities_under_control) == 0:
             done = True
-            self.winner = self.game.player_go_id
-        if self.game.turn >= self.max_turns_per_game:
+            self.winner = cur_id
+        elif self.game.turn >= self.max_turns_per_game:
             done = True
-            # winner stays None
+            # winner stays None  →  scored draw
 
         if self.dense_reward:
             if message["action_type"] == ActionTypes.MoveUnit:
-                reward += 0.3 * message["tiles_uncovered"] # for uncovering tiles
-                
+                r_cur += 0.3 * message["tiles_uncovered"]
+
             elif message["action_type"] == ActionTypes.Attack:
                 if message["killed_unit"] == 1:
-                    reward += 1.0 # for killing a unit
+                    r_cur += 1.0
 
             elif message["action_type"] == ActionTypes.CreateUnit:
                 if message["unit_type"] == UnitType.Rider:
-                    reward += 0.5
+                    r_cur += 0.5
                 elif message["unit_type"] == UnitType.Sword:
-                    reward += 1.0
+                    r_cur += 1.0
                 elif message["unit_type"] == UnitType.Knight:
-                    reward += 2.5
+                    r_cur += 2.5
                 elif message["unit_type"] == UnitType.Catapult:
-                    reward += 1.0 # because they are hard to place
+                    r_cur += 1.0
                 elif message["unit_type"] == UnitType.Defender:
-                    reward -= .5 # discourage a passive playstyle
+                    r_cur -= 0.3
 
             elif message["action_type"] == ActionTypes.HealUnit:
                 if message["heal_amount"] == 4.0:
-                    reward += .5
+                    r_cur += 0.5
                 else:
-                    reward -= .5 # healing outside of own city border almost never is worth it..
-                 
+                    r_cur -= 0.5
+            
             elif message["action_type"] == ActionTypes.UpgradeCity:
-                pass
-                ## Do I even need rewards here? Because it drives all other rewards essentially --> dense rewards never upgraded city XD
-
+                if message["new_lvl"] == CityType.lvl2_workshop:
+                    r_cur += 1.0
+                elif message["new_lvl"] == CityType.lvl2_explorer:
+                    r_cur += 1.0
+                elif message["new_lvl"] == CityType.lvl3_resources:
+                    r_cur += 1.0
+                elif message["new_lvl"] == CityType.lvl3_wall:
+                    r_cur += 1.0
+                else:
+                    r_cur += _CITY_UPGRADE_COST[message["new_lvl"]] / 10.0
+                     
             elif message["action_type"] == ActionTypes.Upgrade2Vet:
-                reward += message["hp_diff"] * 0.1 # reward greater healing with the upgrade2vet mechanic
+                r_cur += message["hp_diff"] * 0.1
 
             elif message["action_type"] == ActionTypes.PlaceRoad:
-                #reward -= 0.2 # discourage IF used too much! --> Used to much XD
-                pass
-                
+                r_cur -= 0.3
+
             elif message["action_type"] == ActionTypes.CaptureCity:
-                reward += 5.0
+                r_cur += 5.0
             elif message["action_type"] == ActionTypes.EndTurn:
-                reward -= 1.5
+                r_cur -= 2.0
 
         ################################
         ##### End of dense rewards #####
         ################################
 
-        ## Calculate the following only when the episode ended:
+        if done:
+            if self.zero_sum_terminal:
+                s_cur = self._terminal_score(cur)
+                s_opp = self._terminal_score(opp)
+                if self.winner == cur_id:
+                    s_cur += self.win_reward
+                elif self.winner == opp_id:
+                    s_opp += self.win_reward
+                diff = s_cur - s_opp
+                r_cur += diff
+                r_opp += -diff
+            else:
+                # Legacy: flat +win_reward to current player iff they won.
+                if self.winner is not None:
+                    r_cur += self.win_reward
 
-        player   = self.game.players[self.game.player_go_id]
-        opponent = self.game.players[(self.game.player_go_id + 1) % 2]
+        return (done, r_cur, r_opp, self.winner)
 
-        own_score = player.player_score_official
-        opp_score = opponent.player_score_official
-
-        ## uncovered tiles modification
-        own_score *= float(len(player.uncovered_tile_ids)) / float(self.Nx * self.Ny)
-        opp_score *= float(len(opponent.uncovered_tile_ids)) / float(self.Nx * self.Ny)
-
-        ## adding stars and spt
-        own_score += player.current_stars_per_turn * 15. + player.stars * 7.5 
-        opp_score += opponent.current_stars_per_turn * 15. + opponent.stars * 7.5 
-
-        ## Todo: Add win reward to winner score, calculate difference and assign rewards +diff for winner and -diff for loser
-        
-        if done and self.winner != None:
-            reward += self.win_reward # biiig reward for winning 
-        
-        return (done, reward)
+    def _terminal_score(self, player):
+        """Per-player terminal score: official × uncovered-ratio + stars/spt bonuses."""
+        s = float(player.player_score_official)
+        s *= float(len(player.uncovered_tile_ids)) / float(self.Nx * self.Ny)
+        s += player.current_stars_per_turn * 15.0 + player.stars * 7.5
+        return s
 
 
     def _player_unit_ids(self) -> list:

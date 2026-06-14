@@ -288,7 +288,7 @@ class Game(object):
                 self._apply_explorer_vision(player, city.tile_id)
 
             if will_create_giant:
-                self._create_giant_at_city(player, city)
+                self._create_giant_at_city(player, opponent, city)
 
             city_tile = self.game_board.board[city.tile_id]
             if city_tile.unit is not None and city_tile.unit.player_id == player.player_id:
@@ -318,6 +318,9 @@ class Game(object):
             message["hp_diff"] = unit.current_hp - old_curr_hp
 
         elif action["type"] == ActionTypes.EndTurn:
+            for unit in self.players[self.player_go_id].units_under_control.values():
+                unit.set_idle() # set all units of turn ending player to idle to make the networks life easier
+            
             self.turn += self.player_go_id % 2 # 0 1 0 1 0 1 0 1 ...
             self.player_go_id = (self.player_go_id + 1) % 2
             new_player = self.players[self.player_go_id] # after ending the turn
@@ -437,23 +440,25 @@ class Game(object):
         dummy = SimpleNamespace(player_id=player.player_id, vision_range=1)
         self.apply_unit_vision(dummy, path)
 
-    def _create_giant_at_city(self, player, city):
+    def _create_giant_at_city(self, player, opponent, city):
         city_tile = self.game_board.board[city.tile_id]
         if city_tile.unit is not None:
             occupant = city_tile.unit
             free_adj = [
                 t for t in self.tiles_in_range(city.tile_id, 1)
-                if t != city.tile_id
-                and self.game_board.board[t].unit is None
-                and self.game_board.board[t].tile_type
-                    not in (TileType.water, TileType.deep_water, TileType.mountain)
+                if t != city.tile_id # not the city itself
+                and self.game_board.board[t].unit is None # no other unit on it
+                and (self.game_board.board[t].tile_type != TileType.water or self.game_board.board[t].has_road == True) # not pure water
             ]
             if free_adj:
                 self.move_unit(occupant, random.choice(free_adj))
             else:
                 city_tile.unit = None
-                del player.units_under_control[occupant.unit_id]
                 occupant.city.current_n_units -= 1
+                if occupant.player_id == player.player_id:
+                    del player.units_under_control[occupant.unit_id]
+                else:
+                    del opponent.units_under_control[occupant.unit_id]
 
         new_uid = self._new_unit_id()
         giant = Giant(player_id=player.player_id, city=city,

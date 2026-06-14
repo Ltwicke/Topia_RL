@@ -284,7 +284,15 @@ class CriticHead(nn.Module):
         mlp_depth:  int = 2,
     ) -> None:
         super().__init__()
-        self.value_mlp = _mlp(hidden_dim, mlp_hidden, 1, mlp_depth)
+        #self.value_mlp = _mlp(hidden_dim, mlp_hidden, 1, mlp_depth)
+        self.value_mlp    = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim * 2),
+            nn.Tanh(),
+            nn.Linear(hidden_dim * 2, hidden_dim * 4),
+            nn.LayerNorm(hidden_dim * 4),
+            nn.Tanh(),
+            nn.Linear(hidden_dim * 4, 1)
+        )
 
     def forward(self, global_emb: torch.Tensor) -> torch.Tensor:
         """Compute value estimate(s).
@@ -417,7 +425,15 @@ class HiddenTileEstimator(nn.Module):
         mlp_depth:  int = 2,
     ) -> None:
         super().__init__()
-        self.predictor = _mlp(node_dim, mlp_hidden, REDUCED_FEAT_DIM, mlp_depth)
+        #self.predictor = _mlp(node_dim, mlp_hidden, REDUCED_FEAT_DIM, mlp_depth)
+        self.predictor    = nn.Sequential(
+            nn.Linear(node_dim, node_dim * 2),
+            nn.Tanh(),
+            nn.Linear(node_dim * 2, node_dim * 4),
+            nn.LayerNorm(node_dim * 4),
+            nn.Tanh(),
+            nn.Linear(node_dim * 4, REDUCED_FEAT_DIM)
+        )
 
     # ── Forward ────────────────────────────────────────────────────────────
 

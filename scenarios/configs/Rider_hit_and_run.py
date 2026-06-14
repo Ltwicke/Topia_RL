@@ -35,8 +35,6 @@ class Runner(ScenarioRunner):
             records.append(rec)
 
             atype = int(rec.action[0])
-            
-            target_tile = int(rec.action[2])
 
         # Average joint_probs across samples for the overlay.
         avg_probs, traj_actions = self._average_joint_probs(records)

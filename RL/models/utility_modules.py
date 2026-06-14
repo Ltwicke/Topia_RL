@@ -11,10 +11,10 @@ import torch.nn.functional as F
 def _mlp(in_d: int, hid_d: int, out_d: int, depth: int = 2) -> nn.Sequential:
     """MLP with `depth` hidden layers and a pre-output LayerNorm."""
     assert depth >= 1
-    layers: list = [nn.Linear(in_d, hid_d), nn.ReLU()]
+    layers: list = [nn.Linear(in_d, hid_d), nn.Tanh()]
     for _ in range(depth - 1):
-        layers += [nn.Linear(hid_d, hid_d), nn.ReLU()]
-    layers += [nn.LayerNorm(hid_d), nn.Linear(hid_d, out_d)]
+        layers += [nn.Linear(hid_d, hid_d), nn.Tanh()]
+    layers += [nn.LayerNorm(hid_d), nn.Linear(hid_d, out_d)] # layernorm after activation?
     return nn.Sequential(*layers)
 
 
@@ -101,7 +101,7 @@ class MultiScaleConv(nn.Module):
                         padding=k // 2,
                         padding_mode="replicate",
                     ),
-                    nn.ReLU(),
+                    nn.Tanh(),
                 )
                 for _ in range(n_conv_layers)
             ])

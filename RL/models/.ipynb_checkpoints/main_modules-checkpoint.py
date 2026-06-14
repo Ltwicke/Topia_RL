@@ -56,6 +56,17 @@ from game.enums import (
     UNIT_STATE_SLICE,
     OWN_TYPE_SLICE,
     OPP_TYPE_SLICE,
+    N_CITY_TYPES,
+    _PLAYER_CTRL_START,
+    _CITY_START,
+    _UNIT_START,
+    REDUCED_TILE_TYPE_SLICE,
+    REDUCED_ROAD_SLICE,
+    REDUCED_OPP_CTRL_SLICE,
+    REDUCED_CITY_SLICE,
+    REDUCED_OPP_UNIT_SLICE,
+    REDUCED_FEAT_DIM,
+    MAX_CITY_LEVEL_HIDDEN,
 )
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -273,7 +284,15 @@ class CriticHead(nn.Module):
         mlp_depth:  int = 2,
     ) -> None:
         super().__init__()
-        self.value_mlp = _mlp(hidden_dim, mlp_hidden, 1, mlp_depth)
+        #self.value_mlp = _mlp(hidden_dim, mlp_hidden, 1, mlp_depth)
+        self.value_mlp    = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim * 2),
+            nn.Tanh(),
+            nn.Linear(hidden_dim * 2, hidden_dim * 4),
+            nn.LayerNorm(hidden_dim * 4),
+            nn.Tanh(),
+            nn.Linear(hidden_dim * 4, 1)
+        )
 
     def forward(self, global_emb: torch.Tensor) -> torch.Tensor:
         """Compute value estimate(s).
@@ -294,73 +313,132 @@ class CriticHead(nn.Module):
 # Module 3 — Hidden Tile Estimator (auxiliary pretraining head)
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Default partition of the NODE_FEAT_DIM-wide feature vector into independent
-# softmax/sigmoid groups for the auxiliary loss.
+# Reduced output layout — the estimator only predicts opponent-side info,
+# since by the rules of the game hidden tiles can only contain opponent
+# state (own units, own cities, own ctrl are mathematically zero on hidden
+# tiles by construction).  All slice constants live in `game/enums.py`,
+# derived dynamically from the enum sizes — adding a new TileType /
+# UnitType / city level extends this layout automatically with no edits
+# to this file.
 #
-#   tile_type    — N_TILE_TYPES one-hot          → softmax + cross-entropy
-#   road         — single binary bit             → sigmoid + BCE-with-logits
-#   player_ctrl  — N_PLAYERS one-hot             → softmax + cross-entropy
-#   city         — village flag + per-player one-hot block (29 dims)
-#                  Treated as a single softmax group: at most one of the 29 is
-#                  hot per tile (no city, village, or one specific city type).
-#                  We allow the all-zero (no city) case via an implicit
-#                  "background" prediction (cross-entropy over the 29 dims with
-#                  weight 0 on the no-city rows).
-#   unit_state   — N_UNIT_STATES (HP-scaled in active slot, 0 elsewhere)
-#                  Treated as softmax over 4 dims; rows with no unit are masked.
-#   own_type     — N_UNIT_TYPES one-hot for current player
-#   opp_type     — N_UNIT_TYPES one-hot for opponent
-_DEFAULT_GROUP_SLICES: List[Tuple[str, slice]] = [
-    ("tile_type",   TILE_TYPE_SLICE),
-    ("road",        ROAD_SLICE),
-    ("player_ctrl", PLAYER_CTRL_SLICE),
-    ("city",        CITY_SLICE),
-    ("unit_state",  UNIT_STATE_SLICE),
-    ("own_type",    OWN_TYPE_SLICE),
-    ("opp_type",    OPP_TYPE_SLICE),
+#   tile_type — N_TILE_TYPES one-hot     → softmax + cross-entropy
+#   road      — single binary bit        → sigmoid + BCE-with-logits
+#   opp_ctrl  — single bit (1 = opp)     → sigmoid + BCE-with-logits
+#   city      — {None, Village, L1..L_cap} softmax (10 dims today)
+#               Empty class is explicit (idx 0), so no row-masking is
+#               needed in the loss.
+#   opp_unit  — {None, UnitType.*} softmax (9 dims today)
+#               Empty class is explicit (idx 0), no row-masking either.
+_REDUCED_GROUP_SLICES: List[Tuple[str, slice]] = [
+    ("tile_type", REDUCED_TILE_TYPE_SLICE),
+    ("road",      REDUCED_ROAD_SLICE),
+    ("opp_ctrl",  REDUCED_OPP_CTRL_SLICE),
+    ("city",      REDUCED_CITY_SLICE),
+    ("opp_unit",  REDUCED_OPP_UNIT_SLICE),
 ]
 
 
+def _full_to_reduced_target(full: torch.Tensor) -> torch.Tensor:
+    """Vectorised transform from the full (N, NODE_FEAT_DIM) feature
+    vector to the reduced (N, REDUCED_FEAT_DIM) one-hot target consumed
+    by the HiddenTileEstimator loss.
+
+    The input must already be in the current player's POV (i.e. with the
+    P2 swap applied if applicable) — same convention as `partial_graph`
+    and `EnvWrapper._full_graph_for_player(...)`.
+    """
+    N   = full.shape[0]
+    out = full.new_zeros((N, REDUCED_FEAT_DIM))
+
+    # tile_type, road — pass through.
+    out[:, REDUCED_TILE_TYPE_SLICE] = full[:, TILE_TYPE_SLICE]
+    out[:, REDUCED_ROAD_SLICE]      = full[:, ROAD_SLICE]
+
+    # opp_ctrl — POV-space: idx 0 of PLAYER_CTRL = own, idx 1 = opp.
+    out[:, REDUCED_OPP_CTRL_SLICE.start] = full[:, _PLAYER_CTRL_START + 1]
+
+    # city — collapse to {None, Village, L1..L_cap}.
+    village_bit    = full[:, _CITY_START]                                       # (N,)
+    opp_city_block = full[:, _CITY_START + 1 + N_CITY_TYPES : _UNIT_START]      # (N, N_CITY_TYPES) — opp's per-level
+    has_opp_city   = opp_city_block.sum(dim=-1) > 0.5
+    raw_lvl        = opp_city_block.argmax(dim=-1) + 1                          # CityType levels start at 1
+    capped_lvl     = torch.clamp(raw_lvl, max=MAX_CITY_LEVEL_HIDDEN)            # 1..L_cap
+
+    none_rows    = (~has_opp_city) & (village_bit < 0.5)
+    village_rows = (~has_opp_city) &  (village_bit > 0.5)
+    out[none_rows,    REDUCED_CITY_SLICE.start + 0] = 1.0
+    out[village_rows, REDUCED_CITY_SLICE.start + 1] = 1.0
+    if bool(has_opp_city.any()):
+        rows = torch.nonzero(has_opp_city, as_tuple=False).squeeze(-1)
+        cols = REDUCED_CITY_SLICE.start + 1 + capped_lvl[has_opp_city]
+        out[rows, cols] = 1.0
+
+    # opp_unit — class 0 = None, classes 1.. = unit types.
+    opp_unit_block = full[:, OPP_TYPE_SLICE]
+    has_opp_unit   = opp_unit_block.sum(dim=-1) > 0.5
+    unit_idx       = opp_unit_block.argmax(dim=-1)
+    out[~has_opp_unit, REDUCED_OPP_UNIT_SLICE.start + 0] = 1.0
+    if bool(has_opp_unit.any()):
+        rows = torch.nonzero(has_opp_unit, as_tuple=False).squeeze(-1)
+        cols = REDUCED_OPP_UNIT_SLICE.start + 1 + unit_idx[has_opp_unit]
+        out[rows, cols] = 1.0
+
+    return out
+
+
 class HiddenTileEstimator(nn.Module):
-    """Per-tile FCNN that predicts the un-fogged node-feature vector.
+    """Per-tile FCNN that predicts opponent-side info on hidden tiles.
 
     For every tile, the estimator takes the encoder's node embedding
-    (D-dim) and emits raw scores of shape (NODE_FEAT_DIM,).  The output
-    is split into independent groups (one-hot blocks + the binary road
-    bit) which are normalised separately:
+    (D-dim) and emits raw scores of shape (REDUCED_FEAT_DIM,).  The
+    output is split into independent groups (one-hot blocks + binary
+    bits) which are normalised separately:
 
         - one-hot groups → softmax along the group axis
-        - road bit       → sigmoid
+        - binary bits    → sigmoid
 
     The `loss` method computes the auxiliary objective: cross-entropy
-    per softmax group + BCE on the road bit, summed.  Only tiles flagged
-    as currently-hidden by the caller contribute (visible tiles already
-    appear in the partial graph and are uninformative for this task).
+    per softmax group + BCE on the road / opp_ctrl bits, summed.  Only
+    tiles flagged as currently-hidden by the caller contribute
+    (visible tiles already appear in the partial graph and are
+    uninformative for this task).
+
+    The full ground-truth target (NODE_FEAT_DIM-wide) is transformed
+    internally to the reduced layout via `_full_to_reduced_target`,
+    so callers can keep passing the un-fogged board graph without
+    knowing about the reduced layout.
 
     Parameters
     ──────────
-    node_dim     : int   width of the encoder's node embedding (== hidden_dim)
-    mlp_hidden   : int   width of the hidden FC layers
-    mlp_depth    : int   number of hidden layers
-    group_slices : list of (name, slice) — defaults to the V2.0 layout
+    node_dim   : int   width of the encoder's node embedding (== hidden_dim)
+    mlp_hidden : int   width of the hidden FC layers
+    mlp_depth  : int   number of hidden layers
     """
+
+    OUT_DIM      = REDUCED_FEAT_DIM
+    GROUP_SLICES = _REDUCED_GROUP_SLICES
 
     def __init__(
         self,
-        node_dim:     int,
-        mlp_hidden:   int = 128,
-        mlp_depth:    int = 2,
-        group_slices: Optional[List[Tuple[str, slice]]] = None,
+        node_dim:   int,
+        mlp_hidden: int = 128,
+        mlp_depth:  int = 2,
     ) -> None:
         super().__init__()
-        self.group_slices = list(group_slices) if group_slices is not None \
-                            else list(_DEFAULT_GROUP_SLICES)
-        self.predictor    = _mlp(node_dim, mlp_hidden, NODE_FEAT_DIM, mlp_depth)
+        #self.predictor = _mlp(node_dim, mlp_hidden, REDUCED_FEAT_DIM, mlp_depth)
+        self.predictor    = nn.Sequential(
+            nn.Linear(node_dim, node_dim * 2),
+            nn.Tanh(),
+            nn.Linear(node_dim * 2, node_dim * 4),
+            nn.LayerNorm(node_dim * 4),
+            nn.Tanh(),
+            nn.Linear(node_dim * 4, REDUCED_FEAT_DIM)
+        )
 
     # ── Forward ────────────────────────────────────────────────────────────
 
     def forward(self, node_emb: torch.Tensor) -> torch.Tensor:
-        """Return raw per-tile feature scores (no softmax/sigmoid applied).
+        """Return raw per-tile reduced-feature scores (no softmax/sigmoid).
 
         Parameters
         ──────────
@@ -368,7 +446,7 @@ class HiddenTileEstimator(nn.Module):
 
         Returns
         ───────
-        Tensor (N, NODE_FEAT_DIM) — raw logits for every feature dim.
+        Tensor (N, REDUCED_FEAT_DIM) — raw logits for every reduced dim.
         """
         return self.predictor(node_emb)
 
@@ -376,9 +454,9 @@ class HiddenTileEstimator(nn.Module):
         """Apply per-group softmax / per-bit sigmoid to the raw forward."""
         raw = self.forward(node_emb)
         out = torch.zeros_like(raw)
-        for name, sl in self.group_slices:
+        for name, sl in self.GROUP_SLICES:
             block = raw[:, sl]
-            if name == "road":
+            if name in ("road", "opp_ctrl"):
                 out[:, sl] = torch.sigmoid(block)
             else:
                 out[:, sl] = F.softmax(block, dim=-1)
@@ -396,14 +474,20 @@ class HiddenTileEstimator(nn.Module):
 
         Parameters
         ──────────
-        pred        : Tensor (N, NODE_FEAT_DIM)  — raw output of `forward`
-        target      : Tensor (N, NODE_FEAT_DIM)  — un-fogged ground truth
-        hidden_mask : Tensor (N,) bool           — True for tiles to learn on
+        pred        : Tensor (N, REDUCED_FEAT_DIM)  — raw output of `forward`
+        target      : Tensor (N, NODE_FEAT_DIM)    — un-fogged ground truth
+                                                       in the current player's POV;
+                                                       transformed internally to
+                                                       the reduced layout.
+        hidden_mask : Tensor (N,) bool             — True for tiles to learn on
 
         Returns
         ───────
-        Tensor () — sum over groups of the mean per-tile group loss.
-                    Returns 0 when `hidden_mask` selects nothing.
+        Tensor () — sum over hidden tiles of the per-tile group-loss sum.
+                    Reduction is `sum` so callers can apply explicit per-tile
+                    normalisation (divide by n_hidden) in their own
+                    aggregation step.  Returns 0 when `hidden_mask` selects
+                    nothing.
         """
         if hidden_mask.dtype != torch.bool:
             hidden_mask = hidden_mask.bool()
@@ -412,35 +496,27 @@ class HiddenTileEstimator(nn.Module):
         if n_hidden == 0:
             return pred.sum() * 0.0   # zero, but keeps grad-graph alive
 
-        sub_pred   = pred[hidden_mask]
-        sub_target = target[hidden_mask].to(sub_pred.dtype)
+        sub_pred   = pred[hidden_mask]                                   # (M, REDUCED_FEAT_DIM)
+        sub_target = _full_to_reduced_target(
+            target[hidden_mask].to(sub_pred.dtype)
+        )                                                                # (M, REDUCED_FEAT_DIM)
 
         total = pred.new_zeros(())
-        for name, sl in self.group_slices:
+        for name, sl in self.GROUP_SLICES:
             logits = sub_pred[:, sl]
             tgt    = sub_target[:, sl]
 
-            if name == "road":
-                # Single-bit BCE-with-logits, mean over hidden tiles.
+            if name in ("road", "opp_ctrl"):
                 total = total + F.binary_cross_entropy_with_logits(
-                    logits.squeeze(-1), tgt.squeeze(-1), reduction="mean",
+                    logits.squeeze(-1), tgt.squeeze(-1), reduction="sum",
                 )
                 continue
 
-            # One-hot softmax groups.  Some rows may be all-zero (e.g. tiles
-            # with no unit have a zero unit_state block).  Skip those rows
-            # for that group: they carry no signal and would otherwise blow
-            # up cross_entropy with an invalid class index.
-            row_mass = tgt.sum(dim=-1)
-            keep     = row_mass > 0.5
-            if not bool(keep.any()):
-                continue
-
-            kept_logits = logits[keep]
-            kept_target = tgt[keep]
-            class_idx   = kept_target.argmax(dim=-1)
+            # city / opp_unit have an explicit "None" class at idx 0,
+            # so every row is a valid target — no row-masking needed.
+            class_idx = tgt.argmax(dim=-1)
             total = total + F.cross_entropy(
-                kept_logits, class_idx, reduction="mean",
+                logits, class_idx, reduction="sum",
             )
 
         return total
