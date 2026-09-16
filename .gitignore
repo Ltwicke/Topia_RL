@@ -1,2 +1,6 @@
 RL/logs
 RL/checkpoints_training
+
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

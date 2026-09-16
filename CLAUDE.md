@@ -66,7 +66,9 @@ The game simulator is build step by step in incremental changes. Always run some
 
 ### Current To-Dos and open design choices
 
-- Read `todos.md` from the projects root folder
+- Tasks are tracked in the Shortcut workspace **TopiaRL** (`mcp__shortcut__*` tools), not in a markdown file. Use `stories-search` to see open work, grouped under epics such as "Run a successful RL run without bugs", "Model Interpretability & Evaluation Tooling", "Codebase Cleanup & V3 Repo Hygiene", and "Documentation & Outreach", all under the "Version 3.0" objective.
+- Workflow states: Backlog (icebox) → To Do (queued) → In Progress (actively being worked) → In Review (implementation + tests done, pending self-review) → Done (merged into `Version_3.0`).
+- **Story = branch convention:** one Shortcut story maps to one git branch. Before starting a story, call `stories-get-branch-name` for it, branch off `Version_3.0`, move the story to "In Progress" and self-assign it. Mention the story id (e.g. `sc-44`) in commit messages so Shortcut links commits back to the story. When done, run tests, move the story to "In Review", then locally merge the branch into `Version_3.0` and move the story to "Done" with a closing comment. Trivial/exploratory work (scratch notebooks, quick experiments) doesn't need a story or branch.
 
 
 ## Hard Rules
