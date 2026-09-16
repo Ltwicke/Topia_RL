@@ -80,8 +80,9 @@ _CSV_FIELDS = [
     "update",
     "wall_time_s", "t_dist_s", "t_collect_s",
     "t_est_s", "t_gae_s", "t_ppo_s", "t_scenarios_s",
-    "n_finished", "n_won", "win_rate",
-    "avg_ep_len", "avg_reward",
+    "n_games", "n_active_wins", "active_win_rate",
+    "n_conquest", "n_timeout",
+    "avg_ep_len", "avg_active_reward",
     "est_loss", "est_steps",
     "p_loss", "v_loss", "entropy",
     "vram_alloc_before_mb", "vram_reserved_before_mb",
@@ -142,13 +143,19 @@ def _save_checkpoint(
     update:         int,
     ckpt_queue:     deque,
     logger:         logging.Logger,
+    permanent:      bool = False,
 ) -> None:
     """Persist a resumable bundle: policy weights + both Adam optimisers
     + both GradScalers + the current update index. Old training-loop runs
     that wrote bare `state_dict`s are no longer compatible — those
-    checkpoints can be discarded."""
+    checkpoints can be discarded.
+
+    When `permanent=True` the file is named `policy_permanent_*.pt` and is
+    NOT tracked by the rolling eviction queue (kept forever)."""
     os.makedirs(CKPT_DIR, exist_ok=True)
-    path = os.path.join(CKPT_DIR, f"policy_update_{update:05d}.pt")
+    fname = (f"policy_permanent_{update:05d}.pt" if permanent
+             else f"policy_update_{update:05d}.pt")
+    path = os.path.join(CKPT_DIR, fname)
     torch.save(
         {
             "policy":        policy.state_dict(),
@@ -160,6 +167,9 @@ def _save_checkpoint(
         },
         path,
     )
+    if permanent:
+        logger.info(f"  [ckpt] saved PERMANENT → {path}  (never evicted)")
+        return
     ckpt_queue.append(path)
     if len(ckpt_queue) > MAX_CKPT:
         oldest = ckpt_queue.popleft()
@@ -272,7 +282,12 @@ def main() -> None:
         f"({n_mb_per_epoch} minibatches × {cfg.minibatch_size})",
         f"  PPO epochs        : {cfg.n_epochs}  |  Updates: {cfg.n_updates}",
         f"  clip_eps / vf / ent: {cfg.clip_eps} / {cfg.vf_coef} / {cfg.ent_coef}",
-        f"  γ / λ_w / λ_l     : {cfg.gamma} / {cfg.lambda_winner} / {cfg.lambda_loser}",
+        f"  γ / λ             : {cfg.gamma} / {cfg.gae_lambda}",
+        f"  Recompute GAE/epoch: {cfg.recompute_gae_each_epoch}",
+        f"  Reward            : dense={cfg.dense_reward}  "
+        f"terminal={cfg.terminal_reward_mode}  win_reward={cfg.win_reward}",
+        f"  Self-play         : active seat P{cfg.active_player_id} vs frozen "
+        f"(refresh every {cfg.opponent_refresh_interval} updates)",
         f"  LR                : {cfg.lr}",
         f"  AMP               : {cfg.use_amp}",
         "",
@@ -304,6 +319,12 @@ def main() -> None:
     logger.info(f"Spawned {cfg.n_processes} worker processes.")
 
     ckpt_queue = deque()
+
+    # Frozen-opponent weights: start as a CPU copy of the loaded policy, so the
+    # first `opponent_refresh_interval` updates train against the starting
+    # policy. Refreshed from the active weights every interval.
+    frozen_state = {k: v.detach().cpu().clone() for k, v in policy.state_dict().items()}
+
     outer_bar  = tqdm(
         range(cfg.start_update, cfg.n_updates),
         desc="Updates", unit="upd",
@@ -315,10 +336,19 @@ def main() -> None:
     for update in outer_bar:
         t_update_start = time.time()
 
-        # ── 1. Distribute latest weights to workers ────────────────────────
+        # ── 0. Refresh frozen opponent from active weights every N updates ──
+        if (cfg.self_play_frozen_opponent
+                and update > cfg.start_update
+                and update % cfg.opponent_refresh_interval == 0):
+            frozen_state = {k: v.detach().cpu().clone()
+                            for k, v in policy.state_dict().items()}
+            logger.info(f"[update {update:04d}] frozen opponent refreshed "
+                        f"from active weights")
+
+        # ── 1. Distribute active + frozen weights to workers ───────────────
         # Move to CPU before IPC (workers have no GPU)
         cpu_state = {k: v.cpu() for k, v in policy.state_dict().items()}
-        t_dist    = env_manager.distribute(cpu_state)
+        t_dist    = env_manager.distribute(cpu_state, frozen_state)
         del cpu_state   # release extra CPU copy immediately
         logger.info(f"\n[update {update:04d}] weights dispatched in {t_dist:.3f}s")
 
@@ -363,13 +393,13 @@ def main() -> None:
         logger.info(f"[update {update:04d}] PPO update done in {t_ppo:.2f}s")
 
         # ── 6. Extract game stats from processed_batch ────────────────────
-        n_finished   = processed_batch["n_finished"]
-        n_won        = processed_batch["n_won"]
-        n_timeout    = n_finished - n_won
-        total_reward = processed_batch["total_reward"]
-        avg_reward   = total_reward / max(n_finished, 1)
-        win_rate     = n_won / max(n_finished, 1)
-        avg_ep_len   = processed_batch["avg_ep_len"]
+        n_games         = processed_batch["n_games"]
+        n_active_wins   = processed_batch["n_active_wins"]
+        n_conquest      = processed_batch["n_conquest"]
+        n_timeout       = processed_batch["n_timeout"]
+        active_win_rate = n_active_wins / max(n_games, 1)
+        avg_active_rew  = processed_batch["active_reward_sum"] / max(n_games, 1)
+        avg_ep_len      = processed_batch["avg_ep_len"]
 
         pl = stats["p_loss"]
         vl = stats["v_loss"]
@@ -418,6 +448,14 @@ def main() -> None:
                 policy, ppo_trainer, est_pretrainer,
                 update, ckpt_queue, logger,
             )
+        # Permanent (never-evicted) snapshot every permanent_ckpt_interval
+        if (cfg.permanent_ckpt_interval > 0
+                and update > 0
+                and update % cfg.permanent_ckpt_interval == 0):
+            _save_checkpoint(
+                policy, ppo_trainer, est_pretrainer,
+                update, ckpt_queue, logger, permanent=True,
+            )
 
         # ── 10. Console logging ────────────────────────────────────────────
         t_total = time.time() - t_update_start
@@ -434,12 +472,13 @@ def main() -> None:
                 f"| SCN {t_scenarios:.2f}s)"
             )
             logger.info(
-                f"║  Games finished: {n_finished:6d}  "
-                f"(conquest {n_won}, timeout {n_timeout})"
+                f"║  Games finished: {n_games:6d}  "
+                f"(conquest {n_conquest}, timeout {n_timeout})"
             )
-            logger.info(f"║  Win rate      : {win_rate:.3f}")
+            logger.info(f"║  Active win-rate: {active_win_rate:.3f} "
+                        f"(P{cfg.active_player_id} vs frozen)")
             logger.info(f"║  Avg ep length : {avg_ep_len:.1f} steps")
-            logger.info(f"║  Avg reward/ep : {avg_reward:.3f}")
+            logger.info(f"║  Avg active rew: {avg_active_rew:.3f}")
             logger.info(
                 f"║  est_loss      : {est_stats['est_loss']:.4f}  "
                 f"({est_stats['n_steps']} steps)"
@@ -456,12 +495,12 @@ def main() -> None:
             logger.info("")
 
         outer_bar.set_postfix(
-            fin  = n_finished,
-            win  = f"{win_rate:.2f}",
-            est  = f"{est_stats['est_loss']:.3f}",
-            p    = f"{pl:.3f}",
-            v    = f"{vl:.3f}",
-            ent  = f"{el:.3f}",
+            games = n_games,
+            awin  = f"{active_win_rate:.2f}",
+            est   = f"{est_stats['est_loss']:.3f}",
+            p     = f"{pl:.3f}",
+            v     = f"{vl:.3f}",
+            ent   = f"{el:.3f}",
         )
 
         # ── 11. CSV metrics row ────────────────────────────────────────────
@@ -474,11 +513,13 @@ def main() -> None:
             "t_gae_s":                 f"{t_gae:.4f}",
             "t_ppo_s":                 f"{t_ppo:.3f}",
             "t_scenarios_s":           f"{t_scenarios:.3f}",
-            "n_finished":              n_finished,
-            "n_won":                   n_won,
-            "win_rate":                f"{win_rate:.4f}",
+            "n_games":                 n_games,
+            "n_active_wins":           n_active_wins,
+            "active_win_rate":         f"{active_win_rate:.4f}",
+            "n_conquest":              n_conquest,
+            "n_timeout":               n_timeout,
             "avg_ep_len":              f"{avg_ep_len:.2f}",
-            "avg_reward":              f"{avg_reward:.4f}",
+            "avg_active_reward":       f"{avg_active_rew:.4f}",
             "est_loss":                f"{est_stats['est_loss']:.6f}",
             "est_steps":               est_stats["n_steps"],
             "p_loss":                  f"{pl:.6f}",

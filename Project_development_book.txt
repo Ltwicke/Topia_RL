@@ -1464,4 +1464,33 @@ The training run with ~385 updates ended in a stalling behaviour, where the agen
 
 
 
+15.06. 01:36 Uhr
+
+I simply did a quick and dirty prompt to start one large training before I leave to hopefully come back to a perfectly trained model;
+
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""
+Unforunately, this approach did not work and resulted in the agent learning a denial strategy, where it ended up not moving outside of the cities starting borders in order to prevent anything to happen in the game. 
+
+I want to start another long run now. For this run, I want to change the following aspects:
+
+1. Instead of training with only dense rewards or only the zero-sum rewards, I want to train in hybrid setting, where both are active. There will be dense rewards and the final difference sum reward for the winner. This should keep the training stable and achieve good results.
+
+2. Do not punish the looser with a negative reward. Instead, the looser simply gets 0 points added for loosing, while the winner will obtain the difference as a positive winning reward. 
+
+3. Do not use different lambda value for the winner and the looser, have them be the same lambda value.
+
+4. In this on-policy training setting, in order to create more winning reward sequences, the active policy (being trained) should play against an older version of the policy. After a specific number of updates, lets say 20, the newest policy gets copied and the process starts again. This way, the active policy will be able to learn to win against the older version more effectively.
+
+5. Recompute the GAE after every epoch in the ppo loop. This will make the training more effective.
+
+6. Also, in addition to the last 3 policies being saved, I want permanent saves of the policies after every 100 updates or so. Please add this feature.
+
+Your task in planning mode is to make preparation to make all necessary changes to the files in order to start a new run. The most important thing is to keep the training options flexible and lay out all important hyperparameters in the game_manager.py file.
+"""""""""""""""""""""""""""""""""""""""""""""""""""
+
+This appears to have worked quite well... Results will be discussed when Im back
+
+
 

@@ -21,7 +21,7 @@ This repository contains two interconnected projects:
 ### Core Concepts
 - **2-player game**: Although this game can be played with more than 2 players per game, for now, it should be kept as a two player game. 
 - **Game flow**: The game object is created with specification of the board size and type, number of players, which currently is always 2, and some other specificities. Then, an external source sequentially decides for actions and the game class modifies its board, players and other classes based on the action applied. 
-- **Validity assertion**: The game class currently does not check for validity of chosen action, this is handled later in downstream tasks.
+- **Validity assertion**: The game class currently does not check for validity of chosen action, this is handled by the action_mask creation. It is therefore important to create action masks for the current infostate whenever any action is taken.
 
 
 ## Project 2: RL agents to play the game

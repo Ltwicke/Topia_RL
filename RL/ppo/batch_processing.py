@@ -99,57 +99,18 @@ class RunningMeanStd:
 # Per-player Generalised Advantage Estimation
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _lambda_per_step(
-    p:         int,
-    dones_e:   np.ndarray,   # (T,) float32
-    winners_e: np.ndarray,   # (T,) int8   (-1 default; 0/1 at done steps)
-    lam_w:     float,
-    lam_l:     float,
-) -> np.ndarray:
-    """
-    Build a (T,) array assigning each step the GAE-λ to use for player p,
-    based on which game (in env e) that step belongs to:
-      • λ_w  if the game's winner == p
-      • λ_l  if the game's winner == opponent
-      • 0.5 * (λ_w + λ_l) for turn-30 draws (winners_e[d] == -1 at that done)
-      • λ_w for trailing in-progress games (no done in this rollout segment)
-
-    The worker writes `winners_e[d]` at every step where dones_e[d] == 1
-    (both winner-side and loser-side terminal markers, copied to the same
-    value); we walk the done events in order to label each prior segment.
-    """
-    T   = dones_e.shape[0]
-    lam = np.full(T, lam_w, dtype=np.float32)   # default for trailing segment
-    done_idx = np.nonzero(dones_e > 0.5)[0]
-    prev = 0
-    for d in done_idx:
-        w = int(winners_e[d])
-        if w == -1:
-            seg_lam = 0.5 * (lam_w + lam_l)
-        elif w == p:
-            seg_lam = lam_w
-        else:
-            seg_lam = lam_l
-        lam[prev:d + 1] = seg_lam
-        prev = d + 1
-    return lam
-
-
 def compute_gae_per_player(
-    rewards:       np.ndarray,   # (T, N)  float32
-    values:        np.ndarray,   # (T, N)  float32
-    dones:         np.ndarray,   # (T, N)  float32  1.0 = trajectory cut
-    last_values:   np.ndarray,   # (N,)    float32  bootstrap V(s_T)
-    player_ids:    np.ndarray,   # (T, N)  int32
-    winners:       np.ndarray,   # (T, N)  int8     winner id at done steps; -1 else
-    gamma:         float,
-    lambda_winner: float,
-    lambda_loser:  float,
-    n_players:     int = 2,
+    rewards:     np.ndarray,   # (T, N)  float32
+    values:      np.ndarray,   # (T, N)  float32
+    dones:       np.ndarray,   # (T, N)  float32  1.0 = trajectory cut
+    last_values: np.ndarray,   # (N,)    float32  bootstrap V(s_T)
+    player_ids:  np.ndarray,   # (T, N)  int32
+    gamma:       float,
+    gae_lam:     float,
+    n_players:   int = 2,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Compute GAE independently for each player's action subsequence with
-    asymmetric per-game GAE-λ (winner / loser / draw).
+    Compute GAE independently for each player's action subsequence.
 
     Unlike a single-agent rollout where t+1 is the globally next step, here
     t+1 for player p is the NEXT step where player p acts — skipping the
@@ -157,29 +118,19 @@ def compute_gae_per_player(
     already encodes expected future value from player p's perspective
     conditioned on the opponent's behaviour.
 
-    Asymmetric λ
-    ────────────
-    For each game segment in env e, the winner side uses λ = lambda_winner
-    (long-horizon credit) and the loser side uses λ = lambda_loser (short
-    horizon → loss penalty only propagates back a few decisions, preventing
-    learned helplessness early in losing games).  γ is shared across both
-    sides so the value-function target stays well-defined.
-
     Parameters
     ──────────
-    rewards       (T, N) float32  — immediate reward after each action
-    values        (T, N) float32  — critic estimate V(s_t) at collection time
-    dones         (T, N) float32  — 1.0 at trajectory cuts (winner's terminal
-                                    step AND the loser's last decision step)
-    last_values   (N,)   float32  — V(s_T) bootstrap; used for each player's
-                                    final in-rollout step
-    player_ids    (T, N) int32    — player index who acted at each (t, e) slot
-    winners       (T, N) int8     — winner id at done steps (0/1, or -1 for
-                                    turn-30 draws); -1 elsewhere
-    gamma         float           — discount factor (applied per player-step)
-    lambda_winner float           — GAE λ for the winning side of a game
-    lambda_loser  float           — GAE λ for the losing side of a game
-    n_players     int             — number of players (default 2)
+    rewards     (T, N) float32  — immediate reward after each action
+    values      (T, N) float32  — critic estimate V(s_t)
+    dones       (T, N) float32  — 1.0 at trajectory cuts (the acting player's
+                                  terminal step AND the other player's last
+                                  decision step in the same game)
+    last_values (N,)   float32  — V(s_T) bootstrap; used for each player's
+                                  final in-rollout step
+    player_ids  (T, N) int32    — player index who acted at each (t, e) slot
+    gamma       float           — discount factor (applied per player-step)
+    gae_lam     float           — GAE λ
+    n_players   int             — number of players (default 2)
 
     Returns
     ───────
@@ -191,9 +142,12 @@ def compute_gae_per_player(
     For player p's last step in the rollout (index t_k), the true next state
     V(s_{t_{k+1}}) is beyond the rollout horizon.  We approximate it with
     last_values[e], which is V(s_T) evaluated at the post-rollout state.
-    This is the same approximation used in single-agent PPO (V(s_{T+1}) ≈ 0
-    or critic bootstrap).  When dones[t_k, e] == 1 the game has ended so the
-    correct bootstrap is 0.
+    When dones[t_k, e] == 1 the game has ended so the correct bootstrap is 0.
+
+    Note (frozen-opponent self-play): advantages are computed for every player,
+    but only the active seat's slots are kept downstream (filtered in
+    BatchProcessor.process via the `is_active` mask). The non-active player's
+    advantages are harmless and discarded.
     """
     T, N       = rewards.shape
     advantages = np.zeros((T, N), dtype=np.float32)
@@ -207,12 +161,6 @@ def compute_gae_per_player(
                 continue
 
             k = p_steps.size
-
-            # Per-step λ for this (p, e) — constant within each game segment.
-            lam_t = _lambda_per_step(
-                p, dones[:, e], winners[:, e], lambda_winner, lambda_loser,
-            )
-            p_lam = lam_t[p_steps]                    # (k,)
 
             # ── Vectorised next-value lookup ───────────────────────────────
             # next_vals[i] = V(s_{t_{i+1} for player p})
@@ -230,7 +178,7 @@ def compute_gae_per_player(
 
             # ── Backward GAE pass over player-p's own timeline ─────────────
             # not_done[i] = 1.0 unless the game terminated at p_steps[i].
-            # (Turning end / player switch does NOT count as done here.)
+            # (Turn end / player switch does NOT count as done here.)
             p_not_done = 1.0 - dones[p_steps, e]      # (k,)
             p_rewards  = rewards[p_steps, e]            # (k,)
             p_values   = values[p_steps, e]             # (k,)
@@ -242,7 +190,7 @@ def compute_gae_per_player(
                     + gamma * next_vals[i] * p_not_done[i]
                     - p_values[i]
                 )
-                gae = delta + gamma * p_lam[i] * p_not_done[i] * gae
+                gae = delta + gamma * gae_lam * p_not_done[i] * gae
                 advantages[p_steps[i], e] = gae
 
     returns = advantages + values
@@ -305,55 +253,124 @@ class BatchProcessor:
         cfg = self.cfg
         t0  = time.time()
 
+        rewards    = raw_batch["rewards"]      # (T, N)
+        values     = raw_batch["values"]
+        dones      = raw_batch["dones"]
+        player_ids = raw_batch["player_ids"]
+        last_vals  = raw_batch["last_values"]
+        T, N       = rewards.shape
+
         adv, ret = compute_gae_per_player(
-            raw_batch["rewards"],
-            raw_batch["values"],
-            raw_batch["dones"],
-            raw_batch["last_values"],
-            raw_batch["player_ids"],
-            raw_batch["winners"],
-            gamma         = cfg.gamma,
-            lambda_winner = cfg.lambda_winner,
-            lambda_loser  = cfg.lambda_loser,
+            rewards, values, dones, last_vals, player_ids,
+            gamma   = cfg.gamma,
+            gae_lam = cfg.gae_lambda,
         )
 
         t_gae = time.time() - t0
 
-        # ── Flatten (T, N) → (B,) row-major (time-major ordering preserved) ──
-        adv_np = adv.reshape(-1).astype(np.float32)
-        ret_np = ret.reshape(-1).astype(np.float32)
-        lp_np  = raw_batch["log_probs"].reshape(-1).astype(np.float32)
+        # ── Flatten (T, N) → (B,) time-major, then filter to the ACTIVE seat ──
+        is_active_flat = raw_batch["is_active"].reshape(-1) > 0.5
+        active_idx     = np.nonzero(is_active_flat)[0]
+
+        val_flat = values.reshape(-1).astype(np.float32)   # for per-epoch recompute
+        adv_np   = adv.reshape(-1).astype(np.float32)[active_idx]
+        ret_np   = ret.reshape(-1).astype(np.float32)[active_idx]
+        lp_np    = raw_batch["log_probs"].reshape(-1).astype(np.float32)[active_idx]
 
         # Update running stats once per update cycle, then normalise
         self.ret_normalizer.update(ret_np)
         ret_norm_np = self.ret_normalizer.normalize(ret_np)
 
-        # ── Flatten list-of-lists (time-major) ───────────────────────────────
-        flat_snaps = [s for step in raw_batch["obs_snaps"] for s in step]
-        flat_acts  = [a for step in raw_batch["actions"]   for a in step]
-        flat_masks = [m for step in raw_batch["masks"]      for m in step]
+        # ── Flatten list-of-lists (time-major), keep active only ──────────────
+        all_snaps = [s for step in raw_batch["obs_snaps"] for s in step]
+        all_acts  = [a for step in raw_batch["actions"]   for a in step]
+        all_masks = [m for step in raw_batch["masks"]      for m in step]
+        flat_snaps = [all_snaps[i] for i in active_idx]
+        flat_acts  = [all_acts[i]  for i in active_idx]
+        flat_masks = [all_masks[i] for i in active_idx]
 
-        # ── Logging helpers ───────────────────────────────────────────────────
-        n_finished   = int(raw_batch["dones"].sum())
-        n_won        = int(raw_batch["won_flags"].sum())
-        total_reward = float(raw_batch["rewards"].sum())
-        avg_ep_len   = cfg.batch_size / max(n_finished, 1)
+        # ── Logging (game outcomes come from worker scalar counters) ──────────
+        n_games           = int(raw_batch.get("n_games", 0))
+        n_active_wins     = int(raw_batch.get("n_active_wins", 0))
+        n_conquest        = int(raw_batch.get("n_conquest", 0))
+        n_timeout         = int(raw_batch.get("n_timeout", 0))
+        active_reward_sum = float(rewards.reshape(-1)[active_idx].sum())
+        avg_ep_len        = active_idx.size / max(n_games, 1)
 
         processed_batch = {
-            # Training data
-            "flat_snaps":  flat_snaps,
-            "flat_acts":   flat_acts,
-            "flat_masks":  flat_masks,
+            # Training data (active seat only)
+            "flat_snaps":   flat_snaps,
+            "flat_acts":    flat_acts,
+            "flat_masks":   flat_masks,
             "log_probs_np": lp_np,
             "adv_np":       adv_np,
             "ret_norm_np":  ret_norm_np,
+            # Inputs needed to recompute GAE each epoch (compute_values_batch)
+            "rewards_TN":             rewards,
+            "dones_TN":               dones,
+            "player_ids_TN":          player_ids,
+            "last_values_N":          last_vals,
+            "values_flat_collection": val_flat,
+            "active_idx":             active_idx,
+            "T":                      T,
+            "N":                      N,
             # Logging
-            "n_finished":   n_finished,
-            "n_won":        n_won,
-            "total_reward": total_reward,
-            "avg_ep_len":   avg_ep_len,
+            "n_games":           n_games,
+            "n_active_wins":     n_active_wins,
+            "n_conquest":        n_conquest,
+            "n_timeout":         n_timeout,
+            "active_reward_sum": active_reward_sum,
+            "avg_ep_len":        avg_ep_len,
         }
         return processed_batch, t_gae
+
+    # ── Per-epoch GAE recompute ───────────────────────────────────────────────
+
+    def recompute_advantages(
+        self,
+        processed_batch:     dict,
+        fresh_active_values: np.ndarray,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Recompute advantages/returns from refreshed critic values for the
+        active seat. Called at the start of each PPO epoch (epoch ≥ 1).
+
+        The running-mean/std stats are NOT updated here — only `normalize` is
+        applied — so the return normalisation stays consistent across the
+        update cycle (it was updated once in `process`).
+
+        Parameters
+        ──────────
+        processed_batch     : dict — output of process()
+        fresh_active_values : (n_active,) — V(s) for the active snapshots,
+                              in the same order as processed_batch["flat_snaps"]
+                              (i.e. processed_batch["active_idx"] order).
+
+        Returns
+        ───────
+        adv_np      (n_active,) float32 — fresh advantages (active seat)
+        ret_norm_np (n_active,) float32 — fresh normalised returns
+        """
+        cfg        = self.cfg
+        active_idx = processed_batch["active_idx"]
+
+        # Scatter fresh active values into a full (T·N,) array, leaving the
+        # non-active slots at their collection values (unused by active GAE).
+        vals_flat = processed_batch["values_flat_collection"].copy()
+        vals_flat[active_idx] = np.asarray(fresh_active_values, dtype=np.float32)
+        values_TN = vals_flat.reshape(processed_batch["T"], processed_batch["N"])
+
+        adv, ret = compute_gae_per_player(
+            processed_batch["rewards_TN"], values_TN,
+            processed_batch["dones_TN"], processed_batch["last_values_N"],
+            processed_batch["player_ids_TN"],
+            gamma   = cfg.gamma,
+            gae_lam = cfg.gae_lambda,
+        )
+        adv_np      = adv.reshape(-1).astype(np.float32)[active_idx]
+        ret_np      = ret.reshape(-1).astype(np.float32)[active_idx]
+        ret_norm_np = self.ret_normalizer.normalize(ret_np)   # normalize-only
+        return adv_np, ret_norm_np
 
     # ── Minibatch generator ───────────────────────────────────────────────────
 
@@ -399,7 +416,9 @@ class BatchProcessor:
         inside _step() for maximum memory efficiency.
         """
         cfg = self.cfg
-        B   = cfg.batch_size
+        # B is the number of ACTIVE-seat samples (≤ cfg.batch_size after the
+        # frozen-opponent filter), derived from the array length itself.
+        B   = processed_batch["adv_np"].shape[0]
         mb  = cfg.minibatch_size
 
         # ── Convert numpy → CPU tensors once per epoch call ──────────────────

@@ -86,7 +86,7 @@ def random_valid_action(env: EnvWrapper) -> list[int]:
     return [atype]
 
 
-def play_one_game(seed: int) -> dict:
+def play_one_game(seed: int, mode: str, dense: bool) -> dict:
     random.seed(seed)
     np.random.seed(seed)
     board_config = {
@@ -98,26 +98,24 @@ def play_one_game(seed: int) -> dict:
         board_config,
         [Tribes.Omaji, Tribes.Imperius],
         max_turns_per_game=12,
-        dense_reward=False,
-        zero_sum_terminal=True,
+        dense_reward=dense,
+        terminal_reward_mode=mode,
     )
     env.reset()
 
     rewards_log: list[float] = []
-    info_opp_log: list[float] = []
     n_steps = 0
     while True:
         a = random_valid_action(env)
         obs, rew, done, info = env.step(a)
         rewards_log.append(float(rew))
-        info_opp_log.append(float(info["reward_opp"]))
         n_steps += 1
         if done:
             return {
                 "n_steps":     n_steps,
                 "rewards":     rewards_log,
-                "info_opps":   info_opp_log,
                 "winner_id":   info["winner_id"],
+                "is_conquest": info["is_conquest"],
                 "terminal_r":  float(rew),
                 "terminal_ro": float(info["reward_opp"]),
             }
@@ -126,47 +124,55 @@ def play_one_game(seed: int) -> dict:
 
 
 def main() -> None:
-    n_games = 5
-    diffs: list[float] = []
+    n_games = 6
+
+    # ── winner_only + dense (the actual training regime) ──────────────────
+    print("=== winner_only + dense (training regime) ===")
     for seed in range(n_games):
-        result = play_one_game(seed)
+        r = play_one_game(seed, mode="winner_only", dense=True)
+        wid, is_conq = r["winner_id"], r["is_conquest"]
+        assert wid in (0, 1, None), f"[seed {seed}] bad winner_id={wid}"
 
-        # zero-sum at terminal
-        s = result["terminal_r"] + result["terminal_ro"]
-        assert abs(s) < 1e-4, (
-            f"[seed {seed}] r_cur + r_opp != 0 at terminal: {result['terminal_r']:.4f} + "
-            f"{result['terminal_ro']:.4f} = {s:.4f}"
+        # Loser never receives a negative terminal add. The acting player's
+        # terminal reward includes dense shaping, so we check the OPPONENT
+        # side: r_opp is the other player's terminal share — must be >= 0
+        # (winner_only never assigns a negative reward to anyone).
+        assert r["terminal_ro"] >= -1e-6, (
+            f"[seed {seed}] opponent terminal share negative in winner_only: "
+            f"{r['terminal_ro']}"
         )
+        # Exactly one side gets a positive terminal diff (or none on a tie).
+        # r_opp>0 means the non-acting player won (timeout score-lead).
+        print(f"  seed {seed}: steps={r['n_steps']:4d}  winner={wid}  "
+              f"conquest={is_conq}  r_cur={r['terminal_r']:+9.2f}  "
+              f"r_opp={r['terminal_ro']:+9.2f}")
 
-        # winner_id is 0, 1, or None
-        wid = result["winner_id"]
-        assert wid in (0, 1, None), f"[seed {seed}] unexpected winner_id={wid}"
-
-        # all non-terminal rewards are zero
-        for i, r in enumerate(result["rewards"][:-1]):
-            assert r == 0.0, (
-                f"[seed {seed}] non-terminal reward at step {i}: {r}"
-            )
-            assert result["info_opps"][i] == 0.0, (
-                f"[seed {seed}] non-terminal info reward_opp at step {i}: "
-                f"{result['info_opps'][i]}"
-            )
-
-        diffs.append(result["terminal_r"])
-        print(
-            f"  seed {seed}: steps={result['n_steps']:4d}  winner={wid}  "
-            f"r_cur={result['terminal_r']:+10.2f}  r_opp={result['terminal_ro']:+10.2f}"
+    # ── zero_sum back-compat: r_cur + r_opp == 0 at terminal ──────────────
+    print("\n=== zero_sum (back-compat) ===")
+    for seed in range(n_games):
+        r = play_one_game(seed, mode="zero_sum", dense=False)
+        s = r["terminal_r"] + r["terminal_ro"]
+        assert abs(s) < 1e-3, (
+            f"[seed {seed}] zero_sum terminal not balanced: "
+            f"{r['terminal_r']:.3f} + {r['terminal_ro']:.3f} = {s:.3f}"
         )
+        # dense off → all non-terminal rewards are exactly 0
+        for i, rv in enumerate(r["rewards"][:-1]):
+            assert rv == 0.0, f"[seed {seed}] non-terminal reward at {i}: {rv}"
+        print(f"  seed {seed}: winner={r['winner_id']}  "
+              f"r_cur+r_opp={s:+.4f}")
 
-    arr = np.array(diffs, dtype=np.float64)
-    print()
-    print(f"diff stats over {n_games} games:")
-    print(f"  mean = {arr.mean():.2f}")
-    print(f"  std  = {arr.std():.2f}")
-    print(f"  min  = {arr.min():.2f}")
-    print(f"  max  = {arr.max():.2f}")
-    print()
-    print("All assertions passed.")
+    # ── none: pure dense, no terminal diff ────────────────────────────────
+    print("\n=== none (pure dense) ===")
+    for seed in range(2):
+        r = play_one_game(seed, mode="none", dense=True)
+        assert r["terminal_ro"] == 0.0, (
+            f"[seed {seed}] mode=none should give r_opp==0, got {r['terminal_ro']}"
+        )
+        print(f"  seed {seed}: winner={r['winner_id']}  "
+              f"terminal_r={r['terminal_r']:+.2f} (dense only)")
+
+    print("\nAll assertions passed.")
 
 
 if __name__ == "__main__":

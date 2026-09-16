@@ -228,10 +228,12 @@ class PPOTrainer:
         vl_log: list = []
         el_log: list = []
 
-        # Estimate total minibatches for the progress bar
+        # Estimate total minibatches for the progress bar from the actual
+        # (active-seat) sample count.
+        n_active          = processed_batch["adv_np"].shape[0]
         n_train_per_epoch = max(
             cfg.minibatch_size,
-            int(cfg.batch_size * cfg.train_fraction),
+            int(n_active * cfg.train_fraction),
         )
         n_mb_per_epoch = n_train_per_epoch // cfg.minibatch_size
         total_mb       = cfg.n_epochs * n_mb_per_epoch
@@ -246,9 +248,29 @@ class PPOTrainer:
         self.policy.train()
 
         for epoch in range(cfg.n_epochs):
+            # ── Per-epoch GAE recompute ──────────────────────────────────────
+            # Refresh critic values over the active snapshots and recompute
+            # advantages/returns, so the value function's within-update drift
+            # is reflected. Epoch 0 reuses process()'s initial estimate.
+            if cfg.recompute_gae_each_epoch and epoch > 0:
+                self.policy.eval()
+                with torch.no_grad():
+                    fresh_vals = self.policy.compute_values_batch(
+                        processed_batch["flat_snaps"]
+                    ).detach().cpu().numpy()
+                self.policy.train()
+                adv_np, ret_norm_np = batch_processor.recompute_advantages(
+                    processed_batch, fresh_vals,
+                )
+                epoch_batch = {**processed_batch,
+                               "adv_np": adv_np,
+                               "ret_norm_np": ret_norm_np}
+            else:
+                epoch_batch = processed_batch
+
             # Fresh permutation + fraction selection each epoch
             for minibatch in batch_processor.minibatch_generator(
-                processed_batch,
+                epoch_batch,
                 train_fraction=cfg.train_fraction,
             ):
                 p_item, v_item, ent_item = self._step(minibatch)

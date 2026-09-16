@@ -65,32 +65,32 @@ class TrainConfig:
     """
 
     # ── Checkpoint / resume ───────────────────────────────────────────────────
-    pretrained_ckpt: str = r"./checkpoints_training/policy_update_00013.pt"   # path to .pt; "" = train from scratch
-    start_update:    int = 14    # first update index (set > 0 when resuming)
+    pretrained_ckpt: str = r"./checkpoints_training/policy_update_00002.pt"   # path to .pt; "" = train from scratch
+    start_update:    int = 3    # first update index (set > 0 when resuming)
 
     # ── Encoder ───────────────────────────────────────────────────────────────
-    encoder_hidden_dim: int = 128
+    encoder_hidden_dim: int = 48
     encoder_n_heads:    int = 4
-    encoder_depth:      int = 4
+    encoder_depth:      int = 2
 
     # ── Selection heads ───────────────────────────────────────────────────────
     sel_n_heads:  int = 4
     sel_n_layers: int = 2
 
     # ── MLP ───────────────────────────────────────────────────────────────────
-    mlp_hidden_dim: int = 128
+    mlp_hidden_dim: int = 64
     mlp_depth:      int = 2
 
     # ── Multi-scale convolutions ──────────────────────────────────────────────
-    kernel_sizes:  Tuple[int, ...] = (3,)
-    n_conv_layers: int             = 4
+    kernel_sizes:  Tuple[int, ...] = (5,3)
+    n_conv_layers: int             = 1
 
     # ── Movement context window ───────────────────────────────────────────────
-    context_bias: int = 4
+    context_bias: int = 5
 
     # ── Parallelism ───────────────────────────────────────────────────────────
     n_processes:        int = 14
-    n_envs_per_process: int = 3
+    n_envs_per_process: int = 2
 
     # ── Environment ───────────────────────────────────────────────────────────
     # board_type is randomised per env from board_type_pool — Dummy is dropped.
@@ -110,11 +110,27 @@ class TrainConfig:
     max_turns_per_game: int   = 30
     board_size_range:   tuple = (11, 16)
 
+    # ── Reward shaping ────────────────────────────────────────────────────────
+    # terminal_reward_mode: "none" | "zero_sum" | "winner_only"
+    #   winner_only — winner +diff, loser 0 (no punishment; current run)
+    dense_reward:         bool  = True
+    terminal_reward_mode: str   = "winner_only"
+    win_reward:           float = 500.0   # flat bonus to the CONQUEROR's score
+                                          # before the diff (timeout adds no bonus)
+
+    # ── Frozen-opponent self-play ─────────────────────────────────────────────
+    # The trained policy occupies seat `active_player_id`; the other seat is
+    # played by a frozen copy refreshed every `opponent_refresh_interval`
+    # updates. Only the active seat's transitions train PPO.
+    self_play_frozen_opponent: bool = True
+    active_player_id:          int  = 0
+    opponent_refresh_interval: int  = 10
+
     # ── Estimator pretraining (Phase A of each update) ────────────────────────
     estimator_lr:             float = 3e-4
     estimator_n_epochs:       int   = 4
-    estimator_minibatch_size: int   = 256
-    estimator_train_fraction: float = 0.5    
+    estimator_minibatch_size: int   = 512
+    estimator_train_fraction: float = 1.0    
 
     # ── Scenario eval (Phase C — runs after PPO update) ───────────────────────
     scenario_dir:             str   = "scenarios/scenarios"
@@ -132,6 +148,7 @@ class TrainConfig:
             "Defender_ZoC",
             "Estimate_Drylands_endgame",
             "Rider_hit_and_run",
+            "Dont_attack",
         ]
     )
 
@@ -140,10 +157,10 @@ class TrainConfig:
 
     # ── PPO epochs & batching ─────────────────────────────────────────────────
     n_epochs:       int   = 3
-    n_minibatches:  int   = 84   # determines cfg.minibatch_size
+    n_minibatches:  int   = 128   # determines cfg.minibatch_size
     # Fraction ∈ (0,1]: what share of the assembled minibatches to train on
     # per epoch.  Reduces PPO update time without wasting simulation data.
-    train_fraction: float = 0.25
+    train_fraction: float = 1.0
 
     # ── PPO loss coefficients ─────────────────────────────────────────────────
     clip_eps:      float = 0.2
@@ -152,12 +169,10 @@ class TrainConfig:
     max_grad_norm: float = 0.5
 
     # ── GAE / discount ────────────────────────────────────────────────────────
-    gamma:         float = 0.999
-    lambda_winner: float = 0.99   # standard GAE-λ for the winning side
-    lambda_loser:  float = 0.9    # shorter horizon → loss penalty only hits last
-                                   # few decisions, prevents pessimistic play.
-                                   # Draws use 0.5 * (lambda_winner + lambda_loser);
-                                   # mid-rollout truncation uses lambda_winner.
+    gamma:                    float = 0.99
+    gae_lambda:               float = 0.95   # single λ for all trajectories
+    recompute_gae_each_epoch: bool  = True   # refresh values + GAE before each
+                                              # PPO epoch (uses compute_values_batch)
 
     # ── Optimiser ─────────────────────────────────────────────────────────────
     lr: float = 3e-4
@@ -165,7 +180,8 @@ class TrainConfig:
     # ── Training loop ─────────────────────────────────────────────────────────
     n_updates:     int = 2500
     log_interval:  int = 1
-    ckpt_interval: int = 1
+    ckpt_interval:           int = 1     # rolling checkpoints (last MAX_CKPT kept)
+    permanent_ckpt_interval: int = 100   # never-evicted snapshots every N updates
 
     # ── Speed / diagnostic ────────────────────────────────────────────────────
     use_amp:    bool = True   # AMP mixed precision training
@@ -232,8 +248,9 @@ def _make_env(cfg: TrainConfig) -> EnvWrapper:
         board_config,
         cfg.player_tribes,
         max_turns_per_game=cfg.max_turns_per_game,
-        dense_reward=False,                                                 # DENSE REWARDS HERE DENSE REWARDS HERE DENSE REWARDS HERE DENSE REWARDS HERE 
-        zero_sum_terminal=True,
+        win_reward=cfg.win_reward,
+        dense_reward=cfg.dense_reward,
+        terminal_reward_mode=cfg.terminal_reward_mode,
     )
 
 
@@ -249,9 +266,16 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
     re-inserted into sys.path at module load time above — no extra setup
     needed here.
 
+    Frozen-opponent self-play
+    ──────────────────────────
+    Two policies live in the worker: the active (trained) policy occupies seat
+    `cfg.active_player_id`, a frozen older copy occupies the other seat. Both
+    are run to drive realistic game dynamics, but only the active seat's
+    transitions are flagged `is_active=1` and used for PPO downstream.
+
     Protocol
     ────────
-    Main → Worker : ('collect', cpu_state_dict)
+    Main → Worker : ('collect', {'active': sd, 'frozen': sd})
     Worker → Main : ('data',    chunk_dict)
 
     Main → Worker : ('stop', None)
@@ -262,18 +286,17 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
     log_probs   (T, M)  float32     — log π_θ_old(a_t | s_t)
     values      (T, M)  float32     — V(s_t) at collection time
     rewards     (T, M)  float32     — immediate reward after action
-    dones       (T, M)  float32     — 1.0 only on game termination (set on
-                                      BOTH the winner's terminal step and the
-                                      loser's last decision step in zero-sum
-                                      mode, so per-player GAE cuts correctly)
-    won_flags   (T, M)  float32     — 1.0 when terminated by conquest
-    winners     (T, M)  int8        — player id of the winning side at done
-                                      steps; -1 elsewhere or on turn-30 draw
-    last_values (M,)    float32     — V(s_T) bootstrap
+    dones       (T, M)  float32     — 1.0 at trajectory cuts (the acting
+                                      player's terminal step AND the other
+                                      player's last decision step, so per-player
+                                      GAE terminates both sides correctly)
+    is_active   (T, M)  float32     — 1.0 where the active seat acted
+    last_values (M,)    float32     — V(s_T) bootstrap (active critic)
     player_ids  (T, M)  int32       — which player acted at each step
     obs_snaps   list[T] × list[M]   — make_snapshot() dicts (for evaluate_actions)
     actions     list[T] × list[M]   — stored action lists
     masks       list[T] × list[M]   — stored action masks
+    n_games / n_active_wins / n_conquest / n_timeout : int — logging scalars
     """
     # Ensure project root is on path in the worker process
     if _PROJECT_ROOT not in sys.path:
@@ -282,8 +305,13 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
     envs    = [_make_env(cfg) for _ in range(cfg.n_envs_per_process)]
     obs_buf = [env.reset()    for env in envs]
 
-    policy = PolicyNetwork(cfg)
-    policy.eval()
+    # Active (trained) policy + frozen opponent copy. Both run in eval mode;
+    # only the active policy's transitions are used for PPO downstream.
+    policy_active = PolicyNetwork(cfg)
+    policy_frozen = PolicyNetwork(cfg)
+    policy_active.eval()
+    policy_frozen.eval()
+    active_pid = cfg.active_player_id
 
     M = cfg.n_envs_per_process
     T = cfg.n_steps
@@ -293,8 +321,10 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
         if cmd == "stop":
             break
 
-        # Load latest weights (CPU tensors from main process)
-        policy.load_state_dict(payload)
+        # Load latest weights (CPU tensors from main process).
+        # payload = {'active': state_dict, 'frozen': state_dict}
+        policy_active.load_state_dict(payload["active"])
+        policy_frozen.load_state_dict(payload["frozen"])
 
         # Pre-allocate rollout buffers
         obs_snaps  = [[None] * M for _ in range(T)]
@@ -304,11 +334,13 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
         values     = np.zeros((T, M), dtype=np.float32)
         rewards    = np.zeros((T, M), dtype=np.float32)
         dones      = np.zeros((T, M), dtype=np.float32)
-        won_flags  = np.zeros((T, M), dtype=np.float32)
-        winners    = np.full((T, M), -1, dtype=np.int8)
+        is_active  = np.zeros((T, M), dtype=np.float32)
         # acting-player track filled during rollout so we can back-fill the
         # opponent's last decision step at game termination
         player_ids = np.full((T, M), -1, dtype=np.int32)
+
+        # Per-chunk logging scalars
+        n_games = n_active_wins = n_conquest = n_timeout = 0
 
         t0 = time.time()
         with torch.no_grad():
@@ -327,9 +359,13 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
                         player_id=cur_pid,
                     )
 
+                    # Dispatch on seat: active policy plays `active_pid`,
+                    # frozen copy plays the other seat.
+                    pol = policy_active if cur_pid == active_pid else policy_frozen
+
                     # forward() returns:
                     # action, joint_probs, traj_actions, log_prob, entropy, value
-                    action, _, _, lp, _, val = policy(obs, mask)
+                    action, _, _, lp, _, val = pol(obs, mask)
                     next_obs, rew, done, info = env.step(action)
 
                     obs_snaps[t][e]   = snap
@@ -339,20 +375,20 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
                     values[t, e]      = val.item()
                     rewards[t, e]     = rew
                     dones[t, e]       = float(done)
+                    is_active[t, e]   = 1.0 if cur_pid == active_pid else 0.0
                     player_ids[t, e]  = cur_pid
 
                     if done:
                         winner_id = info.get("winner_id", None)
+                        is_conq   = bool(info.get("is_conquest", False))
                         r_opp     = float(info.get("reward_opp", 0.0))
-                        won_flags[t, e] = float(winner_id is not None)
-                        winners[t, e]   = -1 if winner_id is None else int(winner_id)
 
-                        # ── Back-fill the opponent's last decision step in
-                        # the CURRENT game segment (since the most recent
-                        # earlier `done` in this env, or 0). Mark that step
-                        # `done=1` so per-player GAE terminates the loser's
-                        # trajectory there, and copy the winner id so the
-                        # asymmetric-λ lookup resolves the right side.
+                        # ── Back-fill the OTHER player's last decision step in
+                        # the current game segment (since the most recent earlier
+                        # `done` in this env, or 0). Mark that step `done=1` so
+                        # per-player GAE terminates that trajectory, and add the
+                        # other player's terminal reward (0 for the loser in
+                        # winner_only mode).
                         opp_id = (cur_pid + 1) % 2
                         if t > 0:
                             prev_dones = np.nonzero(dones[:t, e] > 0.5)[0]
@@ -363,7 +399,12 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
                                 last_opp_t = game_start + int(opp_steps[-1])
                                 rewards[last_opp_t, e] += r_opp
                                 dones[last_opp_t, e]    = 1.0
-                                winners[last_opp_t, e]  = winners[t, e]
+
+                        # ── Logging counters ──
+                        n_games      += 1
+                        n_active_wins += int(winner_id == active_pid)
+                        n_conquest    += int(is_conq)
+                        n_timeout     += int(not is_conq)
 
                         # Reset to a new random-size episode
                         envs[e]    = _make_env(cfg)
@@ -380,10 +421,10 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
                     obs_buf[e], envs[e].Nx, envs[e].Ny,
                     player_id=envs[e].game.player_go_id,
                 )
-                _, global_emb  = policy.encoder.encode(
+                _, global_emb  = policy_active.encoder.encode(
                     snap_last["graph"], snap_last["Nx"], snap_last["Ny"],
                 )
-                last_values[e] = policy.critic(global_emb).item()
+                last_values[e] = policy_active.critic(global_emb).item()
 
         # `player_ids` is already filled in-loop (used for back-fill).
 
@@ -393,17 +434,20 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
         )
 
         conn.send(("data", {
-            "obs_snaps":   obs_snaps,
-            "actions":     actions,
-            "masks":       masks_buf,
-            "log_probs":   log_probs,
-            "values":      values,
-            "rewards":     rewards,
-            "dones":       dones,
-            "won_flags":   won_flags,
-            "winners":     winners,
-            "last_values": last_values,
-            "player_ids":  player_ids,
+            "obs_snaps":     obs_snaps,
+            "actions":       actions,
+            "masks":         masks_buf,
+            "log_probs":     log_probs,
+            "values":        values,
+            "rewards":       rewards,
+            "dones":         dones,
+            "is_active":     is_active,
+            "last_values":   last_values,
+            "player_ids":    player_ids,
+            "n_games":       n_games,
+            "n_active_wins": n_active_wins,
+            "n_conquest":    n_conquest,
+            "n_timeout":     n_timeout,
         }))
 
 
@@ -417,7 +461,7 @@ class EnvManager:
 
     Workflow per training update
     ────────────────────────────
-    1. manager.distribute(cpu_state_dict)  — push weights to all workers
+    1. manager.distribute(active_sd, frozen_sd)  — push both policies to workers
     2. manager.collect()                   — block until all chunks arrive,
                                              assemble and return raw batch
 
@@ -459,21 +503,23 @@ class EnvManager:
 
     # ── Per-update methods ────────────────────────────────────────────────────
 
-    def distribute(self, state_dict: Dict) -> float:
+    def distribute(self, active_sd: Dict, frozen_sd: Dict) -> float:
         """
-        Send the current policy weights to every worker.
+        Send the active and frozen-opponent policy weights to every worker.
 
         Parameters
         ──────────
-        state_dict : dict — CPU-side state dict (tensors must already be .cpu())
+        active_sd : dict — CPU-side state dict of the trained policy
+        frozen_sd : dict — CPU-side state dict of the frozen opponent
 
         Returns
         ───────
         t_dist : float — seconds spent serialising + sending
         """
         t0 = time.time()
+        payload = {"active": active_sd, "frozen": frozen_sd}
         for conn in self._parent_conns:
-            conn.send(("collect", state_dict))
+            conn.send(("collect", payload))
         return time.time() - t0
 
     def collect(self) -> Tuple[dict, float]:
@@ -491,9 +537,10 @@ class EnvManager:
             values     np.ndarray (T, N_total) float32
             rewards    np.ndarray (T, N_total) float32
             dones      np.ndarray (T, N_total) float32
-            won_flags  np.ndarray (T, N_total) float32
+            is_active  np.ndarray (T, N_total) float32
             last_values np.ndarray (N_total,)  float32
             player_ids np.ndarray (T, N_total) int32
+            n_games / n_active_wins / n_conquest / n_timeout : int (summed)
 
         t_collect : float — seconds spent waiting for workers
         """
@@ -518,11 +565,15 @@ class EnvManager:
             "values":      np.concatenate([c["values"]      for c in chunks], axis=1),
             "rewards":     np.concatenate([c["rewards"]     for c in chunks], axis=1),
             "dones":       np.concatenate([c["dones"]       for c in chunks], axis=1),
-            "won_flags":   np.concatenate([c["won_flags"]   for c in chunks], axis=1),
-            "winners":     np.concatenate([c["winners"]     for c in chunks], axis=1),
+            "is_active":   np.concatenate([c["is_active"]   for c in chunks], axis=1),
             # Bootstrap values: concatenate along env axis (axis=0, shape (N,))
             "last_values": np.concatenate([c["last_values"] for c in chunks]),
             "player_ids":  np.concatenate([c["player_ids"]  for c in chunks], axis=1),
+            # Logging scalars: sum across worker chunks
+            "n_games":       sum(c["n_games"]       for c in chunks),
+            "n_active_wins": sum(c["n_active_wins"] for c in chunks),
+            "n_conquest":    sum(c["n_conquest"]    for c in chunks),
+            "n_timeout":     sum(c["n_timeout"]     for c in chunks),
         }
         return raw_batch, t_collect
 

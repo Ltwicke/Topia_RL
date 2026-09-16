@@ -38,6 +38,7 @@ IGNORE FOR NOW!
 ### Recompute GAE after every epoch
 - It is generally recommended to recompute the GAE value after every epoch, because the value network has changed and it generally leads to a performance increase during training. 
 - I could honestly recalculate it for every single minibatch given the time each minibatch takes for me...
+DONE?
 
 ### Entropy fusing strategy
 

@@ -20,19 +20,18 @@ from PIL import Image, ImageDraw, ImageFont
 
 LOG_ROOT = Path("RL/logs")
 RUN_DIRS = [
-    "run_20260506_015619_scenarios",
-    "run_20260506_034854_scenarios",
-    "run_20260506_101428_scenarios",
-    "run_20260506_140856_scenarios",
+    "run_20260615_004712_scenarios",
+    "run_20260615_015013_scenarios",
+    "run_20260615_112309_scenarios",
 ]
-OUT_DIR = Path("eval/training_progress_v2")
-GIF_FPS = 10
+OUT_DIR = Path("eval/training_progress_v2_2")
+GIF_FPS = 30
 
 # Update indices at which a new run starts (used for boundary markers in plots)
-RUN_BOUNDARIES = [5, 19, 32]
-RUN_LABELS = ["Run 1", "Run 2", "Run 3", "Run 4"]
+RUN_BOUNDARIES = []
+RUN_LABELS = []
 
-ROLLING_WINDOW = 5
+ROLLING_WINDOW = 10
 
 
 # ---------------------------------------------------------------------------
@@ -195,26 +194,24 @@ def main() -> None:
 
     lakes_pngs = collect_pngs(RUN_DIRS, "estimate_lakes11")
     drylands_pngs = collect_pngs(RUN_DIRS, "Estimate_Drylands_endgame")
+    dont_attack_pngs = collect_pngs(RUN_DIRS, "Dont_attack")
 
     # --- GIFs at 10 fps ---
-    print("Generating GIF (10 fps): estimate_lakes11 ...")
-    make_gif(lakes_pngs, OUT_DIR / "estimate_lakes11_training_10fps.gif", 10)
+    #print("Generating GIF: estimate_lakes11 ...")
+    #make_gif(lakes_pngs, OUT_DIR / "estimate_lakes11_training_30fps.gif", GIF_FPS)
 
-    print("Generating GIF (10 fps): Estimate_Drylands_endgame ...")
-    make_gif(drylands_pngs, OUT_DIR / "Estimate_Drylands_endgame_training_10fps.gif", 10)
+    #print("Generating GIF: Estimate_Drylands_endgame ...")
+    #make_gif(drylands_pngs, OUT_DIR / "Estimate_Drylands_endgame_training_30fps.gif", GIF_FPS)
 
-    # --- GIFs at 20 fps ---
-    print("Generating GIF (20 fps): estimate_lakes11 ...")
-    make_gif(lakes_pngs, OUT_DIR / "estimate_lakes11_training_20fps.gif", 20)
+    make_gif(dont_attack_pngs,  OUT_DIR / "Dont_attack_30fps.gif", GIF_FPS)
 
-    print("Generating GIF (20 fps): Estimate_Drylands_endgame ...")
-    make_gif(drylands_pngs, OUT_DIR / "Estimate_Drylands_endgame_training_20fps.gif", 20)
 
     # --- Scalar evolution plots ---
     print("Loading summary CSVs ...")
     df = load_summary_csvs(RUN_DIRS)
     print(f"  Loaded {len(df)} rows across {df['scenario'].nunique()} scenarios.")
 
+    """
     print("Plotting Rider_leapfrogging ...")
     plot_metric_evolution(
         df,
@@ -236,6 +233,7 @@ def main() -> None:
         out_path=OUT_DIR / "simple_dash_dancing2_uncovered_delta.png",
         std_col="uncovered_delta_std",
     )
+    """
 
     print("Done. Outputs written to:", str(OUT_DIR.resolve()))
 
