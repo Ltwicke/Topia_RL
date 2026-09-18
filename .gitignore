@@ -4,3 +4,8 @@ RL/checkpoints_training
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+
+# Generated training visualisations — regenerable from logs + checkpoints, and
+# individually large enough (30-77 MB per gif) to bloat the repo permanently.
+eval/training_progress_v2/
+eval/training_progress_v2_2/
