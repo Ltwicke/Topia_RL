@@ -103,7 +103,7 @@ def compute_gae_per_player(
     rewards:     np.ndarray,   # (T, N)  float32
     values:      np.ndarray,   # (T, N)  float32
     dones:       np.ndarray,   # (T, N)  float32  1.0 = trajectory cut
-    last_values: np.ndarray,   # (N,)    float32  bootstrap V(s_T)
+    last_values: np.ndarray,   # (N, 2)  float32  bootstrap V(s_T) per seat
     player_ids:  np.ndarray,   # (T, N)  int32
     gamma:       float,
     gae_lam:     float,
@@ -125,8 +125,8 @@ def compute_gae_per_player(
     dones       (T, N) float32  — 1.0 at trajectory cuts (the acting player's
                                   terminal step AND the other player's last
                                   decision step in the same game)
-    last_values (N,)   float32  — V(s_T) bootstrap; used for each player's
-                                  final in-rollout step
+    last_values (N, 2) float32  — V(s_T) bootstrap per seat; used for that
+                                  player's final in-rollout step
     player_ids  (T, N) int32    — player index who acted at each (t, e) slot
     gamma       float           — discount factor (applied per player-step)
     gae_lam     float           — GAE λ
@@ -141,7 +141,9 @@ def compute_gae_per_player(
     ───────────────────────
     For player p's last step in the rollout (index t_k), the true next state
     V(s_{t_{k+1}}) is beyond the rollout horizon.  We approximate it with
-    last_values[e], which is V(s_T) evaluated at the post-rollout state.
+    last_values[e, p], which is V(s_T) evaluated at the post-rollout state from
+    player p's own perspective — the post-rollout observation belongs to
+    whoever moves next, so the other seat's value is its negation.
     When dones[t_k, e] == 1 the game has ended so the correct bootstrap is 0.
 
     Note (frozen-opponent self-play): advantages are computed for every player,
@@ -174,7 +176,7 @@ def compute_gae_per_player(
             # Last step: bootstrap from last_values (or 0 if game ended)
             last_t           = p_steps[-1]
             game_ended       = dones[last_t, e] > 0.5
-            next_vals[-1]    = 0.0 if game_ended else last_values[e]
+            next_vals[-1]    = 0.0 if game_ended else last_values[e, p]
 
             # ── Backward GAE pass over player-p's own timeline ─────────────
             # not_done[i] = 1.0 unless the game terminated at p_steps[i].
@@ -294,8 +296,14 @@ class BatchProcessor:
         n_active_wins     = int(raw_batch.get("n_active_wins", 0))
         n_conquest        = int(raw_batch.get("n_conquest", 0))
         n_timeout         = int(raw_batch.get("n_timeout", 0))
+        n_dropped_term    = int(raw_batch.get("n_dropped_terminal", 0))
+        n_endturn         = int(raw_batch.get("n_endturn", 0))
+        n_decisions_total = int(raw_batch.get("n_decisions_total", 0))
         active_reward_sum = float(rewards.reshape(-1)[active_idx].sum())
         avg_ep_len        = active_idx.size / max(n_games, 1)
+        # Anti-rush diagnostic: own decisions per own turn. Collapsing toward
+        # 1.0 means the policy is racing to the turn limit instead of playing.
+        decisions_per_turn = n_decisions_total / max(n_endturn, 1)
 
         processed_batch = {
             # Training data (active seat only)
@@ -318,9 +326,11 @@ class BatchProcessor:
             "n_games":           n_games,
             "n_active_wins":     n_active_wins,
             "n_conquest":        n_conquest,
-            "n_timeout":         n_timeout,
-            "active_reward_sum": active_reward_sum,
-            "avg_ep_len":        avg_ep_len,
+            "n_timeout":          n_timeout,
+            "n_dropped_terminal": n_dropped_term,
+            "decisions_per_turn": decisions_per_turn,
+            "active_reward_sum":  active_reward_sum,
+            "avg_ep_len":         avg_ep_len,
         }
         return processed_batch, t_gae
 

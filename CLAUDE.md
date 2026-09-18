@@ -2,6 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Python environment
+
+All code in this project must be run inside the `pytorch_env` virtualenv. Activate it before running any script, test, or `python -c` check:
+
+```bash
+source ~/0envs/pytorch_env/Scripts/activate    # Git Bash / MSYS
+```
+```powershell
+& "$HOME\0envs\pytorch_env\Scripts\Activate.ps1"   # PowerShell
+```
+
+Nothing in this repo runs correctly against the system Python.
+
 ## Repository Overview
 
 This repository contains two interconnected projects:

@@ -103,6 +103,51 @@ def main() -> None:
             assert np.array_equal(ia > 0.5, pid == cfg.active_player_id), \
                 "is_active mask disagrees with player_ids"
 
+            # ── Terminal-share delivery invariants (sc-41) ─────────────────
+            # A "dropped" share is a game whose loser last acted in an
+            # already-shipped chunk. That trajectory was cut by the rollout
+            # horizon and bootstrapped rather than terminated, which is normal
+            # PPO truncation — but it must stay rare, so it is counted and the
+            # two invariants below are stated exactly in terms of it.
+            rew, dn = raw_batch["rewards"], raw_batch["dones"]
+            n_games = raw_batch["n_games"]
+            n_drop  = raw_batch["n_dropped_terminal"]
+
+            assert n_drop <= n_games, "more drops than games — counter is wrong"
+            drop_rate = n_drop / max(n_games, 1)
+            print(f"[u{update}] terminal shares dropped: {n_drop}/{n_games} "
+                  f"({drop_rate:.0%})")
+            assert drop_rate <= 0.34, (
+                f"terminal shares dropped at {drop_rate:.0%} of games — far "
+                f"above the chunk-boundary rate; delivery is broken"
+            )
+
+            # Every finished game cuts BOTH seats' trajectories exactly once
+            # (the actor's own step + the loser's back-fill), minus the drops.
+            expected_cuts = 2 * n_games - n_drop
+            assert int(dn.sum()) == expected_cuts, (
+                f"trajectory cuts = {int(dn.sum())}, expected "
+                f"{expected_cuts} (= 2×{n_games} games − {n_drop} dropped)"
+            )
+
+            # With dense off the ONLY rewards are terminal, and each fully
+            # delivered game pays +z to one seat and −z to the other, so the
+            # buffer cancels to zero except for undelivered shares — each of
+            # which is bounded by conquest_reward.
+            residual = abs(float(rew.sum()))
+            assert residual <= n_drop * cfg.conquest_reward + 1e-4, (
+                f"terminal rewards do not cancel: residual={residual:.6f} "
+                f"exceeds the {n_drop} dropped share(s) — attribution is not "
+                f"zero-sum across seats"
+            )
+
+            # Non-terminal steps carry no reward when dense shaping is off.
+            if not cfg.dense_reward:
+                nonterm = dn <= 0.5
+                assert np.all(rew[nonterm] == 0.0), (
+                    "non-zero reward on a step that is not a trajectory cut"
+                )
+
             est_stats = est_pretrainer.update(raw_batch, est_batch_proc)
             assert np.isfinite(est_stats["est_loss"]), "est_loss not finite"
 

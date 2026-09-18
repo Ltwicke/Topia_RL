@@ -40,7 +40,7 @@ if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 from env.wrapper import EnvWrapper
-from game.enums  import BoardType, Tribes
+from game.enums  import ActionTypes, BoardType, Tribes
 from RL.models.policy import PolicyNetwork, make_snapshot
 
 
@@ -112,11 +112,20 @@ class TrainConfig:
 
     # ── Reward shaping ────────────────────────────────────────────────────────
     # terminal_reward_mode: "none" | "zero_sum" | "winner_only"
-    #   winner_only — winner +diff, loser 0 (no punishment; current run)
-    dense_reward:         bool  = True
-    terminal_reward_mode: str   = "winner_only"
-    win_reward:           float = 500.0   # flat bonus to the CONQUEROR's score
-                                          # before the diff (timeout adds no bonus)
+    #   zero_sum — winner +z, loser -z (current run)
+    dense_reward:         bool  = False
+    terminal_reward_mode: str   = "zero_sum"
+    # Timeout margin is squashed to ±terminal_weight via tanh(Δscore / terminal_tau).
+    # PLACEHOLDER — 666.0 is not calibrated. Run eval/calibrate_terminal_tau.py
+    # and set this to the median |Δ _terminal_score| at timeout before any real
+    # run: too small and tanh saturates (every win pays ±W, margin information
+    # lost), too large and it stays linear (effectively unbounded again).
+    terminal_weight:      float = 1.0
+    terminal_tau:         float = 666.0
+    # Flat bonus for an outright win, deliberately above terminal_weight: a
+    # conquest can land early while both scores are low, where a margin-based
+    # reward would badly undervalue it.
+    conquest_reward:      float = 2.0
 
     # ── Frozen-opponent self-play ─────────────────────────────────────────────
     # The trained policy occupies seat `active_player_id`; the other seat is
@@ -169,7 +178,12 @@ class TrainConfig:
     max_grad_norm: float = 0.5
 
     # ── GAE / discount ────────────────────────────────────────────────────────
-    gamma:                    float = 0.99
+    # gamma=1.0 (undiscounted) is required by the terminal-only reward: γ is
+    # applied per player-decision while the turn counter advances per round, so
+    # any γ<1 pays a player for reaching the turn limit in fewer decisions —
+    # i.e. for spamming EndTurn once ahead on score. Episodes are hard-bounded
+    # by max_turns_per_game, so the undiscounted return is well defined.
+    gamma:                    float = 1.0
     gae_lambda:               float = 0.95   # single λ for all trajectories
     recompute_gae_each_epoch: bool  = True   # refresh values + GAE before each
                                               # PPO epoch (uses compute_values_batch)
@@ -248,9 +262,11 @@ def _make_env(cfg: TrainConfig) -> EnvWrapper:
         board_config,
         cfg.player_tribes,
         max_turns_per_game=cfg.max_turns_per_game,
-        win_reward=cfg.win_reward,
         dense_reward=cfg.dense_reward,
         terminal_reward_mode=cfg.terminal_reward_mode,
+        terminal_weight=cfg.terminal_weight,
+        terminal_tau=cfg.terminal_tau,
+        conquest_reward=cfg.conquest_reward,
     )
 
 
@@ -291,12 +307,17 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
                                       player's last decision step, so per-player
                                       GAE terminates both sides correctly)
     is_active   (T, M)  float32     — 1.0 where the active seat acted
-    last_values (M,)    float32     — V(s_T) bootstrap (active critic)
+    last_values (M, 2)  float32     — V(s_T) bootstrap per seat (active critic)
     player_ids  (T, M)  int32       — which player acted at each step
     obs_snaps   list[T] × list[M]   — make_snapshot() dicts (for evaluate_actions)
     actions     list[T] × list[M]   — stored action lists
     masks       list[T] × list[M]   — stored action masks
     n_games / n_active_wins / n_conquest / n_timeout : int — logging scalars
+    n_dropped_terminal : int        — terminal shares that could not be delivered
+                                      because the recipient had no decision in
+                                      this chunk (expected 0 when T >> ep length)
+    n_endturn / n_decisions_total : int — active-seat anti-rush diagnostic;
+                                      decisions-per-turn = total / endturn
     """
     # Ensure project root is on path in the worker process
     if _PROJECT_ROOT not in sys.path:
@@ -339,8 +360,16 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
         # opponent's last decision step at game termination
         player_ids = np.full((T, M), -1, dtype=np.int32)
 
+        # Index of each seat's most recent decision, per env, within THIS chunk.
+        # -1 = that seat has not acted yet in this chunk, in which case its
+        # terminal share cannot be delivered (its last decision belongs to an
+        # already-shipped chunk) and is counted in n_dropped_terminal.
+        last_idx = [[-1, -1] for _ in range(M)]
+
         # Per-chunk logging scalars
         n_games = n_active_wins = n_conquest = n_timeout = 0
+        n_dropped_terminal = 0
+        n_endturn = n_decisions_total = 0
 
         t0 = time.time()
         with torch.no_grad():
@@ -377,28 +406,34 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
                     dones[t, e]       = float(done)
                     is_active[t, e]   = 1.0 if cur_pid == active_pid else 0.0
                     player_ids[t, e]  = cur_pid
+                    last_idx[e][cur_pid] = t
+
+                    # Anti-rush diagnostic, active seat only: decisions-per-turn
+                    # is n_decisions_total / n_endturn (each EndTurn closes one
+                    # of that seat's turns). A collapse toward 1.0 means the
+                    # policy is racing to the turn limit.
+                    if cur_pid == active_pid:
+                        n_decisions_total += 1
+                        if int(action[0]) == int(ActionTypes.EndTurn):
+                            n_endturn += 1
 
                     if done:
                         winner_id = info.get("winner_id", None)
                         is_conq   = bool(info.get("is_conquest", False))
                         r_opp     = float(info.get("reward_opp", 0.0))
 
-                        # ── Back-fill the OTHER player's last decision step in
-                        # the current game segment (since the most recent earlier
-                        # `done` in this env, or 0). Mark that step `done=1` so
-                        # per-player GAE terminates that trajectory, and add the
-                        # other player's terminal reward (0 for the loser in
-                        # winner_only mode).
+                        # ── Deliver the OTHER player's terminal share onto its
+                        # own last decision step and mark that step done=1, so
+                        # per-player GAE terminates both sides' trajectories.
+                        # The actor's own share already rode in on rewards[t,e].
                         opp_id = (cur_pid + 1) % 2
-                        if t > 0:
-                            prev_dones = np.nonzero(dones[:t, e] > 0.5)[0]
-                            game_start = 0 if prev_dones.size == 0 else int(prev_dones[-1]) + 1
-                            seg_pids = player_ids[game_start:t, e]
-                            opp_steps = np.nonzero(seg_pids == opp_id)[0]
-                            if opp_steps.size > 0:
-                                last_opp_t = game_start + int(opp_steps[-1])
-                                rewards[last_opp_t, e] += r_opp
-                                dones[last_opp_t, e]    = 1.0
+                        j = last_idx[e][opp_id]
+                        if j >= 0:
+                            rewards[j, e] += r_opp
+                            dones[j, e]    = 1.0
+                        else:
+                            n_dropped_terminal += 1
+                        last_idx[e] = [-1, -1]
 
                         # ── Logging counters ──
                         n_games      += 1
@@ -412,19 +447,30 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
                     else:
                         obs_buf[e] = next_obs
 
-            # ── Bootstrap V(s_T) for each env slot ───────────────────────────
+            # ── Bootstrap V(s_T) per env slot AND per seat ───────────────────
             # obs_buf[e] now holds the first obs of a new episode (if done) or
-            # the observation that follows the last collected step.
-            last_values = np.zeros(M, dtype=np.float32)
+            # the observation that follows the last collected step. That view
+            # belongs to whoever acts next, so it is only a valid bootstrap for
+            # that seat; the other seat's value is its negation, which is exact
+            # because the terminal reward is antisymmetric (zero-sum).
+            last_values = np.zeros((M, 2), dtype=np.float32)
             for e in range(M):
+                next_pid  = envs[e].game.player_go_id
                 snap_last = make_snapshot(
                     obs_buf[e], envs[e].Nx, envs[e].Ny,
-                    player_id=envs[e].game.player_go_id,
+                    player_id=next_pid,
                 )
-                _, global_emb  = policy_active.encoder.encode(
+                # scalar_state carries turn_norm — the most value-relevant
+                # feature under a turn-limit terminal reward. Omitting it here
+                # would make this bootstrap off-distribution versus every value
+                # the critic is trained on.
+                _, global_emb = policy_active.encoder.encode(
                     snap_last["graph"], snap_last["Nx"], snap_last["Ny"],
+                    snap_last["scalar_state"],
                 )
-                last_values[e] = policy_active.critic(global_emb).item()
+                v = policy_active.critic(global_emb).item()
+                last_values[e, next_pid]           = v
+                last_values[e, (next_pid + 1) % 2] = -v
 
         # `player_ids` is already filled in-loop (used for back-fill).
 
@@ -448,6 +494,9 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
             "n_active_wins": n_active_wins,
             "n_conquest":    n_conquest,
             "n_timeout":     n_timeout,
+            "n_dropped_terminal": n_dropped_terminal,
+            "n_endturn":          n_endturn,
+            "n_decisions_total":  n_decisions_total,
         }))
 
 
@@ -538,9 +587,10 @@ class EnvManager:
             rewards    np.ndarray (T, N_total) float32
             dones      np.ndarray (T, N_total) float32
             is_active  np.ndarray (T, N_total) float32
-            last_values np.ndarray (N_total,)  float32
+            last_values np.ndarray (N_total, 2) float32  — per seat
             player_ids np.ndarray (T, N_total) int32
             n_games / n_active_wins / n_conquest / n_timeout : int (summed)
+            n_dropped_terminal / n_endturn / n_decisions_total : int (summed)
 
         t_collect : float — seconds spent waiting for workers
         """
@@ -566,7 +616,7 @@ class EnvManager:
             "rewards":     np.concatenate([c["rewards"]     for c in chunks], axis=1),
             "dones":       np.concatenate([c["dones"]       for c in chunks], axis=1),
             "is_active":   np.concatenate([c["is_active"]   for c in chunks], axis=1),
-            # Bootstrap values: concatenate along env axis (axis=0, shape (N,))
+            # Bootstrap values: concatenate along env axis (axis=0, shape (N, 2))
             "last_values": np.concatenate([c["last_values"] for c in chunks]),
             "player_ids":  np.concatenate([c["player_ids"]  for c in chunks], axis=1),
             # Logging scalars: sum across worker chunks
@@ -574,6 +624,9 @@ class EnvManager:
             "n_active_wins": sum(c["n_active_wins"] for c in chunks),
             "n_conquest":    sum(c["n_conquest"]    for c in chunks),
             "n_timeout":     sum(c["n_timeout"]     for c in chunks),
+            "n_dropped_terminal": sum(c["n_dropped_terminal"] for c in chunks),
+            "n_endturn":          sum(c["n_endturn"]          for c in chunks),
+            "n_decisions_total":  sum(c["n_decisions_total"]  for c in chunks),
         }
         return raw_batch, t_collect
 

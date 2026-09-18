@@ -82,6 +82,7 @@ _CSV_FIELDS = [
     "t_est_s", "t_gae_s", "t_ppo_s", "t_scenarios_s",
     "n_games", "n_active_wins", "active_win_rate",
     "n_conquest", "n_timeout",
+    "n_dropped_terminal", "decisions_per_turn",
     "avg_ep_len", "avg_active_reward",
     "est_loss", "est_steps",
     "p_loss", "v_loss", "entropy",
@@ -285,7 +286,8 @@ def main() -> None:
         f"  γ / λ             : {cfg.gamma} / {cfg.gae_lambda}",
         f"  Recompute GAE/epoch: {cfg.recompute_gae_each_epoch}",
         f"  Reward            : dense={cfg.dense_reward}  "
-        f"terminal={cfg.terminal_reward_mode}  win_reward={cfg.win_reward}",
+        f"terminal={cfg.terminal_reward_mode}  W={cfg.terminal_weight} "
+        f"τ={cfg.terminal_tau}  conquest={cfg.conquest_reward}",
         f"  Self-play         : active seat P{cfg.active_player_id} vs frozen "
         f"(refresh every {cfg.opponent_refresh_interval} updates)",
         f"  LR                : {cfg.lr}",
@@ -397,6 +399,8 @@ def main() -> None:
         n_active_wins   = processed_batch["n_active_wins"]
         n_conquest      = processed_batch["n_conquest"]
         n_timeout       = processed_batch["n_timeout"]
+        n_dropped_term  = processed_batch["n_dropped_terminal"]
+        decisions_per_turn = processed_batch["decisions_per_turn"]
         active_win_rate = n_active_wins / max(n_games, 1)
         avg_active_rew  = processed_batch["active_reward_sum"] / max(n_games, 1)
         avg_ep_len      = processed_batch["avg_ep_len"]
@@ -480,6 +484,15 @@ def main() -> None:
             logger.info(f"║  Avg ep length : {avg_ep_len:.1f} steps")
             logger.info(f"║  Avg active rew: {avg_active_rew:.3f}")
             logger.info(
+                f"║  Decisions/turn: {decisions_per_turn:.2f}  "
+                f"(→1.0 means the policy is racing to the turn limit)"
+            )
+            if n_dropped_term:
+                logger.warning(
+                    f"║  Dropped terminal shares: {n_dropped_term} "
+                    f"(recipient had no decision in its rollout chunk)"
+                )
+            logger.info(
                 f"║  est_loss      : {est_stats['est_loss']:.4f}  "
                 f"({est_stats['n_steps']} steps)"
             )
@@ -518,6 +531,8 @@ def main() -> None:
             "active_win_rate":         f"{active_win_rate:.4f}",
             "n_conquest":              n_conquest,
             "n_timeout":               n_timeout,
+            "n_dropped_terminal":      n_dropped_term,
+            "decisions_per_turn":      f"{decisions_per_turn:.3f}",
             "avg_ep_len":              f"{avg_ep_len:.2f}",
             "avg_active_reward":       f"{avg_active_rew:.4f}",
             "est_loss":                f"{est_stats['est_loss']:.6f}",

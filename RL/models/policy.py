@@ -126,6 +126,35 @@ class _CityProxy:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Masking
+# ══════════════════════════════════════════════════════════════════════════════
+
+def action_type_mask_bias(avail: torch.Tensor) -> torch.Tensor:
+    """
+    Additive log-space mask: 0 where an action type is available, -inf where not.
+
+    A true -inf (rather than log(clamp(x, 1e-12)), which is only a -27.6 logit
+    offset) makes the masked probability exactly 0 and, when a single type
+    survives, makes its log-prob exactly 0.0 — so forced actions such as the
+    end-of-turn EndTurn contribute no policy gradient at all. That matters
+    because the terminal reward lands on a forced EndTurn at every turn-limit
+    timeout; with a soft mask its large advantage would leak a spurious
+    gradient onto an action the agent never actually chose.
+
+    Safe against an all-masked row only because mask[0][EndTurn] is
+    unconditionally set by EnvWrapper.get_action_mask (pinned by tests/test_mask.py).
+
+    Must be used by BOTH the sampling and the evaluate_actions paths — if they
+    disagree, the PPO ratio is silently wrong.
+    """
+    return torch.where(
+        avail > 0,
+        torch.zeros_like(avail),
+        torch.full_like(avail, float("-inf")),
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Snapshot helpers
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -720,7 +749,7 @@ class PolicyNetwork(nn.Module):
         avail_t   = torch.tensor(avail, dtype=torch.float32, device=dev)
         at_logits = self.action_type_head(global_emb.view(-1))           # (N_ACTION_TYPES,)
         at_probs  = F.softmax(
-            at_logits + torch.log(avail_t.clamp(min=1e-12)), dim=-1
+            at_logits + action_type_mask_bias(avail_t), dim=-1
         )   # (N_ACTION_TYPES,)
 
         return dict(
@@ -918,7 +947,7 @@ class PolicyNetwork(nn.Module):
         # ── Action type log-prob ───────────────────────────────────────────
         avail_t = torch.tensor(heads['avail'], dtype=torch.float32, device=dev)
         at_lsm  = F.log_softmax(
-            heads['at_logits'] + torch.log(avail_t.clamp(min=1e-12)), dim=-1
+            heads['at_logits'] + action_type_mask_bias(avail_t), dim=-1
         )   # (N_ACTION_TYPES,)
         lp = at_lsm[int(atype)]
 
