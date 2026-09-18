@@ -16,21 +16,32 @@ from game.components.units import _UNIT_COSTS
 
 class EnvWrapper(object):
 
-    def __init__(self, board_config, player_tribes, max_turns_per_game=30, win_reward=500,
-                 dense_reward=True, terminal_reward_mode="winner_only"):
+    def __init__(self, board_config, player_tribes, max_turns_per_game=30,
+                 dense_reward=False, terminal_reward_mode="zero_sum",
+                 terminal_weight=1.0, terminal_tau=666.0, conquest_reward=2.0):
 
         self.Nx, self.Ny = board_config["board_size"][0], board_config["board_size"][1]
         self.n_tiles = self.Nx * self.Ny
         self.n_players = len(player_tribes)
 
         self.game = Game(board_config, player_tribes)
-        self.win_reward = win_reward
         self.dense_reward = dense_reward
         # terminal_reward_mode: "none" | "zero_sum" | "winner_only"
         #   none        — no terminal reward (pure dense)
-        #   zero_sum    — winner +diff, loser -diff
-        #   winner_only — winner +diff, loser 0 (no punishment)
+        #   zero_sum    — winner +z, loser -z
+        #   winner_only — winner +z, loser 0 (non-zero-sum ablation)
         self.terminal_reward_mode = terminal_reward_mode
+        # Timeout margin is squashed to ±terminal_weight; terminal_tau sets the
+        # score difference at which tanh reaches ~0.76 of that, so it must be
+        # calibrated to the empirical |Δ _terminal_score| distribution
+        # (eval/calibrate_terminal_tau.py). The 666.0 default is a placeholder,
+        # not a calibrated value.
+        self.terminal_weight = terminal_weight
+        self.terminal_tau = terminal_tau
+        # Flat bonus for an outright win. Deliberately above terminal_weight: a
+        # conquest can happen early while both scores are low, where a
+        # margin-based reward would badly undervalue it.
+        self.conquest_reward = conquest_reward
         self.max_turns_per_game = max_turns_per_game
 
         self.last_action = None
@@ -60,6 +71,11 @@ class EnvWrapper(object):
         translated_action = self._translate_action(action)
         self._snapshot_overlay_ctx(translated_action) # only for rendering
 
+        # Captured BEFORE apply_action: EndTurn swaps game.player_go_id (and, on
+        # player 1's EndTurn, also bumps game.turn) inside the same call, so the
+        # post-action seat is the NEXT player, not the one who acted.
+        actor_id = self.game.player_go_id
+
         message = self.game.apply_action(translated_action)
 
         self._finalize_overlay_ctx(translated_action)
@@ -69,7 +85,7 @@ class EnvWrapper(object):
         obs = self._get_obs()
 
         done, reward, reward_opp, winner_id, is_conquest = \
-            self._get_done_and_rewards(message)
+            self._get_done_and_rewards(message, actor_id)
 
         info = {
             "log":         message,
@@ -194,14 +210,20 @@ class EnvWrapper(object):
         return full
         
 
-    def _get_done_and_rewards(self, message):
+    def _get_done_and_rewards(self, message, actor_id):
         """
         Reward routing controlled by (dense_reward, terminal_reward_mode).
 
-        Returns: (done, r_cur, r_opp, winner_id, is_conquest).
-            r_cur        — reward for the player who just acted (dense + any
+        Everything here is keyed off `actor_id` — the seat that produced
+        `message`, captured before `game.apply_action` swapped `player_go_id`.
+        Reading the seat back off the game here would be wrong: on a turn-limit
+        timeout (which can only fire on player 1's EndTurn) the post-action seat
+        is always player 0, i.e. the player who did NOT act.
+
+        Returns: (done, r_actor, r_other, winner_id, is_conquest).
+            r_actor      — reward for the player who just acted (dense + any
                            terminal share that lands on this player).
-            r_opp        — terminal reward for the other player; the rollout
+            r_other      — terminal reward for the other player; the rollout
                            worker back-fills it onto that player's last
                            decision step. 0.0 for the loser in winner_only mode.
             winner_id    — terminal winner: conqueror on conquest, higher-score
@@ -209,108 +231,99 @@ class EnvWrapper(object):
             is_conquest  — True iff the game ended by capturing the last city.
         """
         done = False
-        cur_id = self.game.player_go_id
-        opp_id = (cur_id + 1) % 2
-        cur = self.game.players[cur_id]
-        opp = self.game.players[opp_id]
-        r_cur, r_opp = 0.0, 0.0
+        other_id = (actor_id + 1) % 2
+        actor = self.game.players[actor_id]
+        other = self.game.players[other_id]
+        r_actor, r_other = 0.0, 0.0
 
         is_conquest = False
-        if len(opp.cities_under_control) == 0:
+        if len(other.cities_under_control) == 0:
             done = True
-            is_conquest = True            # current player captured the last city
+            is_conquest = True            # the acting player captured the last city
         elif self.game.turn >= self.max_turns_per_game:
             done = True                   # turn-limit timeout → score decides
 
         if self.dense_reward:
             if message["action_type"] == ActionTypes.MoveUnit:
-                r_cur += 0.3 * message["tiles_uncovered"]
+                r_actor += 0.3 * message["tiles_uncovered"]
 
             elif message["action_type"] == ActionTypes.Attack:
                 if message["killed_unit"] == 1:
-                    r_cur += 1.0
+                    r_actor += 1.0
 
             elif message["action_type"] == ActionTypes.CreateUnit:
                 if message["unit_type"] == UnitType.Rider:
-                    r_cur += 0.5
+                    r_actor += 0.5
                 elif message["unit_type"] == UnitType.Sword:
-                    r_cur += 1.0
+                    r_actor += 1.0
                 elif message["unit_type"] == UnitType.Knight:
-                    r_cur += 2.5
+                    r_actor += 2.5
                 elif message["unit_type"] == UnitType.Catapult:
-                    r_cur += 1.0
+                    r_actor += 1.0
                 elif message["unit_type"] == UnitType.Defender:
-                    r_cur -= 0.3
+                    r_actor -= 0.3
 
             elif message["action_type"] == ActionTypes.HealUnit:
                 if message["heal_amount"] == 4.0:
-                    r_cur += 0.5
+                    r_actor += 0.5
                 else:
-                    r_cur -= 0.5
+                    r_actor -= 0.5
             
             elif message["action_type"] == ActionTypes.UpgradeCity:
                 if message["new_lvl"] == CityType.lvl2_workshop:
-                    r_cur += 1.0
+                    r_actor += 1.0
                 elif message["new_lvl"] == CityType.lvl2_explorer:
-                    r_cur += 1.0
+                    r_actor += 1.0
                 elif message["new_lvl"] == CityType.lvl3_resources:
-                    r_cur += 1.0
+                    r_actor += 1.0
                 elif message["new_lvl"] == CityType.lvl3_wall:
-                    r_cur += 1.0
+                    r_actor += 1.0
                 else:
-                    r_cur += _CITY_UPGRADE_COST[message["new_lvl"]] / 10.0
+                    r_actor += _CITY_UPGRADE_COST[message["new_lvl"]] / 10.0
                      
             elif message["action_type"] == ActionTypes.Upgrade2Vet:
-                r_cur += message["hp_diff"] * 0.1
+                r_actor += message["hp_diff"] * 0.1
 
             elif message["action_type"] == ActionTypes.PlaceRoad:
-                r_cur -= 0.3
+                r_actor -= 0.3
 
             elif message["action_type"] == ActionTypes.CaptureCity:
-                r_cur += 5.0
+                r_actor += 5.0
             elif message["action_type"] == ActionTypes.EndTurn:
-                r_cur -= 2.0
+                r_actor -= 2.0
 
         ################################
         ##### End of dense rewards #####
         ################################
 
+        # ── Terminal reward: bounded and exactly antisymmetric ──────────────
+        # `z` is always expressed from the ACTOR's perspective, so the actor
+        # gets +z and the other seat -z regardless of who won.
         winner_id = None
         if done and self.terminal_reward_mode != "none":
-            s_cur = self._terminal_score(cur)
-            s_opp = self._terminal_score(opp)
-            print("Terminal scores:",s_cur, s_opp)
             if is_conquest:
-                winner_id = cur_id # correct, because for conquest, the player thats winning also is currently playing its turn
-                s_cur += self.win_reward          # flat bonus ONLY on conquest
+                winner_id = actor_id
+                z = self.conquest_reward
             else:                                  # timeout → higher score wins
-                if   s_cur > s_opp: winner_id = cur_id
-                elif s_opp > s_cur: winner_id = opp_id # correct
-                # exact tie → winner_id stays None
+                delta = self._terminal_score(actor) - self._terminal_score(other)
+                z = self.terminal_weight * float(np.tanh(delta / self.terminal_tau))
+                if   delta > 0.0: winner_id = actor_id
+                elif delta < 0.0: winner_id = other_id
+                # exact tie → winner_id stays None and z is 0.0
 
-            print("winner_id:", winner_id)
-
-            ## winner_id is the correct winner (the one with the larger score at end turn or the conquesting player)
-            ## the problem occurs when the turn limit is reached, bc this will always be by ending the turn
-            ## moreover, it will always be player 1 to end the turn to start turn 30... cur_id will ALWAYS be 0 in this case
-            if winner_id is not None:
-                #ws, ls = (s_cur, s_opp) if winner_id == cur_id else (s_opp, s_cur) # here is a problem, r_opp is never really used
-                #amt = max(ws - ls, 0.0)            # winner reward, never negative
-                diff = abs(s_cur - s_opp)
-                if winner_id == cur_id: # always for conquest
-                    r_cur += diff
-                    if self.terminal_reward_mode == "zero_sum":
-                        r_opp -= amt
-                else:
-                    r_opp += amt
-                    if self.terminal_reward_mode == "zero_sum":
-                        r_cur -= amt
+            if self.terminal_reward_mode == "zero_sum":
+                r_actor += z
+                r_other -= z
+            elif z > 0.0:                          # winner_only: pay the winner
+                r_actor += z
+            else:
+                r_other += -z
 
         # `self.winner` keeps conquest-only semantics for existing callers
         # (renderer, eval); the score-leader on timeout is reported only via
         # the returned winner_id.
-        self.winner = cur_id if is_conquest else None
-        return (done, r_cur, r_opp, winner_id, is_conquest)
+        self.winner = actor_id if is_conquest else None
+        return (done, r_actor, r_other, winner_id, is_conquest)
 
     def _terminal_score(self, player):
         """Per-player terminal score: official × uncovered-ratio + stars/spt bonuses."""

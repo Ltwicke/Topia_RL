@@ -39,6 +39,59 @@ def test_action_type_mask_is_not_all_zero(fresh_env):
     assert mask[0].sum() >= 1  # at minimum EndTurn is valid
 
 
+# ---------------------------------------------------------------------------
+# Hard masking — forced actions must carry no policy gradient (sc-41)
+# ---------------------------------------------------------------------------
+
+def test_forced_action_log_prob_is_exactly_zero():
+    """
+    When only one action type survives the mask, its log-prob must be exactly
+    0.0 so the step contributes no policy gradient.
+
+    This matters because the terminal reward lands on a forced EndTurn at every
+    turn-limit timeout. Under the previous soft mask -- log(clamp(avail, 1e-12)),
+    only a -27.6 logit offset -- log pi was merely close to 0, so that large
+    terminal advantage leaked a spurious gradient onto an action the agent
+    never actually chose.
+    """
+    import torch
+    import torch.nn.functional as F
+    from RL.models.policy import action_type_mask_bias
+
+    avail  = torch.zeros(len(ActionTypes))
+    avail[int(ActionTypes.EndTurn)] = 1.0
+    logits = torch.randn(len(ActionTypes)) * 10.0   # arbitrarily large logits
+
+    log_probs = F.log_softmax(logits + action_type_mask_bias(avail), dim=-1)
+    probs     = F.softmax(logits + action_type_mask_bias(avail), dim=-1)
+
+    assert log_probs[int(ActionTypes.EndTurn)].item() == 0.0
+    assert probs[int(ActionTypes.EndTurn)].item() == 1.0
+    # Every masked type is exactly impossible, not merely improbable.
+    other = [i for i in range(len(ActionTypes)) if i != int(ActionTypes.EndTurn)]
+    assert torch.all(probs[other] == 0.0)
+
+
+def test_masked_types_are_impossible_with_multiple_valid():
+    """With several valid types, masked ones stay at exactly zero probability
+    and the surviving ones still form a proper distribution."""
+    import torch
+    import torch.nn.functional as F
+    from RL.models.policy import action_type_mask_bias
+
+    avail = torch.zeros(len(ActionTypes))
+    valid = [int(ActionTypes.EndTurn), int(ActionTypes.MoveUnit)]
+    avail[valid] = 1.0
+    logits = torch.randn(len(ActionTypes)) * 5.0
+
+    probs = F.softmax(logits + action_type_mask_bias(avail), dim=-1)
+    invalid = [i for i in range(len(ActionTypes)) if i not in valid]
+
+    assert torch.all(probs[invalid] == 0.0)
+    assert abs(probs.sum().item() - 1.0) < 1e-6
+    assert torch.all(probs[valid] > 0.0)
+
+
 def test_move_mask_shape(fresh_env):
     mask = fresh_env.get_action_mask()
     player = fresh_env.game.players[fresh_env.game.player_go_id]

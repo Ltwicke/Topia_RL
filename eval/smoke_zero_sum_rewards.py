@@ -86,7 +86,10 @@ def random_valid_action(env: EnvWrapper) -> list[int]:
     return [atype]
 
 
-def play_one_game(seed: int, mode: str, dense: bool) -> dict:
+def play_one_game(seed: int, mode: str, dense: bool,
+                  terminal_weight: float = 1.0,
+                  terminal_tau: float = 666.0,
+                  conquest_reward: float = 2.0) -> dict:
     random.seed(seed)
     np.random.seed(seed)
     board_config = {
@@ -100,6 +103,9 @@ def play_one_game(seed: int, mode: str, dense: bool) -> dict:
         max_turns_per_game=12,
         dense_reward=dense,
         terminal_reward_mode=mode,
+        terminal_weight=terminal_weight,
+        terminal_tau=terminal_tau,
+        conquest_reward=conquest_reward,
     )
     env.reset()
 
@@ -107,6 +113,10 @@ def play_one_game(seed: int, mode: str, dense: bool) -> dict:
     n_steps = 0
     while True:
         a = random_valid_action(env)
+        # Seat that is about to act. At a turn-limit timeout this is always
+        # player 1 (the timeout fires on its EndTurn), while the score leader
+        # may be either seat — which is exactly the inversion this guards.
+        actor_id = env.game.player_go_id
         obs, rew, done, info = env.step(a)
         rewards_log.append(float(rew))
         n_steps += 1
@@ -116,6 +126,7 @@ def play_one_game(seed: int, mode: str, dense: bool) -> dict:
                 "rewards":     rewards_log,
                 "winner_id":   info["winner_id"],
                 "is_conquest": info["is_conquest"],
+                "actor_id":    actor_id,
                 "terminal_r":  float(rew),
                 "terminal_ro": float(info["reward_opp"]),
             }
@@ -124,45 +135,105 @@ def play_one_game(seed: int, mode: str, dense: bool) -> dict:
 
 
 def main() -> None:
-    n_games = 6
+    n_games = 24
+    W, CONQ = 1.0, 2.0
 
-    # ── winner_only + dense (the actual training regime) ──────────────────
-    print("=== winner_only + dense (training regime) ===")
-    for seed in range(n_games):
-        r = play_one_game(seed, mode="winner_only", dense=True)
-        wid, is_conq = r["winner_id"], r["is_conquest"]
-        assert wid in (0, 1, None), f"[seed {seed}] bad winner_id={wid}"
-
-        # Loser never receives a negative terminal add. The acting player's
-        # terminal reward includes dense shaping, so we check the OPPONENT
-        # side: r_opp is the other player's terminal share — must be >= 0
-        # (winner_only never assigns a negative reward to anyone).
-        assert r["terminal_ro"] >= -1e-6, (
-            f"[seed {seed}] opponent terminal share negative in winner_only: "
-            f"{r['terminal_ro']}"
-        )
-        # Exactly one side gets a positive terminal diff (or none on a tie).
-        # r_opp>0 means the non-acting player won (timeout score-lead).
-        print(f"  seed {seed}: steps={r['n_steps']:4d}  winner={wid}  "
-              f"conquest={is_conq}  r_cur={r['terminal_r']:+9.2f}  "
-              f"r_opp={r['terminal_ro']:+9.2f}")
-
-    # ── zero_sum back-compat: r_cur + r_opp == 0 at terminal ──────────────
-    print("\n=== zero_sum (back-compat) ===")
+    # ── zero_sum: seat attribution, antisymmetry, boundedness ─────────────
+    # This is the sc-41 regression block. Before the fix, _get_done_and_rewards
+    # read the seat back off game.player_go_id AFTER apply_action had already
+    # swapped it, so at a timeout the winner's share was handed to the loser
+    # (and the opposite branch raised NameError on an undefined `amt`).
+    print("=== zero_sum: terminal share reaches the WINNER's seat ===")
+    seen_actor_won = seen_other_won = seen_conquest = seen_timeout = 0
     for seed in range(n_games):
         r = play_one_game(seed, mode="zero_sum", dense=False)
+        wid, actor = r["winner_id"], r["actor_id"]
+
+        assert wid in (0, 1, None), f"[seed {seed}] bad winner_id={wid}"
+
+        # Exact antisymmetry: the two seats' shares must cancel.
         s = r["terminal_r"] + r["terminal_ro"]
-        assert abs(s) < 1e-3, (
+        assert abs(s) < 1e-6, (
             f"[seed {seed}] zero_sum terminal not balanced: "
-            f"{r['terminal_r']:.3f} + {r['terminal_ro']:.3f} = {s:.3f}"
+            f"{r['terminal_r']:.6f} + {r['terminal_ro']:.6f} = {s:.6f}"
         )
+
+        # Bounded by the largest payout the scheme can emit.
+        assert abs(r["terminal_r"]) <= CONQ + 1e-6, (
+            f"[seed {seed}] terminal share {r['terminal_r']} exceeds "
+            f"conquest_reward {CONQ}"
+        )
+
+        # THE attribution check: whichever seat won must hold the positive
+        # share. terminal_r belongs to the actor, terminal_ro to the other seat.
+        if wid is not None:
+            actor_share = r["terminal_r"]
+            other_share = r["terminal_ro"]
+            winner_share = actor_share if wid == actor else other_share
+            loser_share  = other_share if wid == actor else actor_share
+            assert winner_share > 0.0, (
+                f"[seed {seed}] winner P{wid} got a non-positive share "
+                f"{winner_share:+.4f} (actor was P{actor}) — terminal reward "
+                f"is attributed to the wrong seat"
+            )
+            assert loser_share < 0.0, (
+                f"[seed {seed}] loser got a non-negative share {loser_share:+.4f}"
+            )
+            if wid == actor: seen_actor_won += 1
+            else:            seen_other_won += 1
+
         # dense off → all non-terminal rewards are exactly 0
         for i, rv in enumerate(r["rewards"][:-1]):
             assert rv == 0.0, f"[seed {seed}] non-terminal reward at {i}: {rv}"
-        print(f"  seed {seed}: winner={r['winner_id']}  "
-              f"r_cur+r_opp={s:+.4f}")
 
-    # ── none: pure dense, no terminal diff ────────────────────────────────
+        if r["is_conquest"]:
+            seen_conquest += 1
+            assert abs(abs(r["terminal_r"]) - CONQ) < 1e-6, (
+                f"[seed {seed}] conquest should pay exactly ±{CONQ}, "
+                f"got {r['terminal_r']:+.4f}"
+            )
+        else:
+            seen_timeout += 1
+            # A timeout is a tanh-squashed margin, so it can never reach the
+            # flat conquest bonus: an outright win always outranks a timeout.
+            assert abs(r["terminal_r"]) <= W + 1e-6, (
+                f"[seed {seed}] timeout share {r['terminal_r']:+.4f} exceeds "
+                f"terminal_weight {W}"
+            )
+        print(f"  seed {seed:2d}: steps={r['n_steps']:4d}  winner={wid}  "
+              f"actor=P{actor}  conquest={r['is_conquest']}  "
+              f"r_actor={r['terminal_r']:+.4f}  r_other={r['terminal_ro']:+.4f}")
+
+    # Coverage: the sweep is only a regression test if it actually drove BOTH
+    # attribution branches. The `winner is not the actor` case is the one that
+    # used to raise NameError, so a sweep that never hits it proves nothing.
+    assert seen_actor_won > 0, "sweep never produced a game won by the actor"
+    assert seen_other_won > 0, (
+        "sweep never produced a game won by the NON-acting seat — that is the "
+        "branch that used to crash, so this run does not exercise the fix"
+    )
+    assert seen_timeout > 0, "sweep never produced a turn-limit timeout"
+    print(f"\n  coverage: actor-won={seen_actor_won}  other-won={seen_other_won}  "
+          f"conquest={seen_conquest}  timeout={seen_timeout}")
+
+    # ── winner_only: loser is never punished ──────────────────────────────
+    print("\n=== winner_only (non-zero-sum ablation) ===")
+    for seed in range(n_games):
+        r = play_one_game(seed, mode="winner_only", dense=False)
+        wid, actor = r["winner_id"], r["actor_id"]
+        assert r["terminal_r"] >= -1e-6 and r["terminal_ro"] >= -1e-6, (
+            f"[seed {seed}] winner_only assigned a negative share: "
+            f"r_actor={r['terminal_r']:+.4f} r_other={r['terminal_ro']:+.4f}"
+        )
+        if wid is not None:
+            winner_share = r["terminal_r"] if wid == actor else r["terminal_ro"]
+            assert winner_share > 0.0, (
+                f"[seed {seed}] winner P{wid} got {winner_share:+.4f} "
+                f"(actor was P{actor})"
+            )
+    print(f"  {n_games} games: winner always paid, loser never punished")
+
+    # ── none: no terminal reward at all ───────────────────────────────────
     print("\n=== none (pure dense) ===")
     for seed in range(2):
         r = play_one_game(seed, mode="none", dense=True)

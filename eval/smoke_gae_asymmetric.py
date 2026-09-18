@@ -44,7 +44,7 @@ def reference_gae(rewards, values, dones, last_values, player_ids,
             if k > 1:
                 next_vals[:-1] = values[p_steps[1:], e]
             last_t        = p_steps[-1]
-            next_vals[-1] = 0.0 if dones[last_t, e] > 0.5 else last_values[e]
+            next_vals[-1] = 0.0 if dones[last_t, e] > 0.5 else last_values[e, p]
             p_not_done = 1.0 - dones[p_steps, e]
             p_rewards  = rewards[p_steps, e]
             p_values   = values[p_steps, e]
@@ -61,7 +61,10 @@ def make_fake_batch(T=20, N=2, done_t=15):
     rewards     = rng.standard_normal((T, N)).astype(np.float32)
     values      = rng.standard_normal((T, N)).astype(np.float32)
     dones       = np.zeros((T, N), dtype=np.float32)
-    last_values = rng.standard_normal(N).astype(np.float32)
+    # Per-seat bootstrap, antisymmetric: the post-rollout observation belongs to
+    # whoever moves next, so the other seat's value is its negation.
+    v_last      = rng.standard_normal(N).astype(np.float32)
+    last_values = np.stack([v_last, -v_last], axis=1).astype(np.float32)  # (N, 2)
     player_ids  = np.zeros((T, N), dtype=np.int32)
     is_active   = np.zeros((T, N), dtype=np.float32)
     for e in range(N):
@@ -128,11 +131,86 @@ def test_recompute_idempotent():
     print(f"  [recompute] idempotent with collection values: max|diff|={d:.2e}  OK")
 
 
+def test_zero_sum_terminal_advantages_oppose():
+    """
+    A real invariant, not a re-implementation check.
+
+    Build a zero-reward game that ends in an exactly zero-sum terminal payout:
+    seat 0 wins (+z on its last decision), seat 1 loses (-z on its last
+    decision), both cut with done=1. With a symmetric (all-zero) critic, the
+    two seats' terminal advantages must be exact opposites.
+
+    This is what catches a wrong seat attribution or a wrong-perspective
+    bootstrap — test_matches_reference cannot, because it compares the
+    implementation against a copy of the same formula.
+    """
+    T, N, z = 12, 1, 0.75
+    rewards    = np.zeros((T, N), dtype=np.float32)
+    values     = np.zeros((T, N), dtype=np.float32)
+    dones      = np.zeros((T, N), dtype=np.float32)
+    last_values = np.zeros((N, 2), dtype=np.float32)
+    player_ids = np.array([[t % 2] for t in range(T)], dtype=np.int32)
+
+    p0_last, p1_last = T - 2, T - 1        # seat 0 acts on even t, seat 1 on odd
+    rewards[p0_last, 0] = +z
+    rewards[p1_last, 0] = -z
+    dones[p0_last, 0] = dones[p1_last, 0] = 1.0
+
+    adv, ret = compute_gae_per_player(
+        rewards, values, dones, last_values, player_ids,
+        gamma=1.0, gae_lam=0.95,
+    )
+
+    a0, a1 = adv[p0_last, 0], adv[p1_last, 0]
+    assert abs(a0 + a1) < 1e-6, (
+        f"terminal advantages are not antisymmetric: {a0:+.6f} and {a1:+.6f} "
+        f"(sum {a0 + a1:+.6f}) — seat attribution or bootstrap perspective is wrong"
+    )
+    assert a0 > 0 > a1, f"winner/loser advantage signs inverted: {a0:+.4f} {a1:+.4f}"
+
+    # With gamma=1 the credit must reach the opening at full strength, decayed
+    # only by lambda — the property that removes the rush-to-timeout incentive.
+    first0 = adv[0, 0]
+    assert first0 > 0.0, f"winner's opening advantage not positive: {first0:+.4f}"
+    print(f"  [zero-sum] terminal adv {a0:+.4f} / {a1:+.4f} (sum {a0+a1:+.1e}), "
+          f"opening adv {first0:+.4f}  OK")
+
+
+def test_done_cuts_cross_episode_leak():
+    """Two games in one column: the first game's cut must block credit flowing
+    backwards from the second game into the first."""
+    T, N = 12, 1
+    rewards    = np.zeros((T, N), dtype=np.float32)
+    values     = np.zeros((T, N), dtype=np.float32)
+    dones      = np.zeros((T, N), dtype=np.float32)
+    last_values = np.zeros((N, 2), dtype=np.float32)
+    player_ids = np.array([[t % 2] for t in range(T)], dtype=np.int32)
+
+    # Game 1 ends at t=4/5; game 2 pays seat 0 a big reward at t=10.
+    dones[4, 0] = dones[5, 0] = 1.0
+    rewards[10, 0] = 100.0
+
+    adv, _ = compute_gae_per_player(
+        rewards, values, dones, last_values, player_ids,
+        gamma=1.0, gae_lam=1.0,
+    )
+    leaked = np.abs(adv[:5, 0]).max()
+    assert leaked < 1e-6, (
+        f"game 2's reward leaked back into game 1: max|adv|={leaked:.4f}"
+    )
+    assert adv[6, 0] > 0.0, "credit did not reach game 2's earlier steps"
+    print(f"  [episode cut] pre-cut max|adv|={leaked:.1e}  OK")
+
+
 def main():
     print("test_matches_reference ...")
     test_matches_reference()
     print("test_recompute_idempotent ...")
     test_recompute_idempotent()
+    print("test_zero_sum_terminal_advantages_oppose ...")
+    test_zero_sum_terminal_advantages_oppose()
+    print("test_done_cuts_cross_episode_leak ...")
+    test_done_cuts_cross_episode_leak()
     print("\nAll GAE tests passed.")
 
 
