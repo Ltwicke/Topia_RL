@@ -45,6 +45,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 from env.renderer       import BoardRenderer
+from RL.models.main_modules import V_TERM
 from scenarios.eval.adapter import GameEnvAdapter
 from scenarios.scenario import Scenario
 
@@ -60,7 +61,7 @@ class DecisionRecord:
     joint_probs:   np.ndarray                   # shape (n_traj,) probabilities
     traj_actions:  list                         # parallel list of trajectories
     log_prob:      float
-    value:         float
+    value:         float                        # terminal (V_TERM) stream only
 
 
 @dataclass
@@ -212,10 +213,11 @@ class ScenarioRunner:
             lp_f = float(log_prob.item())
         except AttributeError:
             lp_f = float(log_prob)
-        try:
-            v_f  = float(value.item())
-        except AttributeError:
-            v_f  = float(value)
+        # The critic returns one value per reward stream, so a bare .item()
+        # raises on a multi-element tensor. Scenarios record the terminal head,
+        # which reads as a win probability.
+        v_np = np.asarray(value.detach().cpu() if hasattr(value, "detach") else value)
+        v_f  = float(v_np[V_TERM]) if v_np.ndim else float(v_np)
         return DecisionRecord(
             action       = list(action),
             joint_probs  = jp_np,
