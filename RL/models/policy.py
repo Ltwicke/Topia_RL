@@ -73,6 +73,7 @@ from game.enums import ActionTypes, UnitType
 
 from RL.models.main_modules        import (
     GraphTransformerEncoder, CriticHead, HiddenTileEstimator,
+    V_TERM, V_DENSE, N_VALUE_STREAMS,
 )
 from RL.models.movement_module     import MovementTargetHead, MovementTargetResult
 from RL.models.attack_module       import AttackTargetHead, AttackTargetResult
@@ -1075,7 +1076,7 @@ class PolicyNetwork(nn.Module):
         # node_emb   : (N_tiles, D)
         # global_emb : (1, D)  — already includes scalar fusion when given
 
-        value = self.critic(global_emb)   # ()
+        value = self.critic(global_emb)   # (N_VALUE_STREAMS,) — index V_TERM / V_DENSE
 
         # ── Run all decision heads ──────────────────────────────────────────
         heads = self._run_heads(
@@ -1184,7 +1185,7 @@ class PolicyNetwork(nn.Module):
                       if 'scalar_state' in obs_snaps[0] else None
         _, global_embs = self.encoder.encode_batch(graphs, board_sizes, scalars)
         # global_embs : (B, D)
-        return self.critic(global_embs)   # (B,)
+        return self.critic(global_embs)   # (B, N_VALUE_STREAMS)
 
     # ══════════════════════════════════════════════════════════════════════
     # evaluate_actions — PPO update re-scoring
@@ -1236,7 +1237,7 @@ class PolicyNetwork(nn.Module):
         # node_embs   : list of B tensors, each (N_b, D)
         # global_embs : (B, D)
 
-        values = self.critic(global_embs)   # (B,)
+        values = self.critic(global_embs)   # (B, N_VALUE_STREAMS)
 
         # ── 2. Per-sample decision heads + scoring ───────────────────────────
         log_probs_list: List[torch.Tensor] = []

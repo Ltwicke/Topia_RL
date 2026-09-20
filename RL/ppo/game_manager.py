@@ -42,6 +42,7 @@ if _PROJECT_ROOT not in sys.path:
 from env.wrapper import EnvWrapper
 from game.enums  import ActionTypes, BoardType, Tribes
 from RL.models.policy import PolicyNetwork, make_snapshot
+from RL.models.main_modules import V_TERM, V_DENSE, N_VALUE_STREAMS
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -65,8 +66,8 @@ class TrainConfig:
     """
 
     # ── Checkpoint / resume ───────────────────────────────────────────────────
-    pretrained_ckpt: str = r"./checkpoints_training/policy_update_00018.pt"   # path to .pt; "" = train from scratch
-    start_update:    int = 19    # first update index (set > 0 when resuming)
+    pretrained_ckpt: str = r""   # path to .pt; "" = train from scratch
+    start_update:    int = 0    # first update index (set > 0 when resuming)
 
     # ── Encoder ───────────────────────────────────────────────────────────────
     encoder_hidden_dim: int = 48
@@ -89,7 +90,7 @@ class TrainConfig:
     context_bias: int = 5
 
     # ── Parallelism ───────────────────────────────────────────────────────────
-    n_processes:        int = 14
+    n_processes:        int = 16
     n_envs_per_process: int = 2
 
     # ── Environment ───────────────────────────────────────────────────────────
@@ -111,21 +112,40 @@ class TrainConfig:
     board_size_range:   tuple = (11, 16)
 
     # ── Reward shaping ────────────────────────────────────────────────────────
-    # terminal_reward_mode: "none" | "zero_sum" | "winner_only"
-    #   zero_sum — winner +z, loser -z (current run)
-    dense_reward:         bool  = False
-    terminal_reward_mode: str   = "zero_sum"
-    # Timeout margin is squashed to ±terminal_weight via tanh(Δscore / terminal_tau).
-    # PLACEHOLDER — 666.0 is not calibrated. Run eval/calibrate_terminal_tau.py
-    # and set this to the median |Δ _terminal_score| at timeout before any real
-    # run: too small and tanh saturates (every win pays ±W, margin information
-    # lost), too large and it stays linear (effectively unbounded again).
+    # Two independent reward streams, each with its own critic head:
+    #   terminal — the true objective (win by conquest, or by score at the limit)
+    #   dense    — human-derived event shaping, a bootstrap toward sensible play
+    # `dense_beta` weights dense in the POLICY advantage only. Set it to 0.0 to
+    # switch shaping off mid-training: V_TERM is regressed solely on terminal
+    # returns, so it stays valid and no value relearning is needed. Resume from
+    # the checkpoint after flipping it.
+    dense_beta:           float = 1.0
+    dense_reward:         bool  = True
+    # Scales the raw event table so an actively played episode totals ~1-2,
+    # comparable to a timeout payout and well below the conquest bonus.
+    dense_scale:          float = 0.02
+    # Penalty for passing while other action types were legal. Forced
+    # end-of-turns are never penalised. 0.0 = off; the dial for pass-pressure.
+    endturn_voluntary_penalty: float = 0.0
+    # terminal_reward_mode: "none" | "constant_sum"
+    terminal_reward_mode: str   = "constant_sum"
+    # Each seat is paid sigma(its own margin / terminal_tau) * terminal_weight,
+    # so the two shares sum to terminal_weight and the loser tends to 0.
+    # tau must be large enough that a NARROW win does not already saturate: at
+    # tau=1000 a margin of 1500 paid 0.905 of maximum, which is why the agent
+    # settled for scraping a turn-30 lead instead of pressing for a conquest.
+    # At tau=2000 that same margin pays 0.679 and improving it keeps paying.
+    # Still inferred rather than measured — eval/calibrate_terminal_tau.py.
     terminal_weight:      float = 1.0
-    terminal_tau:         float = 666.0
-    # Flat bonus for an outright win, deliberately above terminal_weight: a
-    # conquest can land early while both scores are low, where a margin-based
-    # reward would badly undervalue it.
-    conquest_reward:      float = 2.0
+    terminal_tau:         float = 2000.0
+    # A conquest ends the game outright; a score lead only indicates a likely
+    # win. At 3.0 against a timeout maximum near 0.92, conquest is worth >4x
+    # any score win, which is the gradient that was missing.
+    conquest_reward:      float = 3.0
+    # gamma=1 removes all time preference (deliberately — it is what stops the
+    # rush to the turn limit). This restores it for conquest ONLY, so an early
+    # kill beats a late one without paying anything for reaching a timeout.
+    conquest_early_bonus: float = 0.5
 
     # ── Frozen-opponent self-play ─────────────────────────────────────────────
     # The trained policy occupies seat `active_player_id`; the other seat is
@@ -166,7 +186,7 @@ class TrainConfig:
 
     # ── PPO epochs & batching ─────────────────────────────────────────────────
     n_epochs:       int   = 3
-    n_minibatches:  int   = 128   # determines cfg.minibatch_size
+    n_minibatches:  int   = 64   # determines cfg.minibatch_size
     # Fraction ∈ (0,1]: what share of the assembled minibatches to train on
     # per epoch.  Reduces PPO update time without wasting simulation data.
     train_fraction: float = 1.0
@@ -192,7 +212,7 @@ class TrainConfig:
     lr: float = 3e-4
 
     # ── Training loop ─────────────────────────────────────────────────────────
-    n_updates:     int = 2500
+    n_updates:     int = 1000
     log_interval:  int = 1
     ckpt_interval:           int = 1     # rolling checkpoints (last MAX_CKPT kept)
     permanent_ckpt_interval: int = 100   # never-evicted snapshots every N updates
@@ -263,10 +283,13 @@ def _make_env(cfg: TrainConfig) -> EnvWrapper:
         cfg.player_tribes,
         max_turns_per_game=cfg.max_turns_per_game,
         dense_reward=cfg.dense_reward,
+        dense_scale=cfg.dense_scale,
+        endturn_voluntary_penalty=cfg.endturn_voluntary_penalty,
         terminal_reward_mode=cfg.terminal_reward_mode,
         terminal_weight=cfg.terminal_weight,
         terminal_tau=cfg.terminal_tau,
         conquest_reward=cfg.conquest_reward,
+        conquest_early_bonus=cfg.conquest_early_bonus,
     )
 
 
@@ -352,10 +375,20 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
         actions    = [[None] * M for _ in range(T)]
         masks_buf  = [[None] * M for _ in range(T)]
         log_probs  = np.zeros((T, M), dtype=np.float32)
-        values     = np.zeros((T, M), dtype=np.float32)
-        rewards    = np.zeros((T, M), dtype=np.float32)
+        # Per-stream values and rewards. Terminal and dense are never summed in
+        # the buffers: the critic has one head per stream so that dense shaping
+        # can be switched off (beta=0) without disturbing the terminal value
+        # function. Index the last axis with V_TERM / V_DENSE.
+        values     = np.zeros((T, M, N_VALUE_STREAMS), dtype=np.float32)
+        rew_term   = np.zeros((T, M), dtype=np.float32)
+        rew_dense  = np.zeros((T, M), dtype=np.float32)
         dones      = np.zeros((T, M), dtype=np.float32)
         is_active  = np.zeros((T, M), dtype=np.float32)
+        # Steps where the policy had exactly one possible trajectory. They carry
+        # no decision: log pi == 0 and entropy == 0 under the hard mask, so
+        # training on them only dilutes the entropy bonus and inflates the
+        # advantage-whitening std. Filtered out downstream.
+        is_forced  = np.zeros((T, M), dtype=np.float32)
         # acting-player track filled during rollout so we can back-fill the
         # opponent's last decision step at game termination
         player_ids = np.full((T, M), -1, dtype=np.int32)
@@ -370,6 +403,10 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
         n_games = n_active_wins = n_conquest = n_timeout = 0
         n_dropped_terminal = 0
         n_endturn = n_decisions_total = 0
+        # EndTurn split into forced (no alternative existed) vs voluntary (the
+        # agent passed while it could still have acted). Only the voluntary
+        # count says anything about whether the policy is short-cutting.
+        n_endturn_voluntary = n_forced = 0
 
         t0 = time.time()
         with torch.no_grad():
@@ -394,43 +431,58 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
 
                     # forward() returns:
                     # action, joint_probs, traj_actions, log_prob, entropy, value
-                    action, _, _, lp, _, val = pol(obs, mask)
-                    next_obs, rew, done, info = env.step(action)
+                    action, joint_probs, _, lp, _, val = pol(obs, mask)
+
+                    # A single enumerable trajectory means the agent had no
+                    # choice at all — the exact definition of a forced step.
+                    forced = int(joint_probs.numel()) <= 1
+
+                    next_obs, rew, done, info = env.step(
+                        action, n_valid_action_types=int(mask[0].sum()),
+                    )
 
                     obs_snaps[t][e]   = snap
                     actions[t][e]     = action
                     masks_buf[t][e]   = mask
                     log_probs[t, e]   = lp.item()
-                    values[t, e]      = val.item()
-                    rewards[t, e]     = rew
+                    values[t, e]      = val.detach().cpu().numpy()
+                    rew_term[t, e]    = float(info["r_term"])
+                    rew_dense[t, e]   = float(info["r_dense"])
                     dones[t, e]       = float(done)
                     is_active[t, e]   = 1.0 if cur_pid == active_pid else 0.0
+                    is_forced[t, e]   = 1.0 if forced else 0.0
                     player_ids[t, e]  = cur_pid
                     last_idx[e][cur_pid] = t
 
-                    # Anti-rush diagnostic, active seat only: decisions-per-turn
+                    # Anti-rush diagnostics, active seat only. decisions-per-turn
                     # is n_decisions_total / n_endturn (each EndTurn closes one
-                    # of that seat's turns). A collapse toward 1.0 means the
-                    # policy is racing to the turn limit.
+                    # of that seat's turns); human-level play should climb well
+                    # above 2. n_endturn_voluntary isolates passes the agent
+                    # actually chose, which is the number that reflects policy.
                     if cur_pid == active_pid:
                         n_decisions_total += 1
+                        n_forced += int(forced)
                         if int(action[0]) == int(ActionTypes.EndTurn):
                             n_endturn += 1
+                            if not forced:
+                                n_endturn_voluntary += 1
 
                     if done:
                         winner_id = info.get("winner_id", None)
                         is_conq   = bool(info.get("is_conquest", False))
-                        r_opp     = float(info.get("reward_opp", 0.0))
+                        r_opp     = float(info.get("r_term_opp", 0.0))
 
                         # ── Deliver the OTHER player's terminal share onto its
                         # own last decision step and mark that step done=1, so
                         # per-player GAE terminates both sides' trajectories.
-                        # The actor's own share already rode in on rewards[t,e].
+                        # Terminal stream only — dense is per-action and is
+                        # never back-filled. The actor's own share already rode
+                        # in on rew_term[t,e].
                         opp_id = (cur_pid + 1) % 2
                         j = last_idx[e][opp_id]
                         if j >= 0:
-                            rewards[j, e] += r_opp
-                            dones[j, e]    = 1.0
+                            rew_term[j, e] += r_opp
+                            dones[j, e]     = 1.0
                         else:
                             n_dropped_terminal += 1
                         last_idx[e] = [-1, -1]
@@ -453,7 +505,7 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
             # belongs to whoever acts next, so it is only a valid bootstrap for
             # that seat; the other seat's value is its negation, which is exact
             # because the terminal reward is antisymmetric (zero-sum).
-            last_values = np.zeros((M, 2), dtype=np.float32)
+            last_values = np.zeros((M, 2, N_VALUE_STREAMS), dtype=np.float32)
             for e in range(M):
                 next_pid  = envs[e].game.player_go_id
                 snap_last = make_snapshot(
@@ -468,9 +520,18 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
                     snap_last["graph"], snap_last["Nx"], snap_last["Ny"],
                     snap_last["scalar_state"],
                 )
-                v = policy_active.critic(global_emb).item()
-                last_values[e, next_pid]           = v
-                last_values[e, (next_pid + 1) % 2] = -v
+                v = policy_active.critic(global_emb).detach().cpu().numpy()
+                other_pid = (next_pid + 1) % 2
+                # The terminal stream is constant-sum, so the seat not moving
+                # next is worth terminal_weight minus this seat's value — not
+                # its negation, as it was under the old zero-sum reward.
+                last_values[e, next_pid,  V_TERM] = v[V_TERM]
+                last_values[e, other_pid, V_TERM] = cfg.terminal_weight - v[V_TERM]
+                # Dense is an own-actions-only stream with no such symmetry, so
+                # the opponent's dense value cannot be derived from this one.
+                # Leaving it at 0 biases only the final in-rollout step of the
+                # seat that is not about to move.
+                last_values[e, next_pid,  V_DENSE] = v[V_DENSE]
 
         # `player_ids` is already filled in-loop (used for back-fill).
 
@@ -485,18 +546,22 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
             "masks":         masks_buf,
             "log_probs":     log_probs,
             "values":        values,
-            "rewards":       rewards,
+            "rew_term":      rew_term,
+            "rew_dense":     rew_dense,
             "dones":         dones,
             "is_active":     is_active,
+            "is_forced":     is_forced,
             "last_values":   last_values,
             "player_ids":    player_ids,
             "n_games":       n_games,
             "n_active_wins": n_active_wins,
             "n_conquest":    n_conquest,
             "n_timeout":     n_timeout,
-            "n_dropped_terminal": n_dropped_terminal,
-            "n_endturn":          n_endturn,
-            "n_decisions_total":  n_decisions_total,
+            "n_dropped_terminal":  n_dropped_terminal,
+            "n_endturn":           n_endturn,
+            "n_endturn_voluntary": n_endturn_voluntary,
+            "n_forced":            n_forced,
+            "n_decisions_total":   n_decisions_total,
         }))
 
 
@@ -613,10 +678,12 @@ class EnvManager:
             # Numeric arrays: concatenate along env axis (axis=1)
             "log_probs":   np.concatenate([c["log_probs"]   for c in chunks], axis=1),
             "values":      np.concatenate([c["values"]      for c in chunks], axis=1),
-            "rewards":     np.concatenate([c["rewards"]     for c in chunks], axis=1),
+            "rew_term":    np.concatenate([c["rew_term"]    for c in chunks], axis=1),
+            "rew_dense":   np.concatenate([c["rew_dense"]   for c in chunks], axis=1),
             "dones":       np.concatenate([c["dones"]       for c in chunks], axis=1),
             "is_active":   np.concatenate([c["is_active"]   for c in chunks], axis=1),
-            # Bootstrap values: concatenate along env axis (axis=0, shape (N, 2))
+            "is_forced":   np.concatenate([c["is_forced"]   for c in chunks], axis=1),
+            # Bootstrap values: env axis is axis 0, shape (N, 2 seats, streams)
             "last_values": np.concatenate([c["last_values"] for c in chunks]),
             "player_ids":  np.concatenate([c["player_ids"]  for c in chunks], axis=1),
             # Logging scalars: sum across worker chunks
@@ -624,9 +691,11 @@ class EnvManager:
             "n_active_wins": sum(c["n_active_wins"] for c in chunks),
             "n_conquest":    sum(c["n_conquest"]    for c in chunks),
             "n_timeout":     sum(c["n_timeout"]     for c in chunks),
-            "n_dropped_terminal": sum(c["n_dropped_terminal"] for c in chunks),
-            "n_endturn":          sum(c["n_endturn"]          for c in chunks),
-            "n_decisions_total":  sum(c["n_decisions_total"]  for c in chunks),
+            "n_dropped_terminal":  sum(c["n_dropped_terminal"]  for c in chunks),
+            "n_endturn":           sum(c["n_endturn"]           for c in chunks),
+            "n_endturn_voluntary": sum(c["n_endturn_voluntary"] for c in chunks),
+            "n_forced":            sum(c["n_forced"]            for c in chunks),
+            "n_decisions_total":   sum(c["n_decisions_total"]   for c in chunks),
         }
         return raw_batch, t_collect
 

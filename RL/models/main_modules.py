@@ -264,17 +264,31 @@ class GraphTransformerEncoder(nn.Module):
 # Module 2 — Critic Head
 # ══════════════════════════════════════════════════════════════════════════════
 
+# Value-stream indices. The critic predicts one value per reward stream so that
+# dense shaping can be switched off mid-training without disturbing the terminal
+# value function: V_TERM is regressed ONLY on terminal returns and is therefore
+# already correct the moment the dense stream is dropped.
+V_TERM, V_DENSE = 0, 1
+N_VALUE_STREAMS = 2
+
+
 class CriticHead(nn.Module):
-    """Estimate state value V(s) from a global board embedding.
+    """Estimate per-stream state values V(s) from a global board embedding.
 
     Consumes the (max-pooled + scalar-fused) global embedding produced by
-    GraphTransformerEncoder and maps it to a scalar via an MLP.
+    GraphTransformerEncoder and maps it to `n_streams` scalars via a shared MLP
+    trunk with a widened output layer.
+
+    Stream 0 (V_TERM) is the terminal (win/margin) value; stream 1 (V_DENSE) is
+    the dense-shaping value. They share the trunk — the two targets are strongly
+    related, and the split only needs to exist at the output.
 
     Parameters
     ──────────
     hidden_dim : int   must match GraphTransformerEncoder.hidden_dim
     mlp_hidden : int   hidden width of the value MLP
     mlp_depth  : int   hidden layers inside the value MLP
+    n_streams  : int   number of reward streams to predict
     """
 
     def __init__(
@@ -282,20 +296,21 @@ class CriticHead(nn.Module):
         hidden_dim: int = 128,
         mlp_hidden: int = 64,
         mlp_depth:  int = 2,
+        n_streams:  int = N_VALUE_STREAMS,
     ) -> None:
         super().__init__()
-        #self.value_mlp = _mlp(hidden_dim, mlp_hidden, 1, mlp_depth)
+        self.n_streams = n_streams
         self.value_mlp    = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim * 2),
             nn.Tanh(),
             nn.Linear(hidden_dim * 2, hidden_dim * 4),
             nn.LayerNorm(hidden_dim * 4),
             nn.Tanh(),
-            nn.Linear(hidden_dim * 4, 1)
+            nn.Linear(hidden_dim * 4, n_streams)
         )
 
     def forward(self, global_emb: torch.Tensor) -> torch.Tensor:
-        """Compute value estimate(s).
+        """Compute per-stream value estimates.
 
         Parameters
         ──────────
@@ -303,10 +318,13 @@ class CriticHead(nn.Module):
 
         Returns
         ───────
-        Tensor ()   — scalar, if input was (1, hidden_dim)
-        Tensor (B,) — batch of scalars, if input was (B, hidden_dim)
+        Tensor (n_streams,)    — if input was (1, hidden_dim)
+        Tensor (B, n_streams)  — if input was (B, hidden_dim)
+
+        Index with V_TERM / V_DENSE; callers must never assume a scalar.
         """
-        return self.value_mlp(global_emb).squeeze(-1)
+        out = self.value_mlp(global_emb)
+        return out.squeeze(0) if out.dim() == 2 and out.shape[0] == 1 else out
 
 
 # ══════════════════════════════════════════════════════════════════════════════

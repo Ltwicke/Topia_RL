@@ -109,7 +109,9 @@ def main() -> None:
             # horizon and bootstrapped rather than terminated, which is normal
             # PPO truncation — but it must stay rare, so it is counted and the
             # two invariants below are stated exactly in terms of it.
-            rew, dn = raw_batch["rewards"], raw_batch["dones"]
+            rew_t  = raw_batch["rew_term"]
+            rew_d  = raw_batch["rew_dense"]
+            dn     = raw_batch["dones"]
             n_games = raw_batch["n_games"]
             n_drop  = raw_batch["n_dropped_terminal"]
 
@@ -130,22 +132,27 @@ def main() -> None:
                 f"{expected_cuts} (= 2×{n_games} games − {n_drop} dropped)"
             )
 
-            # With dense off the ONLY rewards are terminal, and each fully
-            # delivered game pays +z to one seat and −z to the other, so the
-            # buffer cancels to zero except for undelivered shares — each of
-            # which is bounded by conquest_reward.
-            residual = abs(float(rew.sum()))
-            assert residual <= n_drop * cfg.conquest_reward + 1e-4, (
-                f"terminal rewards do not cancel: residual={residual:.6f} "
-                f"exceeds the {n_drop} dropped share(s) — attribution is not "
-                f"zero-sum across seats"
+            # Constant-sum: each fully delivered game pays the two seats shares
+            # totalling terminal_weight (or conquest_reward on a conquest), so
+            # the terminal buffer sums to that per game, give or take the
+            # undelivered shares.
+            term_sum = float(rew_t.sum())
+            max_per_game = cfg.conquest_reward * (1.0 + cfg.conquest_early_bonus)
+            assert -1e-4 <= term_sum <= n_games * max_per_game + 1e-4, (
+                f"terminal stream sums to {term_sum:.4f}, outside [0, "
+                f"{n_games * max_per_game:.4f}] for {n_games} games"
             )
 
-            # Non-terminal steps carry no reward when dense shaping is off.
+            # The terminal stream must ONLY ever be non-zero on a trajectory cut
+            # — that is what keeps dense shaping out of the terminal head.
+            assert np.all(rew_t[dn <= 0.5] == 0.0), (
+                "terminal reward on a step that is not a trajectory cut"
+            )
+            # Conversely the dense stream is per-action and must be zero when
+            # dense shaping is disabled.
             if not cfg.dense_reward:
-                nonterm = dn <= 0.5
-                assert np.all(rew[nonterm] == 0.0), (
-                    "non-zero reward on a step that is not a trajectory cut"
+                assert np.all(rew_d == 0.0), (
+                    "dense reward emitted with dense_reward=False"
                 )
 
             est_stats = est_pretrainer.update(raw_batch, est_batch_proc)
@@ -153,10 +160,24 @@ def main() -> None:
 
             processed_batch, t_gae = ppo_batch_proc.process(raw_batch)
             n_active = processed_batch["adv_np"].shape[0]
-            total    = raw_batch["rewards"].size
+            total    = raw_batch["rew_term"].size
             print(f"[u{update}] active samples = {n_active} / {total} "
-                  f"(~{100*n_active/total:.0f}%)  gae {t_gae:.3f}s")
+                  f"(~{100*n_active/total:.0f}%)  "
+                  f"forced dropped={processed_batch['n_forced_dropped']}  "
+                  f"gae {t_gae:.3f}s")
             assert 0 < n_active < total, "active filter produced degenerate count"
+            print(f"[u{update}] decisions/turn={processed_batch['decisions_per_turn']:.2f}  "
+                  f"conquest_rate={processed_batch['conquest_rate']:.3f}  "
+                  f"ev_term={processed_batch['ev_term']:+.3f}  "
+                  f"ev_dense={processed_batch['ev_dense']:+.3f}")
+
+            # Every training sample must be a real decision: forced steps carry
+            # no gradient and only distort the entropy and whitening statistics.
+            assert processed_batch["n_forced_dropped"] >= 0
+            assert len(processed_batch["flat_snaps"]) == n_active, \
+                "snapshot list and advantage array disagree after filtering"
+            assert processed_batch["ret_dense_norm_np"].shape[0] == n_active, \
+                "dense return targets misaligned with the training batch"
 
             del raw_batch
             stats = ppo_trainer.update(processed_batch, ppo_batch_proc)

@@ -47,6 +47,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from ppo.game_manager import TrainConfig
+from RL.models.main_modules import V_TERM, V_DENSE
 
 if TYPE_CHECKING:
     # Avoid circular import at runtime; type-checker only.
@@ -136,9 +137,10 @@ class PPOTrainer:
         cfg    = self.cfg
 
         # Move per-minibatch tensors to the compute device
-        log_old  = minibatch["log_old"].to(device)    # (mb,)
-        adv      = minibatch["adv"].to(device)         # (mb,)
-        ret_norm = minibatch["ret_norm"].to(device)    # (mb,)
+        log_old   = minibatch["log_old"].to(device)     # (mb,)
+        adv       = minibatch["adv"].to(device)          # (mb,)
+        ret_norm  = minibatch["ret_norm"].to(device)     # (mb,) terminal stream
+        ret_dense = minibatch["ret_dense_norm"].to(device)  # (mb,) dense stream
 
         with self._autocast():
 
@@ -156,7 +158,13 @@ class PPOTrainer:
             )
             loss_clip = torch.min(ratio * adv, clipped_ratio * adv).mean()
 
-            loss_val = F.mse_loss(new_val.squeeze(-1), ret_norm)
+            # One regression per stream. V_TERM never sees dense returns, which
+            # is what keeps it valid when dense_beta is set to 0 mid-training.
+            # The dense head is still trained at beta=0 (harmless, and it keeps
+            # the shared trunk's dense signal available if beta is restored).
+            loss_val_term  = F.mse_loss(new_val[:, V_TERM],  ret_norm)
+            loss_val_dense = F.mse_loss(new_val[:, V_DENSE], ret_dense)
+            loss_val = loss_val_term + loss_val_dense
 
             loss_ent = new_ent.mean()
 
@@ -186,10 +194,10 @@ class PPOTrainer:
         # ── Explicit GPU tensor cleanup ───────────────────────────────────────
         # Deleting here (not at end of update) keeps peak VRAM flat across
         # minibatches: the allocator can reuse these blocks for the next mb.
-        del log_old, adv, ret_norm
+        del log_old, adv, ret_norm, ret_dense
         del new_lp, new_ent, new_val
         del ratio, clipped_ratio
-        del loss_clip, loss_val, loss_ent, loss
+        del loss_clip, loss_val, loss_val_term, loss_val_dense, loss_ent, loss
 
         return p_item, v_item, ent_item
 
@@ -259,12 +267,14 @@ class PPOTrainer:
                         processed_batch["flat_snaps"]
                     ).detach().cpu().numpy()
                 self.policy.train()
-                adv_np, ret_norm_np = batch_processor.recompute_advantages(
-                    processed_batch, fresh_vals,
-                )
+                adv_np, ret_norm_np, ret_dense_norm_np = \
+                    batch_processor.recompute_advantages(
+                        processed_batch, fresh_vals,
+                    )
                 epoch_batch = {**processed_batch,
                                "adv_np": adv_np,
-                               "ret_norm_np": ret_norm_np}
+                               "ret_norm_np": ret_norm_np,
+                               "ret_dense_norm_np": ret_dense_norm_np}
             else:
                 epoch_batch = processed_batch
 

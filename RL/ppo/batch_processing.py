@@ -56,6 +56,23 @@ import torch
 from torch.utils.data import BatchSampler, SubsetRandomSampler
 
 from RL.ppo.game_manager import TrainConfig
+from RL.models.main_modules import V_TERM, V_DENSE, N_VALUE_STREAMS
+
+
+def _explained_variance(pred: np.ndarray, target: np.ndarray) -> float:
+    """1 - Var(target - pred) / Var(target); 0 means no better than the mean.
+
+    This is the metric that actually says whether a critic is learning. The
+    value loss is computed on normalised returns, so its magnitude carries no
+    information about fit quality — a critic stuck predicting a constant can
+    show a very small v_loss.
+    """
+    if target.size == 0:
+        return 0.0
+    var_t = float(np.var(target))
+    if var_t < 1e-12:
+        return 0.0
+    return float(1.0 - np.var(target - pred) / var_t)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -217,7 +234,12 @@ class BatchProcessor:
 
     def __init__(self, cfg: TrainConfig) -> None:
         self.cfg            = cfg
-        self.ret_normalizer = RunningMeanStd()
+        # One normaliser per reward stream. Sharing a single one would couple
+        # the terminal and dense scales, so switching dense off would shift the
+        # statistics under V_TERM — the precise failure the split heads exist
+        # to prevent.
+        self.ret_normalizer       = RunningMeanStd()   # terminal stream
+        self.ret_normalizer_dense = RunningMeanStd()   # dense stream
 
     # ── Main processing step ──────────────────────────────────────────────────
 
@@ -255,33 +277,68 @@ class BatchProcessor:
         cfg = self.cfg
         t0  = time.time()
 
-        rewards    = raw_batch["rewards"]      # (T, N)
-        values     = raw_batch["values"]
+        rew_term   = raw_batch["rew_term"]     # (T, N)
+        rew_dense  = raw_batch["rew_dense"]    # (T, N)
+        values     = raw_batch["values"]       # (T, N, n_streams)
         dones      = raw_batch["dones"]
         player_ids = raw_batch["player_ids"]
-        last_vals  = raw_batch["last_values"]
-        T, N       = rewards.shape
+        last_vals  = raw_batch["last_values"]  # (N, 2 seats, n_streams)
+        T, N       = rew_term.shape
 
-        adv, ret = compute_gae_per_player(
-            rewards, values, dones, last_vals, player_ids,
+        # ── One GAE pass per reward stream ────────────────────────────────────
+        # GAE is linear in the rewards given a matching value function, so the
+        # per-stream advantages sum EXACTLY to the advantage of the combined
+        # reward. That is what makes dense_beta a clean dial rather than an
+        # approximation, and what lets V_TERM stay uncontaminated by shaping.
+        adv_term, ret_term = compute_gae_per_player(
+            rew_term, values[:, :, V_TERM], dones,
+            last_vals[:, :, V_TERM], player_ids,
+            gamma   = cfg.gamma,
+            gae_lam = cfg.gae_lambda,
+        )
+        adv_dense, ret_dense = compute_gae_per_player(
+            rew_dense, values[:, :, V_DENSE], dones,
+            last_vals[:, :, V_DENSE], player_ids,
             gamma   = cfg.gamma,
             gae_lam = cfg.gae_lambda,
         )
 
         t_gae = time.time() - t0
 
-        # ── Flatten (T, N) → (B,) time-major, then filter to the ACTIVE seat ──
+        # ── Flatten (T, N) → (B,) time-major, then filter the training set ────
+        # Active seat only, and forced steps dropped: a step with a single
+        # possible trajectory has log pi == 0 and entropy == 0 under the hard
+        # mask, so it contributes no gradient while still dragging the entropy
+        # bonus down and inflating the advantage-whitening std.
         is_active_flat = raw_batch["is_active"].reshape(-1) > 0.5
-        active_idx     = np.nonzero(is_active_flat)[0]
+        is_forced_flat = raw_batch.get(
+            "is_forced", np.zeros_like(raw_batch["is_active"])
+        ).reshape(-1) > 0.5
+        train_mask = is_active_flat & (~is_forced_flat)
+        active_idx = np.nonzero(train_mask)[0]
+        n_forced_dropped = int((is_active_flat & is_forced_flat).sum())
 
-        val_flat = values.reshape(-1).astype(np.float32)   # for per-epoch recompute
-        adv_np   = adv.reshape(-1).astype(np.float32)[active_idx]
-        ret_np   = ret.reshape(-1).astype(np.float32)[active_idx]
-        lp_np    = raw_batch["log_probs"].reshape(-1).astype(np.float32)[active_idx]
+        # Per-epoch recompute needs the full (T·N, n_streams) value table
+        val_flat = values.reshape(-1, values.shape[-1]).astype(np.float32)
 
-        # Update running stats once per update cycle, then normalise
-        self.ret_normalizer.update(ret_np)
-        ret_norm_np = self.ret_normalizer.normalize(ret_np)
+        adv_term_np  = adv_term.reshape(-1).astype(np.float32)[active_idx]
+        adv_dense_np = adv_dense.reshape(-1).astype(np.float32)[active_idx]
+        ret_term_np  = ret_term.reshape(-1).astype(np.float32)[active_idx]
+        ret_dense_np = ret_dense.reshape(-1).astype(np.float32)[active_idx]
+        lp_np        = raw_batch["log_probs"].reshape(-1).astype(np.float32)[active_idx]
+
+        # The policy optimises the weighted sum; each critic head regresses its
+        # own stream, so turning dense_beta to 0 changes the policy objective
+        # without touching what V_TERM has learned.
+        adv_np = adv_term_np + cfg.dense_beta * adv_dense_np
+
+        # One normaliser PER STREAM. A shared one would couple the two scales,
+        # so switching dense off would shift the statistics and drag V_TERM
+        # with it — exactly the coupling this design exists to avoid.
+        self.ret_normalizer.update(ret_term_np)
+        ret_norm_np       = self.ret_normalizer.normalize(ret_term_np)
+        self.ret_normalizer_dense.update(ret_dense_np)
+        ret_dense_norm_np = self.ret_normalizer_dense.normalize(ret_dense_np)
 
         # ── Flatten list-of-lists (time-major), keep active only ──────────────
         all_snaps = [s for step in raw_batch["obs_snaps"] for s in step]
@@ -298,23 +355,38 @@ class BatchProcessor:
         n_timeout         = int(raw_batch.get("n_timeout", 0))
         n_dropped_term    = int(raw_batch.get("n_dropped_terminal", 0))
         n_endturn         = int(raw_batch.get("n_endturn", 0))
+        n_endturn_vol     = int(raw_batch.get("n_endturn_voluntary", 0))
         n_decisions_total = int(raw_batch.get("n_decisions_total", 0))
-        active_reward_sum = float(rewards.reshape(-1)[active_idx].sum())
+        active_reward_sum = float(
+            (rew_term + rew_dense).reshape(-1)[active_idx].sum()
+        )
         avg_ep_len        = active_idx.size / max(n_games, 1)
-        # Anti-rush diagnostic: own decisions per own turn. Collapsing toward
-        # 1.0 means the policy is racing to the turn limit instead of playing.
+        # Anti-rush diagnostic: own decisions per own turn. Human-level play
+        # should climb well above 2; a value near 1 means the policy is ending
+        # its turn immediately to race the turn limit.
         decisions_per_turn = n_decisions_total / max(n_endturn, 1)
+        # Fraction of games won outright rather than on a turn-30 score lead.
+        conquest_rate      = n_conquest / max(n_games, 1)
+        # Explained variance per head — the only honest read on critic quality.
+        # v_loss is measured on NORMALISED returns and so cannot be compared to
+        # the reward scale at all.
+        ev_term  = _explained_variance(
+            val_flat[active_idx, V_TERM], ret_term_np)
+        ev_dense = _explained_variance(
+            val_flat[active_idx, V_DENSE], ret_dense_np)
 
         processed_batch = {
-            # Training data (active seat only)
+            # Training data (active seat, real decisions only)
             "flat_snaps":   flat_snaps,
             "flat_acts":    flat_acts,
             "flat_masks":   flat_masks,
             "log_probs_np": lp_np,
             "adv_np":       adv_np,
-            "ret_norm_np":  ret_norm_np,
+            "ret_norm_np":       ret_norm_np,
+            "ret_dense_norm_np": ret_dense_norm_np,
             # Inputs needed to recompute GAE each epoch (compute_values_batch)
-            "rewards_TN":             rewards,
+            "rew_term_TN":            rew_term,
+            "rew_dense_TN":           rew_dense,
             "dones_TN":               dones,
             "player_ids_TN":          player_ids,
             "last_values_N":          last_vals,
@@ -328,7 +400,12 @@ class BatchProcessor:
             "n_conquest":        n_conquest,
             "n_timeout":          n_timeout,
             "n_dropped_terminal": n_dropped_term,
+            "n_forced_dropped":   n_forced_dropped,
             "decisions_per_turn": decisions_per_turn,
+            "endturn_voluntary":  n_endturn_vol,
+            "conquest_rate":      conquest_rate,
+            "ev_term":            ev_term,
+            "ev_dense":           ev_dense,
             "active_reward_sum":  active_reward_sum,
             "avg_ep_len":         avg_ep_len,
         }
@@ -352,35 +429,50 @@ class BatchProcessor:
         Parameters
         ──────────
         processed_batch     : dict — output of process()
-        fresh_active_values : (n_active,) — V(s) for the active snapshots,
-                              in the same order as processed_batch["flat_snaps"]
-                              (i.e. processed_batch["active_idx"] order).
+        fresh_active_values : (n_active, n_streams) — per-stream V(s) for the
+                              active snapshots, in the same order as
+                              processed_batch["flat_snaps"].
 
         Returns
         ───────
-        adv_np      (n_active,) float32 — fresh advantages (active seat)
-        ret_norm_np (n_active,) float32 — fresh normalised returns
+        adv_np            (n_active,) float32 — fresh combined advantages
+        ret_norm_np       (n_active,) float32 — fresh normalised terminal returns
+        ret_dense_norm_np (n_active,) float32 — fresh normalised dense returns
         """
         cfg        = self.cfg
         active_idx = processed_batch["active_idx"]
+        T, N       = processed_batch["T"], processed_batch["N"]
+        last_vals  = processed_batch["last_values_N"]
 
-        # Scatter fresh active values into a full (T·N,) array, leaving the
-        # non-active slots at their collection values (unused by active GAE).
+        # Scatter fresh active values into the full (T·N, n_streams) table,
+        # leaving non-active and forced slots at their collection values.
         vals_flat = processed_batch["values_flat_collection"].copy()
         vals_flat[active_idx] = np.asarray(fresh_active_values, dtype=np.float32)
-        values_TN = vals_flat.reshape(processed_batch["T"], processed_batch["N"])
+        values_TNS = vals_flat.reshape(T, N, vals_flat.shape[-1])
 
-        adv, ret = compute_gae_per_player(
-            processed_batch["rewards_TN"], values_TN,
-            processed_batch["dones_TN"], processed_batch["last_values_N"],
+        adv_term, ret_term = compute_gae_per_player(
+            processed_batch["rew_term_TN"], values_TNS[:, :, V_TERM],
+            processed_batch["dones_TN"], last_vals[:, :, V_TERM],
             processed_batch["player_ids_TN"],
             gamma   = cfg.gamma,
             gae_lam = cfg.gae_lambda,
         )
-        adv_np      = adv.reshape(-1).astype(np.float32)[active_idx]
-        ret_np      = ret.reshape(-1).astype(np.float32)[active_idx]
-        ret_norm_np = self.ret_normalizer.normalize(ret_np)   # normalize-only
-        return adv_np, ret_norm_np
+        adv_dense, ret_dense = compute_gae_per_player(
+            processed_batch["rew_dense_TN"], values_TNS[:, :, V_DENSE],
+            processed_batch["dones_TN"], last_vals[:, :, V_DENSE],
+            processed_batch["player_ids_TN"],
+            gamma   = cfg.gamma,
+            gae_lam = cfg.gae_lambda,
+        )
+
+        adv_np = (adv_term.reshape(-1).astype(np.float32)[active_idx]
+                  + cfg.dense_beta
+                  * adv_dense.reshape(-1).astype(np.float32)[active_idx])
+        ret_norm_np = self.ret_normalizer.normalize(
+            ret_term.reshape(-1).astype(np.float32)[active_idx])
+        ret_dense_norm_np = self.ret_normalizer_dense.normalize(
+            ret_dense.reshape(-1).astype(np.float32)[active_idx])
+        return adv_np, ret_norm_np, ret_dense_norm_np
 
     # ── Minibatch generator ───────────────────────────────────────────────────
 
@@ -432,9 +524,10 @@ class BatchProcessor:
         mb  = cfg.minibatch_size
 
         # ── Convert numpy → CPU tensors once per epoch call ──────────────────
-        log_old  = torch.from_numpy(processed_batch["log_probs_np"])  # (B,)
-        adv_full = torch.from_numpy(processed_batch["adv_np"])        # (B,)
-        ret_norm = torch.from_numpy(processed_batch["ret_norm_np"])   # (B,)
+        log_old   = torch.from_numpy(processed_batch["log_probs_np"])  # (B,)
+        adv_full  = torch.from_numpy(processed_batch["adv_np"])        # (B,)
+        ret_norm  = torch.from_numpy(processed_batch["ret_norm_np"])   # (B,)
+        ret_dense = torch.from_numpy(processed_batch["ret_dense_norm_np"])  # (B,)
 
         # ── Whiten advantages over the full batch before sub-sampling ─────────
         # Normalisation is computed on all B samples so that the scale is
@@ -467,9 +560,10 @@ class BatchProcessor:
                 "snaps":    [flat_snaps[i] for i in idx_list],
                 "acts":     [flat_acts[i]  for i in idx_list],
                 "masks":    [flat_masks[i] for i in idx_list],
-                "log_old":  log_old[idx],    # (mb,) CPU tensor
-                "adv":      adv_full[idx],   # (mb,) CPU tensor
-                "ret_norm": ret_norm[idx],   # (mb,) CPU tensor
+                "log_old":        log_old[idx],    # (mb,) CPU tensor
+                "adv":            adv_full[idx],   # (mb,) CPU tensor
+                "ret_norm":       ret_norm[idx],   # (mb,) terminal-stream target
+                "ret_dense_norm": ret_dense[idx],  # (mb,) dense-stream target
             }
 
 

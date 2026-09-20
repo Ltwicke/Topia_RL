@@ -81,8 +81,10 @@ _CSV_FIELDS = [
     "wall_time_s", "t_dist_s", "t_collect_s",
     "t_est_s", "t_gae_s", "t_ppo_s", "t_scenarios_s",
     "n_games", "n_active_wins", "active_win_rate",
-    "n_conquest", "n_timeout",
-    "n_dropped_terminal", "decisions_per_turn",
+    "n_conquest", "n_timeout", "conquest_rate",
+    "n_dropped_terminal", "n_forced_dropped",
+    "decisions_per_turn", "endturn_voluntary",
+    "ev_term", "ev_dense",
     "avg_ep_len", "avg_active_reward",
     "est_loss", "est_steps",
     "p_loss", "v_loss", "entropy",
@@ -285,9 +287,11 @@ def main() -> None:
         f"  clip_eps / vf / ent: {cfg.clip_eps} / {cfg.vf_coef} / {cfg.ent_coef}",
         f"  γ / λ             : {cfg.gamma} / {cfg.gae_lambda}",
         f"  Recompute GAE/epoch: {cfg.recompute_gae_each_epoch}",
-        f"  Reward            : dense={cfg.dense_reward}  "
-        f"terminal={cfg.terminal_reward_mode}  W={cfg.terminal_weight} "
-        f"τ={cfg.terminal_tau}  conquest={cfg.conquest_reward}",
+        f"  Reward            : dense={cfg.dense_reward} "
+        f"(beta={cfg.dense_beta}, scale={cfg.dense_scale})  "
+        f"terminal={cfg.terminal_reward_mode} W={cfg.terminal_weight} "
+        f"τ={cfg.terminal_tau}  conquest={cfg.conquest_reward} "
+        f"(+{cfg.conquest_early_bonus} early)",
         f"  Self-play         : active seat P{cfg.active_player_id} vs frozen "
         f"(refresh every {cfg.opponent_refresh_interval} updates)",
         f"  LR                : {cfg.lr}",
@@ -400,7 +404,12 @@ def main() -> None:
         n_conquest      = processed_batch["n_conquest"]
         n_timeout       = processed_batch["n_timeout"]
         n_dropped_term  = processed_batch["n_dropped_terminal"]
+        n_forced_drop   = processed_batch["n_forced_dropped"]
         decisions_per_turn = processed_batch["decisions_per_turn"]
+        endturn_vol     = processed_batch["endturn_voluntary"]
+        conquest_rate   = processed_batch["conquest_rate"]
+        ev_term         = processed_batch["ev_term"]
+        ev_dense        = processed_batch["ev_dense"]
         active_win_rate = n_active_wins / max(n_games, 1)
         avg_active_rew  = processed_batch["active_reward_sum"] / max(n_games, 1)
         avg_ep_len      = processed_batch["avg_ep_len"]
@@ -485,7 +494,15 @@ def main() -> None:
             logger.info(f"║  Avg active rew: {avg_active_rew:.3f}")
             logger.info(
                 f"║  Decisions/turn: {decisions_per_turn:.2f}  "
-                f"(→1.0 means the policy is racing to the turn limit)"
+                f"(→1.0 = racing the turn limit; human-level is 10-30 by turn 15)"
+            )
+            logger.info(
+                f"║  Conquest rate : {conquest_rate:.3f}  "
+                f"|  voluntary EndTurn: {endturn_vol}"
+            )
+            logger.info(
+                f"║  Explained var : term {ev_term:+.3f}  dense {ev_dense:+.3f}  "
+                f"(0 = no better than predicting the mean)"
             )
             if n_dropped_term:
                 logger.warning(
@@ -531,8 +548,13 @@ def main() -> None:
             "active_win_rate":         f"{active_win_rate:.4f}",
             "n_conquest":              n_conquest,
             "n_timeout":               n_timeout,
+            "conquest_rate":           f"{conquest_rate:.4f}",
             "n_dropped_terminal":      n_dropped_term,
+            "n_forced_dropped":        n_forced_drop,
             "decisions_per_turn":      f"{decisions_per_turn:.3f}",
+            "endturn_voluntary":       endturn_vol,
+            "ev_term":                 f"{ev_term:.4f}",
+            "ev_dense":                f"{ev_dense:.4f}",
             "avg_ep_len":              f"{avg_ep_len:.2f}",
             "avg_active_reward":       f"{avg_active_rew:.4f}",
             "est_loss":                f"{est_stats['est_loss']:.6f}",
