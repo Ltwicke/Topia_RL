@@ -84,7 +84,7 @@ from RL.models.version2_modules    import (
     UpgradeCityHead, UpgradeCityChoiceResult,
     PlaceRoadHead,   PlaceRoadResult,
 )
-from RL.models.utility_modules     import _mlp, _shannon_entropy
+from RL.models.utility_modules     import _mlp, _shannon_entropy, init_weights
 
 N_ACTION_TYPES: int = len(ActionTypes)
 N_UNIT_TYPES:   int = len(UnitType)
@@ -567,6 +567,17 @@ class PolicyNetwork(nn.Module):
             mlp_hidden = est_hid,
             mlp_depth  = est_dep,
         )
+
+        # ── Weight initialisation (sc-48) ──────────────────────────────────
+        # Must run last, once every submodule exists. Before sc-48 nothing in
+        # this repo initialised weights at all - every layer used PyTorch's
+        # legacy kaiming_uniform_(a=sqrt(5)) default, including every output
+        # layer. `init_weights` walks the tree (it cannot be `.apply()`, see the
+        # note in utility_modules.py) and honours the `_out_gain` tags that
+        # `_mlp` puts on output layers. Gain 5/3 matches the Tanh MLPs that make
+        # up most of the heads; resuming from a checkpoint overwrites all of
+        # this via load_state_dict, so restarts are unaffected.
+        init_weights(self, gain=nn.init.calculate_gain("tanh"))
 
     # ── Device helper ─────────────────────────────────────────────────────
 

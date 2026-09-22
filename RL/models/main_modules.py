@@ -300,13 +300,19 @@ class CriticHead(nn.Module):
     ) -> None:
         super().__init__()
         self.n_streams = n_streams
+        out = nn.Linear(hidden_dim * 4, n_streams)
+        # Standard PPO value-output gain. Without this tag `init_weights` would
+        # apply the hidden-layer gain here, which pushes the value predictions
+        # further apart - and while the trunk is still saturated (sc-48 defect A)
+        # that shows up directly as wider discrete plateaus.
+        out._out_gain = 1.0
         self.value_mlp    = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim * 2),
             nn.Tanh(),
             nn.Linear(hidden_dim * 2, hidden_dim * 4),
             nn.LayerNorm(hidden_dim * 4),
             nn.Tanh(),
-            nn.Linear(hidden_dim * 4, n_streams)
+            out,
         )
 
     def forward(self, global_emb: torch.Tensor) -> torch.Tensor:

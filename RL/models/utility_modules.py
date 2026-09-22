@@ -1,5 +1,6 @@
+import math
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
 import numpy as np
 import torch
@@ -8,14 +9,105 @@ import torch.nn.functional as F
 
 
 
-def _mlp(in_d: int, hid_d: int, out_d: int, depth: int = 2) -> nn.Sequential:
-    """MLP with `depth` hidden layers and a pre-output LayerNorm."""
+def _mlp(in_d: int, hid_d: int, out_d: int, depth: int = 2,
+         out_gain: float = 0.01) -> nn.Sequential:
+    """MLP with `depth` hidden layers and a pre-output LayerNorm.
+
+    `out_gain` tags the OUTPUT Linear so `init_weights` gives it a small
+    orthogonal gain instead of the hidden-layer gain. This is the standard PPO
+    trick - a policy head that starts near-uniform explores instead of
+    committing to an arbitrary action ordering - and tagging it here covers
+    every `_mlp` call site in the codebase from one place.
+    """
     assert depth >= 1
     layers: list = [nn.Linear(in_d, hid_d), nn.Tanh()]
     for _ in range(depth - 1):
         layers += [nn.Linear(hid_d, hid_d), nn.Tanh()]
-    layers += [nn.LayerNorm(hid_d), nn.Linear(hid_d, out_d)] # layernorm after activation?
+    out = nn.Linear(hid_d, out_d)
+    out._out_gain = out_gain                     # read by init_weights()
+    layers += [nn.LayerNorm(hid_d), out]         # layernorm after activation?
     return nn.Sequential(*layers)
+
+
+# ==============================================================================
+# Weight initialisation
+# ==============================================================================
+#
+# Before sc-48 there was NO initialisation anywhere in this repo: every module
+# relied on PyTorch's legacy `kaiming_uniform_(a=sqrt(5))` default, including
+# every policy output layer and the critic's output layer.
+#
+# Two traps make a blanket `module.apply(fn)` the wrong tool here, both verified
+# against the installed torch 2.9.1 / PyG 2.7.0:
+#
+#   * PyG's `TransformerConv` holds `lin_key/query/value/skip/beta`, and those
+#     are `torch_geometric.nn.dense.linear.Linear` - NOT `nn.Linear`. An
+#     isinstance check skips all five, so the attention layers keep the default
+#     init while everything around them changes.
+#   * `nn.MultiheadAttention` packs Q/K/V into a single bare `in_proj_weight`
+#     Parameter (invisible to an nn.Linear check) while `out_proj` IS an
+#     nn.Linear. A blanket apply therefore reinitialises out_proj and leaves
+#     Q/K/V at the default - silently inconsistent across all 9 attention sites.
+#
+# Q/K deliberately get a SMALLER gain than V. Large Q/K gains produce sharp,
+# low-entropy attention at initialisation (Zhai et al., ICML 2023), which in
+# this network would reintroduce max-pool-like discontinuity through the
+# readout. Diffuse attention at init is what we want.
+
+def init_mha(m: nn.MultiheadAttention,
+             qk_gain: float = 0.5, v_gain: float = 1.0) -> None:
+    """Orthogonal init for nn.MultiheadAttention, slicing the packed Q/K/V."""
+    d = m.embed_dim
+    nn.init.orthogonal_(m.in_proj_weight[:d],        gain=qk_gain)   # Q
+    nn.init.orthogonal_(m.in_proj_weight[d:2 * d],   gain=qk_gain)   # K
+    nn.init.orthogonal_(m.in_proj_weight[2 * d:],    gain=v_gain)    # V
+    nn.init.orthogonal_(m.out_proj.weight,           gain=v_gain)
+    if m.in_proj_bias is not None:
+        nn.init.zeros_(m.in_proj_bias)
+    if m.out_proj.bias is not None:
+        nn.init.zeros_(m.out_proj.bias)
+
+
+def init_transformer_conv(conv, qk_gain: float = 0.5, v_gain: float = 1.0) -> None:
+    """Orthogonal init for PyG TransformerConv's non-nn.Linear submodules."""
+    conv.reset_parameters()                       # PyG Glorot baseline first
+    for name, gain in (("lin_query", qk_gain), ("lin_key", qk_gain),
+                       ("lin_value", v_gain),   ("lin_skip", v_gain)):
+        lin = getattr(conv, name, None)
+        if lin is None:
+            continue
+        nn.init.orthogonal_(lin.weight, gain=gain)
+        if getattr(lin, "bias", None) is not None:
+            nn.init.zeros_(lin.bias)
+    # beta = sigmoid(0) = 0.5 -> attention and skip enter the residual equally.
+    if getattr(conv, "lin_beta", None) is not None:
+        nn.init.zeros_(conv.lin_beta.weight)
+        if conv.lin_beta.bias is not None:
+            nn.init.zeros_(conv.lin_beta.bias)
+
+
+def init_weights(m: nn.Module, gain: float = math.sqrt(2)) -> None:
+    """Recursively orthogonal-initialise a module tree.
+
+    Layers tagged with `_out_gain` (see `_mlp`, and the critic's output layers)
+    use that gain instead of `gain`, which is how output layers get their small
+    near-uniform initialisation without a separate registry of names.
+    """
+    from torch_geometric.nn import TransformerConv      # local: avoids a cycle
+
+    if isinstance(m, nn.MultiheadAttention):
+        init_mha(m)
+        return
+    if isinstance(m, TransformerConv):
+        init_transformer_conv(m)
+        return
+    if isinstance(m, (nn.Linear, nn.Conv2d)):
+        nn.init.orthogonal_(m.weight, gain=getattr(m, "_out_gain", gain))
+        if m.bias is not None:
+            nn.init.zeros_(m.bias)
+    # nn.LayerNorm keeps PyTorch's default (weight=1, bias=0), which is correct.
+    for child in m.children():
+        init_weights(child, gain)
 
 
 def _shannon_entropy(probs: torch.Tensor) -> torch.Tensor:
