@@ -433,10 +433,15 @@ class PolicyNetwork(nn.Module):
 
         # ── Encoder + Critic ───────────────────────────────────────────────
         self.encoder = GraphTransformerEncoder(
-            hidden_dim = D,
-            n_heads    = enc_heads,
-            depth      = enc_depth,
-            scalar_dim = scalar_dim,
+            hidden_dim  = D,
+            n_heads     = enc_heads,
+            depth       = enc_depth,
+            scalar_dim  = scalar_dim,
+            # The score-margin feature is scaled by the SAME tau the terminal
+            # reward uses, which is what makes V_TERM nearly linear in it.
+            score_tau   = getattr(cfg, "terminal_tau", 1342.0),
+            scalar_mode = getattr(cfg, "scalar_mode", "derived"),
+            fusion      = getattr(cfg, "scalar_fusion", "concat"),
         )
         self.critic = CriticHead(
             hidden_dim = D,

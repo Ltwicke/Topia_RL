@@ -258,10 +258,13 @@ def value_path_linears(policy) -> Dict[str, nn.Module]:
     """The Linear layers whose OUTPUT is the next non-linearity's pre-activation."""
     mods: Dict[str, nn.Module] = {}
     enc = policy.encoder
-    for name in ("input_proj", "scalar_proj", "fuse"):
+    for name in ("input_proj", "scalar_proj", "fuse"):      # scalar_proj: pre-sc-48
         m = getattr(enc, name, None)
         if isinstance(m, nn.Linear):
             mods[f"encoder.{name}"] = m
+    sc = getattr(enc, "scalar_enc", None)
+    if sc is not None and isinstance(getattr(sc, "proj", None), nn.Linear):
+        mods["encoder.scalar_enc"] = sc.proj
     head = getattr(policy.critic, "value_mlp", None) or getattr(policy.critic, "trunk", None)
     if head is not None:
         for i, m in enumerate(head):
@@ -270,24 +273,51 @@ def value_path_linears(policy) -> Dict[str, nn.Module]:
     return mods
 
 
+_SATURATING = (nn.Tanh, nn.Sigmoid, nn.Softsign)
+
+
+def saturating_activations(policy) -> Dict[str, nn.Module]:
+    """Saturating activation modules in the value path, by qualified name."""
+    out: Dict[str, nn.Module] = {}
+    for root_name, root in (("encoder", policy.encoder), ("critic", policy.critic)):
+        for name, m in root.named_modules():
+            if isinstance(m, _SATURATING):
+                out[f"{root_name}.{name} ({type(m).__name__})"] = m
+    return out
+
+
 def saturation_probe(policy, states, sat_threshold: float = 4.0) -> Dict[str, Dict[str, float]]:
-    """Fraction of pre-activations deep in a saturating non-linearity's tail.
+    """How deep into a saturating non-linearity's tail its INPUT sits.
 
     |x| > 4 puts tanh at ~0.9993 with gradient ~1.3e-3: the unit is a constant
     sign, and nothing upstream of it learns.
+
+    Hooks the activations themselves rather than every Linear, because a Linear
+    followed by a LayerNorm has no saturation problem no matter how large its
+    output is - measuring Linear outputs flags those as false positives. Linear
+    outputs are still reported separately, marked [scale], for information.
     """
     stats: Dict[str, List[np.ndarray]] = {}
     handles = []
 
-    def mk_hook(name):
+    def mk_pre_hook(name):
+        def hook(_m, inp):
+            stats.setdefault(name, []).append(
+                inp[0].detach().reshape(-1).abs().cpu().numpy()
+            )
+        return hook
+
+    def mk_post_hook(name):
         def hook(_m, _inp, out):
             stats.setdefault(name, []).append(
                 out.detach().reshape(-1).abs().cpu().numpy()
             )
         return hook
 
+    for name, m in saturating_activations(policy).items():
+        handles.append(m.register_forward_pre_hook(mk_pre_hook(name)))
     for name, m in value_path_linears(policy).items():
-        handles.append(m.register_forward_hook(mk_hook(name)))
+        handles.append(m.register_forward_hook(mk_post_hook(f"[scale] {name}")))
     try:
         with torch.no_grad():
             for st in states:
@@ -319,6 +349,8 @@ def branch_balance(policy, states) -> Dict[str, float]:
     architecture diagram says.
     """
     enc = policy.encoder
+    # Post-sc-48 the branch is `scalar_enc`; `scalar_proj` is the legacy name.
+    scalar_branch = getattr(enc, "scalar_enc", None) or enc.scalar_proj
     board_n, scalar_n = [], []
     with torch.no_grad():
         for st in states:
@@ -331,7 +363,7 @@ def branch_balance(policy, states) -> Dict[str, float]:
             s = torch.as_tensor(
                 np.asarray(st.obs["scalar_state"]), dtype=torch.float32, device=enc.device
             ).reshape(1, -1)
-            proj = enc.scalar_proj(s)
+            proj = scalar_branch(s)
             board_n.append(float(pooled.norm()))
             scalar_n.append(float(proj.norm()))
     b = float(np.mean(board_n))

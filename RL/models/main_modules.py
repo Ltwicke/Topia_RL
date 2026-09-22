@@ -104,11 +104,14 @@ class GraphTransformerEncoder(nn.Module):
 
     def __init__(
         self,
-        in_feats:   int = IN_FEATS,
-        hidden_dim: int = 128,
-        n_heads:    int = 4,
-        depth:      int = 3,
-        scalar_dim: int = SCALAR_DIM,
+        in_feats:    int   = IN_FEATS,
+        hidden_dim:  int   = 128,
+        n_heads:     int   = 4,
+        depth:       int   = 3,
+        scalar_dim:  int   = SCALAR_DIM,
+        score_tau:   float = 1342.0,
+        scalar_mode: str   = "derived",
+        fusion:      str   = "concat",
     ) -> None:
         super().__init__()
 
@@ -135,9 +138,28 @@ class GraphTransformerEncoder(nn.Module):
             nn.LayerNorm(hidden_dim) for _ in range(depth)
         ])
 
-        # Scalar-state fusion: project per-env scalar features → hidden_dim and add
-        # to the (max-pooled) global embedding.  Only used when scalar_state is given.
-        self.scalar_proj = nn.Linear(scalar_dim, hidden_dim)
+        # ── Scalar-state fusion (sc-48) ───────────────────────────────────────
+        # `scalar_state` arrives RAW and unnormalised, and own/opp score are
+        # O(1e2)-O(1e3) (100/city, 20/controlled tile, 250/park ...). The old
+        # path projected that straight through a Linear and ADDED it to the
+        # pooled board vector, which measured 133.8:1 in favour of the scalars -
+        # a board share of 0.74%. The critic's first Tanh was saturated for 95%
+        # of units before training started.
+        #
+        # ScalarEncoder bounds every feature first; `fusion="concat"` then
+        # concatenates and projects instead of adding, and the trailing
+        # LayerNorm is the hard guarantee that whatever happens upstream, the
+        # critic's input stays unit-scale.
+        self.scalar_mode = scalar_mode
+        self.fusion      = fusion
+        self.scalar_enc  = ScalarEncoder(
+            hidden_dim, scalar_dim, score_tau=score_tau, mode=scalar_mode,
+        )
+        if fusion == "concat":
+            self.fuse      = nn.Linear(2 * hidden_dim, hidden_dim)
+            self.fuse_norm = nn.LayerNorm(hidden_dim)
+        elif fusion != "add":
+            raise ValueError(f"unknown fusion mode {fusion!r}")
 
         # Edge-index cache: (Nx, Ny) → CPU LongTensor
         self._edge_cache: Dict[Tuple[int, int], torch.Tensor] = {}
@@ -163,10 +185,30 @@ class GraphTransformerEncoder(nn.Module):
     def _run_layers(
         self, x: torch.Tensor, edge_index: torch.Tensor
     ) -> torch.Tensor:
-        """Forward through all TransformerConv layers with pre-norm residuals."""
+        """Forward through all TransformerConv layers with POST-norm residuals."""
         for layer, norm in zip(self.tf_layers, self.norms):
             x = norm(x + layer(x, edge_index))
         return x
+
+    # ── Scalar fusion ──────────────────────────────────────────────────────
+
+    def _fuse(
+        self, pooled: torch.Tensor, scalar_t: Optional[torch.Tensor]
+    ) -> torch.Tensor:
+        """Combine the pooled board vector with the encoded scalar state.
+
+        pooled : (B, D)     scalar_t : (B, scalar_dim) or None  ->  (B, D)
+
+        Shared by `encode` and `encode_batch` so the two paths cannot drift
+        apart; `tests/test_readout_parity.py` pins that they agree.
+        """
+        if scalar_t is None:
+            s = torch.zeros_like(pooled)
+        else:
+            s = self.scalar_enc(scalar_t)
+        if self.fusion == "add":                      # legacy, probes only
+            return pooled + s
+        return self.fuse_norm(self.fuse(torch.cat([pooled, s], dim=-1)))
 
     # ── Public API ─────────────────────────────────────────────────────────
 
@@ -198,14 +240,14 @@ class GraphTransformerEncoder(nn.Module):
         x          = self.input_proj(x)
         edge_index = self._get_edge_index(Nx, Ny).to(dev)
         x          = self._run_layers(x, edge_index)
-        global_emb = x.amax(dim=0, keepdim=True)   # (1, hidden_dim)
+        pooled     = x.amax(dim=0, keepdim=True)   # (1, hidden_dim)
 
+        scalar = None
         if scalar_state is not None:
             scalar = torch.as_tensor(np.asarray(scalar_state),
                                      dtype=torch.float32, device=dev).reshape(1, -1)
-            global_emb = global_emb + self.scalar_proj(scalar)
 
-        return x, global_emb
+        return x, self._fuse(pooled, scalar)
 
     def encode_batch(
         self,
@@ -245,19 +287,94 @@ class GraphTransformerEncoder(nn.Module):
         x           = self.input_proj(big.x)
         x           = self._run_layers(x, big.edge_index)
 
-        global_embs = global_max_pool(x, big.batch)   # (B, hidden_dim)
+        pooled = global_max_pool(x, big.batch)   # (B, hidden_dim)
 
+        scalars = None
         if scalar_states is not None:
             scalars = torch.as_tensor(
                 np.stack([np.asarray(s) for s in scalar_states], axis=0),
                 dtype=torch.float32, device=dev,
             )
-            global_embs = global_embs + self.scalar_proj(scalars)
+        global_embs = self._fuse(pooled, scalars)
 
         sizes     = [np.asarray(g).shape[0] for g in graphs]
         node_embs = list(torch.split(x, sizes, dim=0))
 
         return node_embs, global_embs
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Scalar-state conditioning
+# ══════════════════════════════════════════════════════════════════════════════
+
+DERIVED_SCALAR_DIM = 4
+
+
+class ScalarEncoder(nn.Module):
+    """Raw `scalar_state` -> bounded features -> hidden_dim.
+
+    `scalar_state` is `[stars, stars_per_turn, own_score, opp_score, turn_norm]`
+    straight out of the env, unnormalised. `player_score_official` is 100/city +
+    50/upgrade + 20/controlled tile + 5/uncovered tile + 250/park, so the score
+    entries are O(1e2)-O(1e3). Feeding those to a Linear and adding the result
+    to a pooled board vector of magnitude ~8 is sc-48 defect (A).
+
+    The derived features are all bounded to roughly [-1, 1]:
+
+      turn                          already turn / max_turns
+      tanh((own - opp) / 2*tau)     the reward-aligned score margin
+      tanh(stars   / 100)
+      tanh(spt     / 100)
+
+    The margin feature is the important one. The terminal reward IS
+    sigma(delta / tau) (see EnvWrapper._get_done_and_rewards), and
+    tanh(d/2tau) == 2*sigma(d/tau) - 1, so V_TERM becomes very nearly LINEAR in
+    an input feature instead of something the critic has to reconstruct from two
+    saturating inputs.
+
+    Absolute scores are deliberately NOT passed through separately: the margin
+    already carries the value-relevant information, and re-introducing two
+    O(1e3) quantities is exactly what caused the problem.
+
+    KNOWN APPROXIMATION: the reward uses `_terminal_score` (official score x
+    uncovered_ratio + 15*spt + 7.5*stars), not `player_score_official`, so the
+    margin feature approximates the true reward margin. Closing that gap means
+    adding `uncovered_ratio` to `scalar_state`, which changes the observation
+    contract - its own story.
+
+    `mode="raw"` reproduces the pre-sc-48 behaviour and exists only so the probe
+    suite can demonstrate the difference; it is not a supported training config.
+    """
+
+    def __init__(
+        self,
+        hidden_dim: int,
+        scalar_dim: int = SCALAR_DIM,
+        score_tau:  float = 1342.0,
+        mode:       str = "derived",
+    ) -> None:
+        super().__init__()
+        if mode not in ("derived", "raw"):
+            raise ValueError(f"unknown scalar mode {mode!r}")
+        self.mode    = mode
+        self.out_dim = DERIVED_SCALAR_DIM if mode == "derived" else scalar_dim
+        # Buffer, not a constant: it travels with the checkpoint, so a
+        # terminal_tau retune that does not match the trained model is visible.
+        self.register_buffer("score_tau", torch.tensor(float(score_tau)))
+        self.proj = nn.Linear(self.out_dim, hidden_dim)
+
+    def features(self, s: torch.Tensor) -> torch.Tensor:
+        """(B, scalar_dim) -> (B, DERIVED_SCALAR_DIM), each in ~[-1, 1]."""
+        stars, spt, own, opp, turn = s.unbind(-1)
+        return torch.stack([
+            turn,
+            torch.tanh((own - opp) / (2.0 * self.score_tau)),
+            torch.tanh(stars / 100.0),
+            torch.tanh(spt   / 100.0),
+        ], dim=-1)
+
+    def forward(self, s: torch.Tensor) -> torch.Tensor:
+        return self.proj(self.features(s) if self.mode == "derived" else s)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -122,10 +122,11 @@ def main() -> int:
           f"max dV {pert['scalar_max_dV']:.4f}")
     print(f"  reference std across unrelated states: {pert['ref_std']:.4f}")
 
-    print("\n-- P3  activation saturation (|pre-act| > 4) " + "-" * 32)
+    print("\n-- P3  activation saturation (|input to a saturating act| > 4) " + "-" * 14)
     for name, s in sat.items():
-        flag = "  <-- SATURATED" if s["sat_frac"] > 0.01 else ""
-        print(f"  {name:<22} absmean {s['absmean']:9.3f}   absmax {s['absmax']:10.3f}"
+        info = name.startswith("[scale]")
+        flag = "" if info else ("  <-- SATURATED" if s["sat_frac"] > 0.01 else "")
+        print(f"  {name:<40} absmean {s['absmean']:9.3f}   absmax {s['absmax']:10.3f}"
               f"   sat {s['sat_frac']:.3f}{flag}")
 
     print("\n-- P3b branch balance at the fusion point " + "-" * 35)
@@ -146,7 +147,13 @@ def main() -> int:
         pert["graph_mean_dV"] / pert["scalar_mean_dV"]
         if pert["scalar_mean_dV"] > 0 else float("inf")
     )
-    sat_summary = {"max_sat_frac": max((s["sat_frac"] for s in sat.values()), default=0.0)}
+    # [scale] rows are Linear outputs, reported for information only - a Linear
+    # followed by a LayerNorm cannot saturate whatever its magnitude. Only the
+    # real saturating activations count toward the check.
+    sat_summary = {"max_sat_frac": max(
+        (s["sat_frac"] for k, s in sat.items() if not k.startswith("[scale]")),
+        default=0.0,
+    )}
 
     sources = {
         "unique_frac": vs, "gap_ratio": vs, "std": vs,
