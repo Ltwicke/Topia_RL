@@ -1028,14 +1028,28 @@ def encoder_critic_summary(
     print(f"    input_proj"
           f"{'':>20} "
           f"{sum(p.numel() for p in encoder.input_proj.parameters()):>10,}")
-    for i, (layer, norm) in enumerate(zip(encoder.tf_layers, encoder.norms)):
-        n = sum(p.numel() for p in layer.parameters()) + \
-            sum(p.numel() for p in norm.parameters())
+    if getattr(encoder, "attention", "local") == "global":
+        for i, (attn, n1, n2, ff) in enumerate(zip(
+            encoder.attn_layers, encoder.norms1, encoder.norms2, encoder.ff_layers
+        )):
+            n = sum(sum(p.numel() for p in m.parameters())
+                    for m in (attn, n1, n2, ff))
+            print(f"    attn[{i}] + ff + norms{'':>10} {n:>10,}")
+        for nm in ("out_norm", "readout_proj"):
+            mod = getattr(encoder, nm, None)
+            if mod is not None:
+                print(f"    {nm:<20}{'':>6} "
+                      f"{sum(p.numel() for p in mod.parameters()):>10,}")
+    else:
+        for i, (layer, norm) in enumerate(zip(encoder.tf_layers, encoder.norms)):
+            n = (sum(p.numel() for p in layer.parameters())
+                 + sum(p.numel() for p in norm.parameters()))
+            print(f"    tf_layer[{i}] + norm{'':>14} {n:>10,}")
         print(f"    tf_layer[{i}] + norm{'':>14} {n:>10,}")
     print(f"    scalar_enc"
           f"{'':>20} "
           f"{sum(p.numel() for p in encoder.scalar_enc.parameters()):>10,}")
-    if getattr(encoder, "fusion", "add") == "concat":
+    if (getattr(encoder, "attention", "local") != "global" and getattr(encoder, "fusion", "add") == "concat"):
         n_fuse = (sum(p.numel() for p in encoder.fuse.parameters())
                   + sum(p.numel() for p in encoder.fuse_norm.parameters()))
         print(f"    fuse + norm{'':>19} {n_fuse:>10,}")
@@ -1054,9 +1068,14 @@ def encoder_critic_summary(
     print(f"  Node embedding dim : {encoder.hidden_dim}")
     print(f"  Scalar state dim   : {encoder.scalar_dim}"
           f"  (mode={getattr(encoder, 'scalar_mode', 'raw')})")
-    print(f"  Scalar fusion      : {getattr(encoder, 'fusion', 'add')}")
-    print(f"  Pooling            : max")
-    print(f"  Positional enc     : none")
+    is_global = getattr(encoder, "attention", "local") == "global"
+    print(f"  Attention          : "
+          f"{'global self-attention' if is_global else 'local (TransformerConv)'}")
+    print(f"  Scalar fusion      : "
+          f"{'global node token' if is_global else getattr(encoder, 'fusion', 'add')}")
+    print(f"  Pooling            : "
+          f"{'global node + mean tiles' if is_global else 'max'}")
+    print(f"  Positional enc     : {'2-D RoPE on Q,K' if is_global else 'none'}")
     print(f"  V_TERM head        : {critic.term_head.n_bins} bins over "
           f"[{critic.v_min}, {critic.v_max}]  sigma={critic.term_head.sigma:.4f}")
     print("=" * 56)
