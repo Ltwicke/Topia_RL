@@ -11,7 +11,7 @@ Key responsibilities
    (i.e., after the opponent has completed their turn), not the immediately
    following global step.
 
-2. Normalisation  — RunningMeanStd (Welford online) for return targets;
+2. Normalisation  — advantage whitening only; returns stay in RAW space (sc-48);
    per-batch advantage whitening (zero mean, unit variance) before yielding.
 
 3. Minibatch generation  — a generator function backed by PyTorch's
@@ -59,19 +59,36 @@ from RL.ppo.game_manager import TrainConfig
 from RL.models.main_modules import V_TERM, V_DENSE, N_VALUE_STREAMS
 
 
-def _explained_variance(pred: np.ndarray, target: np.ndarray) -> float:
+# An update with almost no terminal events has almost no variance in its
+# terminal returns, and explained variance on a near-constant target is
+# numerically meaningless - it swings between large positive and large negative
+# values on sampling noise alone. The V3_super_little_data run (155 games over
+# 80 updates) produced ev_term between +0.92 and -3.85 update to update for
+# exactly this reason, which is why that log must not be read as evidence about
+# the critic. Below this many terminal events the metric reports NaN instead of
+# a number that looks real.
+MIN_TERMINAL_EVENTS = 5
+
+
+def _explained_variance(pred: np.ndarray, target: np.ndarray,
+                        min_events: int = 0) -> float:
     """1 - Var(target - pred) / Var(target); 0 means no better than the mean.
 
-    This is the metric that actually says whether a critic is learning. The
-    value loss is computed on normalised returns, so its magnitude carries no
-    information about fit quality — a critic stuck predicting a constant can
-    show a very small v_loss.
+    This is the metric that actually says whether a critic is learning, and
+    since sc-48 it is finally trustworthy: predictions and targets are both in
+    RAW return space. Before that the critic was trained on z-scored returns
+    while this compared its raw output against raw returns, so even a perfect
+    critic scored 1 - (sigma-1)^2/sigma^2 - a function of the return scale
+    rather than of fit quality.
+
+    Returns NaN when the sample is too small to mean anything (see
+    MIN_TERMINAL_EVENTS).
     """
-    if target.size == 0:
-        return 0.0
+    if target.size == 0 or target.size < min_events:
+        return float("nan")
     var_t = float(np.var(target))
     if var_t < 1e-12:
-        return 0.0
+        return float("nan")
     return float(1.0 - np.var(target - pred) / var_t)
 
 
@@ -225,7 +242,7 @@ class BatchProcessor:
     Converts a raw rollout batch into processed training data and provides
     minibatch iterators for PPOTrainer.
 
-    The processor is stateful: RunningMeanStd accumulates across all updates.
+    The processor is stateless with respect to return scale (sc-48).
 
     Parameters
     ──────────
@@ -238,8 +255,12 @@ class BatchProcessor:
         # the terminal and dense scales, so switching dense off would shift the
         # statistics under V_TERM — the precise failure the split heads exist
         # to prevent.
-        self.ret_normalizer       = RunningMeanStd()   # terminal stream
-        self.ret_normalizer_dense = RunningMeanStd()   # dense stream
+        # No return normalisation on the value path (sc-48). The critic used
+        # to be TRAINED on z-scored returns while its RAW output was fed into
+        # the GAE residual against RAW rewards, and RunningMeanStd has no
+        # inverse - nothing anywhere denormalised it. The critic now predicts
+        # in the same space GAE consumes. The RunningMeanStd class is kept;
+        # it is simply no longer on the value path.
 
     # ── Main processing step ──────────────────────────────────────────────────
 
@@ -247,7 +268,7 @@ class BatchProcessor:
         """
         Run per-player GAE, normalise returns, and flatten all arrays.
 
-        The RunningMeanStd is updated ONCE per call using the current batch's
+        Returns are NOT normalised (sc-48). This used to update RunningMeanStd once per call using the batch's
         return distribution, then used to normalise those same returns.  This
         matches the original implementation (update before normalising).
 
@@ -264,7 +285,7 @@ class BatchProcessor:
             flat_masks    list[list]        B mask lists
             log_probs_np  np.ndarray (B,)   old log π(a|s) — float32
             adv_np        np.ndarray (B,)   per-player advantages — float32
-            ret_norm_np   np.ndarray (B,)   normalised returns — float32
+            ret_term_np   np.ndarray (B,)   RAW terminal returns — float32
 
             ── Logging stats (extracted from raw_batch scalars) ─────────────
             n_finished    int     episodes that ended (done flag fired)
@@ -335,10 +356,7 @@ class BatchProcessor:
         # One normaliser PER STREAM. A shared one would couple the two scales,
         # so switching dense off would shift the statistics and drag V_TERM
         # with it — exactly the coupling this design exists to avoid.
-        self.ret_normalizer.update(ret_term_np)
-        ret_norm_np       = self.ret_normalizer.normalize(ret_term_np)
-        self.ret_normalizer_dense.update(ret_dense_np)
-        ret_dense_norm_np = self.ret_normalizer_dense.normalize(ret_dense_np)
+        # Returns are passed through in RAW space - see the note in __init__.
 
         # ── Flatten list-of-lists (time-major), keep active only ──────────────
         all_snaps = [s for step in raw_batch["obs_snaps"] for s in step]
@@ -367,13 +385,23 @@ class BatchProcessor:
         decisions_per_turn = n_decisions_total / max(n_endturn, 1)
         # Fraction of games won outright rather than on a turn-30 score lead.
         conquest_rate      = n_conquest / max(n_games, 1)
-        # Explained variance per head — the only honest read on critic quality.
-        # v_loss is measured on NORMALISED returns and so cannot be compared to
-        # the reward scale at all.
+        # Explained variance per head — the only honest read on critic quality,
+        # and honest for the first time since sc-48 put predictions and targets
+        # in the same (raw) space. NaN when too few terminal events landed in
+        # this update for the number to mean anything.
+        n_terminal_events = int(dones.reshape(-1)[active_idx].sum())
         ev_term  = _explained_variance(
-            val_flat[active_idx, V_TERM], ret_term_np)
+            val_flat[active_idx, V_TERM], ret_term_np,
+            min_events=MIN_TERMINAL_EVENTS if n_terminal_events < MIN_TERMINAL_EVENTS
+            else 0)
         ev_dense = _explained_variance(
             val_flat[active_idx, V_DENSE], ret_dense_np)
+        # A return outside the categorical head's support is silently clipped by
+        # HLGaussHead.target(), so surface it rather than let it hide forever.
+        v_lo, v_hi = 0.0, float(getattr(cfg, "conquest_reward", 2.0))
+        frac_ret_out_of_support = float(
+            ((ret_term_np < v_lo - 1e-6) | (ret_term_np > v_hi + 1e-6)).mean()
+        ) if ret_term_np.size else 0.0
 
         processed_batch = {
             # Training data (active seat, real decisions only)
@@ -382,8 +410,8 @@ class BatchProcessor:
             "flat_masks":   flat_masks,
             "log_probs_np": lp_np,
             "adv_np":       adv_np,
-            "ret_norm_np":       ret_norm_np,
-            "ret_dense_norm_np": ret_dense_norm_np,
+            "ret_term_np":       ret_term_np,
+            "ret_dense_np":      ret_dense_np,
             # Inputs needed to recompute GAE each epoch (compute_values_batch)
             "rew_term_TN":            rew_term,
             "rew_dense_TN":           rew_dense,
@@ -406,6 +434,8 @@ class BatchProcessor:
             "conquest_rate":      conquest_rate,
             "ev_term":            ev_term,
             "ev_dense":           ev_dense,
+            "n_terminal_events":  n_terminal_events,
+            "frac_ret_out_of_support": frac_ret_out_of_support,
             "active_reward_sum":  active_reward_sum,
             "avg_ep_len":         avg_ep_len,
         }
@@ -436,8 +466,8 @@ class BatchProcessor:
         Returns
         ───────
         adv_np            (n_active,) float32 — fresh combined advantages
-        ret_norm_np       (n_active,) float32 — fresh normalised terminal returns
-        ret_dense_norm_np (n_active,) float32 — fresh normalised dense returns
+        ret_term_np       (n_active,) float32 — fresh RAW terminal returns
+        ret_dense_np      (n_active,) float32 — fresh RAW dense returns
         """
         cfg        = self.cfg
         active_idx = processed_batch["active_idx"]
@@ -468,11 +498,9 @@ class BatchProcessor:
         adv_np = (adv_term.reshape(-1).astype(np.float32)[active_idx]
                   + cfg.dense_beta
                   * adv_dense.reshape(-1).astype(np.float32)[active_idx])
-        ret_norm_np = self.ret_normalizer.normalize(
-            ret_term.reshape(-1).astype(np.float32)[active_idx])
-        ret_dense_norm_np = self.ret_normalizer_dense.normalize(
-            ret_dense.reshape(-1).astype(np.float32)[active_idx])
-        return adv_np, ret_norm_np, ret_dense_norm_np
+        ret_term_np  = ret_term.reshape(-1).astype(np.float32)[active_idx]
+        ret_dense_np = ret_dense.reshape(-1).astype(np.float32)[active_idx]
+        return adv_np, ret_term_np, ret_dense_np
 
     # ── Minibatch generator ───────────────────────────────────────────────────
 
@@ -512,7 +540,7 @@ class BatchProcessor:
             masks    list[list]           minibatch_size masks
             log_old  torch.Tensor (mb,)   float32  — old log-probs (CPU)
             adv      torch.Tensor (mb,)   float32  — whitened advantages (CPU)
-            ret_norm torch.Tensor (mb,)   float32  — normalised returns (CPU)
+            ret_term torch.Tensor (mb,)   float32  — RAW terminal returns (CPU)
 
         All tensors are on CPU; PPOTrainer moves them to the target device
         inside _step() for maximum memory efficiency.
@@ -526,8 +554,8 @@ class BatchProcessor:
         # ── Convert numpy → CPU tensors once per epoch call ──────────────────
         log_old   = torch.from_numpy(processed_batch["log_probs_np"])  # (B,)
         adv_full  = torch.from_numpy(processed_batch["adv_np"])        # (B,)
-        ret_norm  = torch.from_numpy(processed_batch["ret_norm_np"])   # (B,)
-        ret_dense = torch.from_numpy(processed_batch["ret_dense_norm_np"])  # (B,)
+        ret_term  = torch.from_numpy(processed_batch["ret_term_np"])   # (B,)
+        ret_dense = torch.from_numpy(processed_batch["ret_dense_np"])  # (B,)
 
         # ── Whiten advantages over the full batch before sub-sampling ─────────
         # Normalisation is computed on all B samples so that the scale is
@@ -562,8 +590,8 @@ class BatchProcessor:
                 "masks":    [flat_masks[i] for i in idx_list],
                 "log_old":        log_old[idx],    # (mb,) CPU tensor
                 "adv":            adv_full[idx],   # (mb,) CPU tensor
-                "ret_norm":       ret_norm[idx],   # (mb,) terminal-stream target
-                "ret_dense_norm": ret_dense[idx],  # (mb,) dense-stream target
+                "ret_term":       ret_term[idx],   # (mb,) terminal-stream target
+                "ret_dense":      ret_dense[idx],  # (mb,) dense-stream target
             }
 
 

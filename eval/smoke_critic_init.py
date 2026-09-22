@@ -87,6 +87,11 @@ def main() -> int:
     # Small boards and short games: the probes need many states, not long ones.
     cfg.board_size_range    = (11, 11)
     cfg.max_turns_per_game  = 6
+    # The training default (0.01) gives near-uniform logits, so V_TERM spans
+    # ~1e-4 at init - correct behaviour, but too close to degenerate for the
+    # smoothness and discreteness probes to measure. Same architecture, readable
+    # dynamic range. See CriticHead.__init__.
+    cfg.value_out_gain      = 1.0
 
     policy = PolicyNetwork(cfg)
     policy.eval()

@@ -112,7 +112,11 @@ def encode_state(policy, st: ProbeState):
     node_emb, global_emb = policy.encoder.encode(
         st.obs["partial_graph"], st.Nx, st.Ny, st.obs["scalar_state"]
     )
-    return node_emb, global_emb, policy.critic(global_emb)
+    # `value_from_emb` post-sc-48; plain call on the pre-sc-48 scalar head.
+    critic = policy.critic
+    if hasattr(critic, "value_from_emb"):
+        return node_emb, global_emb, critic.value_from_emb(global_emb)[0]
+    return node_emb, global_emb, critic(global_emb)
 
 
 def values_over(policy, states: Sequence[ProbeState], stream: int = V_TERM) -> np.ndarray:
@@ -149,15 +153,24 @@ def value_stats(policy, states, stream: int = V_TERM) -> Dict[str, float]:
     gaps = np.diff(s)
     gaps = gaps[gaps > 0]
     med = float(np.median(gaps)) if gaps.size else 0.0
+
+    # Distinctness must be measured RELATIVE to the spread. Rounding to a fixed
+    # number of decimals conflates "the critic has a few plateaus" with "the
+    # critic's output range is small", and those are opposite verdicts - a
+    # narrow spread at init is exactly what we want. Resolve at 1e-4 of the
+    # observed range instead.
+    ptp = float(np.ptp(v))
+    resolution = max(ptp * 1e-4, 1e-12)
+    n_unique = float(np.unique(np.round(v / resolution)).size)
     return {
         "mean":      float(v.mean()),
         "std":       float(v.std()),
         "min":       float(v.min()),
         "max":       float(v.max()),
-        "ptp":       float(np.ptp(v)),
-        "n_unique":  float(np.unique(np.round(v, 4)).size),
+        "ptp":       ptp,
+        "n_unique":  n_unique,
         "n_states":  float(v.size),
-        "unique_frac": float(np.unique(np.round(v, 4)).size / max(v.size, 1)),
+        "unique_frac": float(n_unique / max(v.size, 1)),
         "gap_ratio": float(gaps.max() / med) if (gaps.size and med > 0) else float("inf"),
     }
 

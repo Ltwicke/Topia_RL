@@ -193,6 +193,17 @@ class TrainConfig:
     # ── PPO loss coefficients ─────────────────────────────────────────────────
     clip_eps:      float = 0.2
     vf_coef:       float = 0.5
+    # Weight on the dense value loss relative to the terminal one. These are no
+    # longer the same kind of quantity (sc-48): V_TERM is a cross-entropy in
+    # nats, V_DENSE an MSE in squared return units, so summing them 1:1 - as the
+    # old two-MSE loss effectively did - leaves the balance to whatever the
+    # return scales happen to be. This is the explicit dial for how much the
+    # dense stream shapes the shared critic trunk.
+    value_dense_coef: float = 1.0
+    # V_TERM categorical head. The support is derived from the reward config
+    # (see PolicyNetwork.__init__), not set here.
+    value_n_bins:      int   = 51
+    value_sigma_ratio: float = 0.75
     ent_coef:      float = 0.005
     max_grad_norm: float = 0.5
 
@@ -501,11 +512,22 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
             # obs_buf[e] now holds the first obs of a new episode (if done) or
             # the observation that follows the last collected step. That view
             # belongs to whoever acts next, so it is only a valid bootstrap for
-            # that seat; the other seat's value is its negation, which is exact
-            # because the terminal reward is antisymmetric (zero-sum).
+            # that seat.
+            #
+            # The other seat is evaluated on its OWN point of view (sc-48). It
+            # used to be derived as `terminal_weight - v[V_TERM]`, assuming the
+            # terminal stream is constant-sum with total terminal_weight. That
+            # only holds on a TIMEOUT: a conquest pays conquest_reward (2.0) to
+            # the winner and 0.0 to the loser, a sum of 2.0. Since V_TERM is an
+            # expectation over both endings, the true pairwise sum lies between
+            # the two, and whenever conquest was likely (run A reached a ~0.5
+            # conquest rate) `1.0 - v` went NEGATIVE — outside the achievable
+            # range of the terminal reward altogether. That also breaks the
+            # [0, conquest_reward] support closure the categorical head needs.
             last_values = np.zeros((M, 2, N_VALUE_STREAMS), dtype=np.float32)
             for e in range(M):
                 next_pid  = envs[e].game.player_go_id
+                other_pid = (next_pid + 1) % 2
                 snap_last = make_snapshot(
                     obs_buf[e], envs[e].Nx, envs[e].Ny,
                     player_id=next_pid,
@@ -518,18 +540,25 @@ def worker_fn(worker_id: int, cfg: TrainConfig, conn) -> None:
                     snap_last["graph"], snap_last["Nx"], snap_last["Ny"],
                     snap_last["scalar_state"],
                 )
-                v = policy_active.critic(global_emb).detach().cpu().numpy()
-                other_pid = (next_pid + 1) % 2
-                # The terminal stream is constant-sum, so the seat not moving
-                # next is worth terminal_weight minus this seat's value — not
-                # its negation, as it was under the old zero-sum reward.
-                last_values[e, next_pid,  V_TERM] = v[V_TERM]
-                last_values[e, other_pid, V_TERM] = cfg.terminal_weight - v[V_TERM]
-                # Dense is an own-actions-only stream with no such symmetry, so
-                # the opponent's dense value cannot be derived from this one.
-                # Leaving it at 0 biases only the final in-rollout step of the
-                # seat that is not about to move.
-                last_values[e, next_pid,  V_DENSE] = v[V_DENSE]
+                v = policy_active.critic.value_from_emb(
+                    global_emb
+                )[0].detach().cpu().numpy()
+                last_values[e, next_pid, V_TERM]  = v[V_TERM]
+                last_values[e, next_pid, V_DENSE] = v[V_DENSE]
+
+                # One extra encode per env per chunk. `obs_buf[e]` already
+                # carries the opponent's POV, so this needs no extra game state.
+                obs_e = obs_buf[e]
+                if "opp_partial_graph" in obs_e:
+                    _, g_opp = policy_active.encoder.encode(
+                        obs_e["opp_partial_graph"], envs[e].Nx, envs[e].Ny,
+                        obs_e.get("opp_scalar_state"),
+                    )
+                    v_opp = policy_active.critic.value_from_emb(
+                        g_opp
+                    )[0].detach().cpu().numpy()
+                    last_values[e, other_pid, V_TERM]  = v_opp[V_TERM]
+                    last_values[e, other_pid, V_DENSE] = v_opp[V_DENSE]
 
         # `player_ids` is already filled in-loop (used for back-fill).
 

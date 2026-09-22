@@ -58,6 +58,7 @@ if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 from models.policy import PolicyNetwork, model_summary
+from models.main_modules import MODEL_VERSION
 
 # ── PPO modules ───────────────────────────────────────────────────────────────
 from ppo.game_manager      import TrainConfig, EnvManager
@@ -84,7 +85,7 @@ _CSV_FIELDS = [
     "n_conquest", "n_timeout", "conquest_rate",
     "n_dropped_terminal", "n_forced_dropped",
     "decisions_per_turn", "endturn_voluntary",
-    "ev_term", "ev_dense",
+    "ev_term", "ev_dense", "n_terminal_events", "frac_ret_out_of_support",
     "avg_ep_len", "avg_active_reward",
     "est_loss", "est_steps",
     "p_loss", "v_loss", "entropy",
@@ -167,6 +168,7 @@ def _save_checkpoint(
             "est_optimizer": est_pretrainer.optimizer.state_dict(),
             "est_scaler":    est_pretrainer.scaler.state_dict(),
             "update":        int(update),
+            "model_version": MODEL_VERSION,
         },
         path,
     )
@@ -193,6 +195,18 @@ def _load_checkpoint(
     """Restore the full training state from a bundle written by
     `_save_checkpoint`. Five hard-required keys; mismatches raise."""
     blob = torch.load(path, map_location=device, weights_only=False)
+    # Refuse an incompatible blob rather than let load_state_dict do a
+    # partial or silently-wrong load - the worst possible failure mode here,
+    # since a half-loaded critic trains without ever raising.
+    ckpt_version = blob.get("model_version", 2)
+    if ckpt_version != MODEL_VERSION:
+        raise RuntimeError(
+            f"checkpoint {path} is model_version {ckpt_version}, but this "
+            f"code is version {MODEL_VERSION}. sc-48 rebuilt the encoder's "
+            f"scalar fusion and replaced the critic with a categorical "
+            f"V_TERM head, so no weights transfer. Train from scratch "
+            f"(clear TrainConfig.pretrained_ckpt)."
+        )
     policy.load_state_dict(blob["policy"])
     ppo_trainer.optimizer   .load_state_dict(blob["ppo_optimizer"])
     ppo_trainer.scaler      .load_state_dict(blob["ppo_scaler"])
@@ -409,6 +423,8 @@ def main() -> None:
         conquest_rate   = processed_batch["conquest_rate"]
         ev_term         = processed_batch["ev_term"]
         ev_dense        = processed_batch["ev_dense"]
+        n_term_events   = processed_batch["n_terminal_events"]
+        frac_oos        = processed_batch["frac_ret_out_of_support"]
         active_win_rate = n_active_wins / max(n_games, 1)
         avg_active_rew  = processed_batch["active_reward_sum"] / max(n_games, 1)
         avg_ep_len      = processed_batch["avg_ep_len"]
@@ -500,7 +516,7 @@ def main() -> None:
                 f"|  voluntary EndTurn: {endturn_vol}"
             )
             logger.info(
-                f"║  Explained var : term {ev_term:+.3f}  dense {ev_dense:+.3f}  "
+                f"║  Explained var : term {ev_term:+.3f}  dense {ev_dense:+.3f}  n_term={n_term_events}  "
                 f"(0 = no better than predicting the mean)"
             )
             if n_dropped_term:
@@ -554,6 +570,8 @@ def main() -> None:
             "endturn_voluntary":       endturn_vol,
             "ev_term":                 f"{ev_term:.4f}",
             "ev_dense":                f"{ev_dense:.4f}",
+            "n_terminal_events":       n_term_events,
+            "frac_ret_out_of_support": f"{frac_oos:.4f}",
             "avg_ep_len":              f"{avg_ep_len:.2f}",
             "avg_active_reward":       f"{avg_active_rew:.4f}",
             "est_loss":                f"{est_stats['est_loss']:.6f}",

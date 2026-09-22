@@ -74,6 +74,15 @@ from game.enums import (
 IN_FEATS:    int = NODE_FEAT_DIM   # raw node-feature width (live from enums)
 SCALAR_DIM:  int = 5               # default width of `scalar_state`
 
+# Bump whenever the parameter layout changes incompatibly. `_load_checkpoint`
+# refuses an older blob outright rather than letting `load_state_dict` do a
+# partial or silently-wrong load.
+#   2 -> 3 (sc-48): encoder gains scalar_enc/fuse/fuse_norm and loses
+#                   scalar_proj; CriticHead is rebuilt around a categorical
+#                   V_TERM head, so its parameter names and output width both
+#                   change. Nothing meaningful transfers - retrain from scratch.
+MODEL_VERSION: int = 3
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Module 1 — Graph Transformer Encoder
 # ══════════════════════════════════════════════════════════════════════════════
@@ -389,65 +398,196 @@ V_TERM, V_DENSE = 0, 1
 N_VALUE_STREAMS = 2
 
 
-class CriticHead(nn.Module):
-    """Estimate per-stream state values V(s) from a global board embedding.
+class HLGaussHead(nn.Module):
+    """Categorical value head - HL-Gauss (Farebrother et al. 2024, 2403.03950).
 
-    Consumes the (max-pooled + scalar-fused) global embedding produced by
-    GraphTransformerEncoder and maps it to `n_streams` scalars via a shared MLP
-    trunk with a widened output layer.
+    Predicts a distribution over `n_bins` return bins instead of regressing a
+    scalar, and recovers the value as the expectation over bins. Three reasons
+    this is the right head here, not a fashionable one:
 
-    Stream 0 (V_TERM) is the terminal (win/margin) value; stream 1 (V_DENSE) is
-    the dense-shaping value. They share the trunk — the two targets are strongly
-    related, and the split only needs to exist at the output.
+    1. The terminal return is TRIMODAL: a point mass at 0 (conquest loser), a
+       band over (0, 1) (timeout, terminal_weight * sigma(delta/tau)), and a
+       spike at conquest_reward. MSE regression against a trimodal target
+       converges to the mean of the modes - a value that is never observed.
+       That is sc-48's "predicts a constant near the middle" symptom, and a
+       scalar head cannot do otherwise. A categorical head can put mass on all
+       three.
+    2. The support is CLOSED under the return operator. With gamma = 1.0 and
+       r_term non-zero only at terminal steps, every n-step return is
+       0 + ... + 0 + (r_term or V(s_n)); if V is bounded to [v_min, v_max] then
+       so is every lambda-return. The bin range is therefore principled rather
+       than tuned - which is exactly the condition the DreamerV3-tricks-for-PPO
+       study found missing when two-hot underperformed.
+    3. Cross-entropy in nats is comparable across streams, where two raw MSEs on
+       differently-scaled returns are not.
 
-    Parameters
-    ──────────
-    hidden_dim : int   must match GraphTransformerEncoder.hidden_dim
-    mlp_hidden : int   hidden width of the value MLP
-    mlp_depth  : int   hidden layers inside the value MLP
-    n_streams  : int   number of reward streams to predict
+    sigma/bin_width = 0.75 is the paper's recommendation: it spreads each
+    target over ~6 neighbouring bins, which is what exploits the ordinal
+    structure rather than treating bins as unrelated classes.
     """
 
     def __init__(
         self,
-        hidden_dim: int = 128,
-        mlp_hidden: int = 64,
-        mlp_depth:  int = 2,
-        n_streams:  int = N_VALUE_STREAMS,
+        in_dim:      int,
+        v_min:       float,
+        v_max:       float,
+        n_bins:      int   = 51,
+        sigma_ratio: float = 0.75,
+        out_gain:    float = 0.01,
+    ) -> None:
+        super().__init__()
+        if not v_max > v_min:
+            raise ValueError(f"need v_max > v_min, got [{v_min}, {v_max}]")
+        self.n_bins = n_bins
+        edges   = torch.linspace(float(v_min), float(v_max), n_bins + 1)
+        centers = 0.5 * (edges[:-1] + edges[1:])
+        self.register_buffer("edges", edges)             # (n_bins + 1,)
+        self.register_buffer("bin_values", centers)      # (n_bins,)
+        self.sigma = sigma_ratio * (float(v_max) - float(v_min)) / n_bins
+        self.out   = nn.Linear(in_dim, n_bins)
+        # Near-zero logits at init -> near-uniform categorical -> every state
+        # maps to ~the support midpoint with a small, smooth, state-dependent
+        # deviation. Narrowly distributed but NOT degenerate, which is exactly
+        # what sc-48 asks for at initialisation.
+        self.out._out_gain = out_gain
+
+    def forward(self, h: torch.Tensor) -> torch.Tensor:
+        """(B, in_dim) -> (B, n_bins) logits."""
+        return self.out(h)
+
+    def value(self, logits: torch.Tensor) -> torch.Tensor:
+        """Logits -> scalar value, bounded to [v_min, v_max] by construction."""
+        return (logits.softmax(-1) * self.bin_values).sum(-1)
+
+    def target(self, y: torch.Tensor) -> torch.Tensor:
+        """Scalar targets (B,) -> categorical targets (B, n_bins).
+
+        Each target becomes a Gaussian centred on y, integrated over the bins
+        via its CDF. Mass falling outside the support is renormalised back in,
+        so a target above v_max saturates at the top bin instead of silently
+        losing probability mass.
+        """
+        z   = y.clamp(float(self.edges[0]), float(self.edges[-1])).unsqueeze(-1)
+        cdf = torch.special.ndtr((self.edges - z) / self.sigma)   # (B, n_bins+1)
+        p   = cdf[..., 1:] - cdf[..., :-1]
+        return p / p.sum(-1, keepdim=True).clamp_min(1e-8)
+
+    def loss(self, logits: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return F.cross_entropy(logits, self.target(y))
+
+
+class CriticHead(nn.Module):
+    """Per-stream state values V(s) from a global board embedding.
+
+    Stream 0 (V_TERM) is the terminal (win/margin) value; stream 1 (V_DENSE) is
+    the dense-shaping value. They SHARE the trunk and split only at the output.
+
+    The sc-74 guarantee - that setting `dense_beta = 0` must not force V_TERM to
+    relearn - is a property of the ADVANTAGE weighting, not of the head
+    topology: `dense_beta` appears only in the policy advantage, never in either
+    value loss, so each stream is regressed on its own return regardless. A
+    shared trunk preserves it exactly as well as separate trunks would, at half
+    the parameters and with one set of statistics to verify.
+
+    The two streams are deliberately NOT the same kind of head:
+
+      V_TERM  categorical (HLGaussHead) over [0, conquest_reward]. The terminal
+              return is trimodal and bounded - the case a categorical head
+              handles and a scalar MSE head structurally cannot.
+      V_DENSE scalar. The dense return is a sum over an unbounded-length event
+              table, so with gamma = 1.0 it grows with episode length and has no
+              fixed support to bin over.
+
+    Pre-sc-48 this was `D -> 2D -> 4D -> n_streams` with Tanh, silently ignoring
+    the `mlp_hidden`/`mlp_depth` it accepted. That made it 8*D^2 parameters -
+    larger than the encoder feeding it, and quadratic in any future widening of
+    the encoder. It is now genuinely `mlp_hidden`-wide, uses ReLU (no saturation
+    region anywhere in the value path), and LayerNorms before each
+    non-linearity so the input scale cannot matter again.
+
+    Parameters
+    ----------
+    hidden_dim   : int    must match GraphTransformerEncoder.hidden_dim
+    mlp_hidden   : int    trunk width (None -> 2 * hidden_dim)
+    mlp_depth    : int    number of hidden layers in the trunk
+    n_streams    : int    number of reward streams
+    v_min, v_max : float  support of the V_TERM categorical head
+    n_bins       : int    bins for the V_TERM head
+    """
+
+    def __init__(
+        self,
+        hidden_dim:  int = 128,
+        mlp_hidden:  Optional[int] = None,
+        mlp_depth:   int = 2,
+        n_streams:   int = N_VALUE_STREAMS,
+        v_min:       float = 0.0,
+        v_max:       float = 2.0,
+        n_bins:      int = 51,
+        sigma_ratio: float = 0.75,
+        out_gain:    float = 0.01,
     ) -> None:
         super().__init__()
         self.n_streams = n_streams
-        out = nn.Linear(hidden_dim * 4, n_streams)
-        # Standard PPO value-output gain. Without this tag `init_weights` would
-        # apply the hidden-layer gain here, which pushes the value predictions
-        # further apart - and while the trunk is still saturated (sc-48 defect A)
-        # that shows up directly as wider discrete plateaus.
-        out._out_gain = 1.0
-        self.value_mlp    = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim * 2),
-            nn.Tanh(),
-            nn.Linear(hidden_dim * 2, hidden_dim * 4),
-            nn.LayerNorm(hidden_dim * 4),
-            nn.Tanh(),
-            out,
+        self.v_min, self.v_max = float(v_min), float(v_max)
+        H = int(mlp_hidden) if mlp_hidden else 2 * hidden_dim
+
+        layers: list = [nn.LayerNorm(hidden_dim)]
+        d_in = hidden_dim
+        for _ in range(max(mlp_depth, 1)):
+            layers += [nn.Linear(d_in, H), nn.LayerNorm(H), nn.ReLU()]
+            d_in = H
+        self.trunk = nn.Sequential(*layers)
+
+        # out_gain=0.01 is the training default: near-uniform logits at init, so
+        # every state maps to ~the support midpoint with a small, smooth,
+        # state-dependent deviation. That is the requested "narrowly distributed
+        # at initialisation" - but it also makes the value spread ~1e-4, which
+        # is too close to degenerate for the smoothness probes to measure
+        # anything. eval/smoke_critic_init.py therefore builds the policy with
+        # out_gain=1.0: same architecture, readable dynamic range.
+        self.term_head = HLGaussHead(
+            H, v_min=v_min, v_max=v_max, n_bins=n_bins,
+            sigma_ratio=sigma_ratio, out_gain=out_gain,
+        )
+        self.dense_head = nn.Linear(H, 1)
+        self.dense_head._out_gain = 1.0
+
+    def forward(self, global_emb: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """(B, D) -> (term_logits (B, n_bins), dense (B, 1)).
+
+        Always batched. The old `(1, D) -> (n_streams,)` squeeze is gone: it
+        returned a differently-shaped tensor for B == 1, which would broadcast
+        silently when written into the value table. Callers wanting a single row
+        index it themselves.
+        """
+        if global_emb.dim() == 1:
+            global_emb = global_emb.unsqueeze(0)
+        h = self.trunk(global_emb)
+        return self.term_head(h), self.dense_head(h)
+
+    def value(self, term_logits: torch.Tensor, dense: torch.Tensor) -> torch.Tensor:
+        """Head outputs -> (B, n_streams) values in RAW return space."""
+        return torch.stack(
+            [self.term_head.value(term_logits), dense.squeeze(-1)], dim=-1
         )
 
-    def forward(self, global_emb: torch.Tensor) -> torch.Tensor:
-        """Compute per-stream value estimates.
+    def value_from_emb(self, global_emb: torch.Tensor) -> torch.Tensor:
+        """(B, D) -> (B, n_streams) values in raw return space."""
+        return self.value(*self(global_emb))
 
-        Parameters
-        ──────────
-        global_emb : Tensor (1, hidden_dim)  or  (B, hidden_dim)
+    def stream_losses(
+        self, term_logits: torch.Tensor, dense: torch.Tensor, targets: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """targets (B, n_streams) in RAW return space -> (term_loss, dense_loss).
 
-        Returns
-        ───────
-        Tensor (n_streams,)    — if input was (1, hidden_dim)
-        Tensor (B, n_streams)  — if input was (B, hidden_dim)
-
-        Index with V_TERM / V_DENSE; callers must never assume a scalar.
+        term is cross-entropy in nats, dense is MSE in squared return units.
+        The two are NOT commensurable, which is why `value_dense_coef` exists
+        rather than the plain sum the pre-sc-48 code used.
         """
-        out = self.value_mlp(global_emb)
-        return out.squeeze(0) if out.dim() == 2 and out.shape[0] == 1 else out
+        term_loss  = self.term_head.loss(term_logits, targets[:, V_TERM])
+        dense_loss = F.mse_loss(dense.squeeze(-1), targets[:, V_DENSE])
+        return term_loss, dense_loss
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -685,14 +825,31 @@ def encoder_critic_summary(
         n = sum(p.numel() for p in layer.parameters()) + \
             sum(p.numel() for p in norm.parameters())
         print(f"    tf_layer[{i}] + norm{'':>14} {n:>10,}")
-    print(f"    scalar_proj"
-          f"{'':>19} "
-          f"{sum(p.numel() for p in encoder.scalar_proj.parameters()):>10,}")
+    print(f"    scalar_enc"
+          f"{'':>20} "
+          f"{sum(p.numel() for p in encoder.scalar_enc.parameters()):>10,}")
+    if getattr(encoder, "fusion", "add") == "concat":
+        n_fuse = (sum(p.numel() for p in encoder.fuse.parameters())
+                  + sum(p.numel() for p in encoder.fuse_norm.parameters()))
+        print(f"    fuse + norm{'':>19} {n_fuse:>10,}")
     print(f"  {'CriticHead':<32} {crit_params:>10,}")
+    print(f"    trunk"
+          f"{'':>25} "
+          f"{sum(p.numel() for p in critic.trunk.parameters()):>10,}")
+    print(f"    term_head (categorical)"
+          f"{'':>7} "
+          f"{sum(p.numel() for p in critic.term_head.parameters()):>10,}")
+    print(f"    dense_head (scalar)"
+          f"{'':>11} "
+          f"{sum(p.numel() for p in critic.dense_head.parameters()):>10,}")
     print("=" * 56)
     print(f"  {'TOTAL':<32} {total:>10,}")
     print(f"  Node embedding dim : {encoder.hidden_dim}")
-    print(f"  Scalar state dim   : {encoder.scalar_dim}")
+    print(f"  Scalar state dim   : {encoder.scalar_dim}"
+          f"  (mode={getattr(encoder, 'scalar_mode', 'raw')})")
+    print(f"  Scalar fusion      : {getattr(encoder, 'fusion', 'add')}")
     print(f"  Pooling            : max")
     print(f"  Positional enc     : none")
+    print(f"  V_TERM head        : {critic.term_head.n_bins} bins over "
+          f"[{critic.v_min}, {critic.v_max}]  sigma={critic.term_head.sigma:.4f}")
     print("=" * 56)

@@ -119,15 +119,15 @@ class PPOTrainer:
         """
         Execute one forward + backward pass on a single minibatch.
 
-        The tensors in `minibatch` (log_old, adv, ret_norm) arrive on CPU
+        The tensors in `minibatch` (log_old, adv, ret_term) arrive on CPU
         from the generator.  They are moved to self.device here and deleted
         immediately after the scalar values are captured, keeping GPU memory
         usage proportional to a single minibatch rather than the full batch.
 
         Parameters
         ──────────
-        minibatch : dict — keys: snaps, acts, masks, log_old, adv, ret_norm
-                           (log_old / adv / ret_norm are CPU float32 tensors)
+        minibatch : dict — keys: snaps, acts, masks, log_old, adv, ret_term
+                           (log_old / adv / ret_term are CPU float32 tensors)
 
         Returns
         ───────
@@ -139,12 +139,15 @@ class PPOTrainer:
         # Move per-minibatch tensors to the compute device
         log_old   = minibatch["log_old"].to(device)     # (mb,)
         adv       = minibatch["adv"].to(device)          # (mb,)
-        ret_norm  = minibatch["ret_norm"].to(device)     # (mb,) terminal stream
-        ret_dense = minibatch["ret_dense_norm"].to(device)  # (mb,) dense stream
+        # RAW return space since sc-48 — no RunningMeanStd anywhere on the value
+        # path. The critic predicts what GAE consumes, so the Bellman residual
+        # and the regression target finally live in the same units.
+        ret_term  = minibatch["ret_term"].to(device)     # (mb,) terminal stream
+        ret_dense = minibatch["ret_dense"].to(device)    # (mb,) dense stream
 
         with self._autocast():
 
-            new_lp, new_ent, new_val = self.policy.evaluate_actions(
+            new_lp, new_ent, term_logits, dense_val = self.policy.evaluate_actions(
                 minibatch["snaps"],
                 minibatch["acts"],
                 minibatch["masks"],
@@ -162,9 +165,17 @@ class PPOTrainer:
             # is what keeps it valid when dense_beta is set to 0 mid-training.
             # The dense head is still trained at beta=0 (harmless, and it keeps
             # the shared trunk's dense signal available if beta is restored).
-            loss_val_term  = F.mse_loss(new_val[:, V_TERM],  ret_norm)
-            loss_val_dense = F.mse_loss(new_val[:, V_DENSE], ret_dense)
-            loss_val = loss_val_term + loss_val_dense
+            #
+            # The two losses are NOT commensurable: term is a cross-entropy in
+            # nats (starting at log(n_bins) ~ 3.93), dense is an MSE in squared
+            # return units. The old code summed two MSEs and left the relative
+            # weight to whatever the return scales happened to be;
+            # value_dense_coef makes it an explicit dial.
+            targets = torch.stack([ret_term, ret_dense], dim=-1)   # (mb, 2)
+            loss_val_term, loss_val_dense = self.policy.critic.stream_losses(
+                term_logits, dense_val, targets,
+            )
+            loss_val = loss_val_term + cfg.value_dense_coef * loss_val_dense
 
             loss_ent = new_ent.mean()
 
@@ -194,8 +205,8 @@ class PPOTrainer:
         # ── Explicit GPU tensor cleanup ───────────────────────────────────────
         # Deleting here (not at end of update) keeps peak VRAM flat across
         # minibatches: the allocator can reuse these blocks for the next mb.
-        del log_old, adv, ret_norm, ret_dense
-        del new_lp, new_ent, new_val
+        del log_old, adv, ret_term, ret_dense, targets
+        del new_lp, new_ent, term_logits, dense_val
         del ratio, clipped_ratio
         del loss_clip, loss_val, loss_val_term, loss_val_dense, loss_ent, loss
 
@@ -267,14 +278,14 @@ class PPOTrainer:
                         processed_batch["flat_snaps"]
                     ).detach().cpu().numpy()
                 self.policy.train()
-                adv_np, ret_norm_np, ret_dense_norm_np = \
+                adv_np, ret_term_np, ret_dense_np = \
                     batch_processor.recompute_advantages(
                         processed_batch, fresh_vals,
                     )
                 epoch_batch = {**processed_batch,
                                "adv_np": adv_np,
-                               "ret_norm_np": ret_norm_np,
-                               "ret_dense_norm_np": ret_dense_norm_np}
+                               "ret_term_np": ret_term_np,
+                               "ret_dense_np": ret_dense_np}
             else:
                 epoch_batch = processed_batch
 

@@ -443,10 +443,22 @@ class PolicyNetwork(nn.Module):
             scalar_mode = getattr(cfg, "scalar_mode", "derived"),
             fusion      = getattr(cfg, "scalar_fusion", "concat"),
         )
+        # The V_TERM categorical support is derived from the reward config, so
+        # it cannot drift out of sync with what the env can actually pay. With
+        # conquest_early_bonus removed (sc-48) a conquest pays conquest_reward
+        # flat, so [0, conquest_reward] is the exact closed support.
         self.critic = CriticHead(
-            hidden_dim = D,
-            mlp_hidden = mlp_hid,
-            mlp_depth  = mlp_dep,
+            hidden_dim  = D,
+            mlp_hidden  = mlp_hid,
+            mlp_depth   = mlp_dep,
+            v_min       = 0.0,
+            v_max       = max(
+                getattr(cfg, "conquest_reward", 2.0),
+                getattr(cfg, "terminal_weight", 1.0),
+            ),
+            n_bins      = getattr(cfg, "value_n_bins", 51),
+            sigma_ratio = getattr(cfg, "value_sigma_ratio", 0.75),
+            out_gain    = getattr(cfg, "value_out_gain", 0.01),
         )
 
         # ── Action type head ───────────────────────────────────────────────
@@ -1092,7 +1104,10 @@ class PolicyNetwork(nn.Module):
         # node_emb   : (N_tiles, D)
         # global_emb : (1, D)  — already includes scalar fusion when given
 
-        value = self.critic(global_emb)   # (N_VALUE_STREAMS,) — index V_TERM / V_DENSE
+        # (N_VALUE_STREAMS,) in RAW return space — index with V_TERM / V_DENSE.
+        # The head is always batched now, so take row 0 here rather than having
+        # the head squeeze (which made B == 1 return a different shape).
+        value = self.critic.value_from_emb(global_emb)[0]
 
         # ── Run all decision heads ──────────────────────────────────────────
         heads = self._run_heads(
@@ -1201,7 +1216,8 @@ class PolicyNetwork(nn.Module):
                       if 'scalar_state' in obs_snaps[0] else None
         _, global_embs = self.encoder.encode_batch(graphs, board_sizes, scalars)
         # global_embs : (B, D)
-        return self.critic(global_embs)   # (B, N_VALUE_STREAMS)
+        # (B, N_VALUE_STREAMS) in RAW return space, always 2-D.
+        return self.critic.value_from_emb(global_embs)
 
     # ══════════════════════════════════════════════════════════════════════
     # evaluate_actions — PPO update re-scoring
@@ -1212,9 +1228,14 @@ class PolicyNetwork(nn.Module):
         obs_snaps: List[dict],
         actions:   List[list],
         masks:     List[list],
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Re-score a minibatch of stored transitions under current network weights.
+
+        Returns `(log_probs, entropies, term_logits, dense_val)`. Since sc-48
+        the critic returns the RAW head outputs rather than values, because the
+        V_TERM loss is a cross-entropy over bins and needs the logits; call
+        `policy.critic.value(term_logits, dense_val)` for the scalar values.
 
         Batching strategy
         ─────────────────
@@ -1253,7 +1274,9 @@ class PolicyNetwork(nn.Module):
         # node_embs   : list of B tensors, each (N_b, D)
         # global_embs : (B, D)
 
-        values = self.critic(global_embs)   # (B, N_VALUE_STREAMS)
+        # Raw head outputs, NOT values: the PPO value loss needs the term
+        # logits to compute cross-entropy against the binned return targets.
+        term_logits, dense_val = self.critic(global_embs)
 
         # ── 2. Per-sample decision heads + scoring ───────────────────────────
         log_probs_list: List[torch.Tensor] = []
@@ -1287,7 +1310,7 @@ class PolicyNetwork(nn.Module):
         log_probs = torch.stack(log_probs_list)   # (B,)
         entropies = torch.stack(entropies_list)   # (B,)
 
-        return log_probs, entropies, values
+        return log_probs, entropies, term_logits, dense_val
 
     # ══════════════════════════════════════════════════════════════════════
     # estimator_loss — auxiliary pretraining for the encoder

@@ -176,7 +176,7 @@ def main() -> None:
             assert processed_batch["n_forced_dropped"] >= 0
             assert len(processed_batch["flat_snaps"]) == n_active, \
                 "snapshot list and advantage array disagree after filtering"
-            assert processed_batch["ret_dense_norm_np"].shape[0] == n_active, \
+            assert processed_batch["ret_dense_np"].shape[0] == n_active, \
                 "dense return targets misaligned with the training batch"
 
             del raw_batch

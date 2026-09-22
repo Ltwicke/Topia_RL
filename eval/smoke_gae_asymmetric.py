@@ -170,7 +170,7 @@ def test_dense_switch_off_leaves_terminal_untouched():
     p_off, _ = BatchProcessor(cfg_off).process(raw)
 
     # The terminal head's regression targets must not move at all.
-    dt = np.abs(p_on["ret_norm_np"] - p_off["ret_norm_np"]).max()
+    dt = np.abs(p_on["ret_term_np"] - p_off["ret_term_np"]).max()
     assert dt == 0.0, (
         f"terminal return targets shifted when dense was switched off "
         f"(max|diff|={dt:.2e}) — the streams are coupled somewhere"
