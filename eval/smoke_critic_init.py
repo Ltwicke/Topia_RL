@@ -26,11 +26,13 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from RL.models.diagnostics import (
+    attention_entropy,
     branch_balance,
     collect_states,
     gradient_flow,
     perturbation_probe,
     readout_dispersion,
+    rope_sanity,
     saturation_probe,
     value_stats,
 )
@@ -46,7 +48,20 @@ SEED     = 0
 CHECKS = [
     ("P1  unique value fraction",  "unique_frac",      ">", 0.95,
      "values must be continuous, not a few levels"),
-    ("P1  gap ratio (max/median)", "gap_ratio",        "<", 20.0,
+    # Threshold calibrated against known distributions at n=192 rather than
+    # guessed, because the original 20.0 was simply wrong - it fails a perfectly
+    # continuous Gaussian more than half the time, since the largest gap in a
+    # sorted sample lands in the tails:
+    #
+    #   distribution        median      p90       p99
+    #   uniform                8.2     10.9      14.4
+    #   gaussian              38.5     74.1     118.4
+    #   bimodal              918.7   1033.2    1111.3
+    #   5 discrete levels    1.5e7    1.7e7     1.9e7
+    #
+    # 300 sits clear of a continuous unimodal sample and still separates
+    # bimodal and plateaued outputs by a wide margin.
+    ("P1  gap ratio (max/median)", "gap_ratio",        "<", 300.0,
      "big gaps in sorted values = discrete plateaus"),
     ("P1  std across states",      "std",              ">", 1e-4,
      "non-degenerate"),
@@ -73,6 +88,13 @@ CHECKS = [
     # RATIO stays healthy while both shrink. P3/P3b are what catch saturation.
     ("P8  encoder/head grad ratio", "ratio",           ">", 1e-3,
      "value loss must reach the encoder at all"),
+    # Global-attention only; skipped when the encoder is the local variant.
+    ("P4  min layer attn entropy", "min_layer",        ">", 0.90,
+     "diffuse attention at init, not collapsed"),
+    ("P4  global-node attn entropy", "global_node",    ">", 0.90,
+     "the readout row must not be peaked"),
+    ("P4b RoPE shift sensitivity",  "shift_delta",     ">", 0.01,
+     "encoder must read position, not just content"),
 ]
 
 
@@ -111,6 +133,8 @@ def main() -> int:
     bb   = branch_balance(policy, states)
     rd   = readout_dispersion(policy, states)
     gf   = gradient_flow(policy, states)
+    ae   = attention_entropy(policy, states)
+    rs   = rope_sanity(policy, states)
 
     # -- Raw numbers -----------------------------------------------------------
     print("\n-- P1  value distribution (V_TERM) " + "-" * 42)
@@ -166,6 +190,8 @@ def main() -> int:
         "graph_vs_scalar": pert,
         "max_sat_frac": sat_summary,
         "dispersion": rd,
+        "min_layer": ae, "global_node": ae,
+        "shift_delta": rs, "perm_delta": rs,
     }
     print("\n" + "=" * 78)
     print(f"{'check':<32}{'value':>14}{'':>4}{'threshold':>14}{'':>4}  result")
@@ -173,6 +199,9 @@ def main() -> int:
     n_fail = 0
     for label, key, op, thr, _why in CHECKS:
         src = bb if label.startswith("P3b") else (gf if label.startswith("P8") else sources[key])
+        if key not in src:                 # local encoder: P4 / P4b N/A
+            print(f"{label:<32}{'n/a':>14}{'':>4}{'':>14}{'':>4}  SKIP")
+            continue
         val = src[key]
         ok  = _cmp(val, op, thr)
         n_fail += (not ok)

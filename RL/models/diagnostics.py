@@ -41,6 +41,7 @@ from game.enums import (
     ROAD_SLICE,
 )
 from RL.models.main_modules import V_DENSE, V_TERM
+from RL.models.utility_modules import apply_rope_2d, grid_row_col
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -188,24 +189,35 @@ def _graph_perturbations(st: ProbeState, n: int, rng: np.random.Generator) -> Li
     g = np.asarray(st.obs["partial_graph"])
     n_tiles = g.shape[0]
     out: List[ProbeState] = []
-    for _ in range(n):
+    attempts = 0
+    # Every perturbation must ACTUALLY change the graph, and it is worth being
+    # strict about it: "flip tile control" reverses the 2-bit ownership block,
+    # which is a no-op on a neutral tile (0, 0). Most tiles are neutral early in
+    # a game, so roughly a quarter of all perturbations used to be identity
+    # edits, and they showed up as a ~23% "dead fraction" that no model change
+    # could ever move - it was measuring the probe, not the critic.
+    while len(out) < n and attempts < 50 * n:
+        attempts += 1
         h = g.copy()
         t = int(rng.integers(n_tiles))
         which = rng.integers(4)
         if which == 0:                                   # toggle road
             h[t, ROAD_SLICE] = 1.0 - h[t, ROAD_SLICE]
-        elif which == 1:                                 # flip tile control
-            blk = h[t, PLAYER_CTRL_SLICE].copy()
-            h[t, PLAYER_CTRL_SLICE] = blk[::-1]
+        elif which == 1:                                 # set/clear tile control
+            blk = h[t, PLAYER_CTRL_SLICE]
+            j = int(rng.integers(blk.shape[0]))
+            blk[j] = 1.0 - blk[j]
         elif which == 2:                                 # toggle a city bit
             c = h[t, CITY_SLICE]
             j = int(rng.integers(c.shape[0]))
-            h[t, CITY_SLICE][j] = 1.0 - c[j]
+            c[j] = 1.0 - c[j]
         else:                                            # add/remove one unit
             sl = OWN_TYPE_SLICE if rng.integers(2) == 0 else OPP_TYPE_SLICE
             blk = h[t, sl]
             j = int(rng.integers(blk.shape[0]))
             blk[j] = 1.0 - blk[j]
+        if np.array_equal(h, g):
+            continue
         out.append(st.copy_with_graph(h))
     return out
 
@@ -364,6 +376,7 @@ def branch_balance(policy, states) -> Dict[str, float]:
     enc = policy.encoder
     # Post-sc-48 the branch is `scalar_enc`; `scalar_proj` is the legacy name.
     scalar_branch = getattr(enc, "scalar_enc", None) or enc.scalar_proj
+    is_global = getattr(enc, "attention", "local") == "global"
     board_n, scalar_n = [], []
     with torch.no_grad():
         for st in states:
@@ -371,14 +384,21 @@ def branch_balance(policy, states) -> Dict[str, float]:
                 np.asarray(st.obs["partial_graph"]), dtype=torch.float32, device=enc.device
             )
             x = enc.input_proj(x)
-            x = enc._run_layers(x, enc._get_edge_index(st.Nx, st.Ny).to(enc.device))
-            pooled = x.amax(dim=0, keepdim=True)
             s = torch.as_tensor(
                 np.asarray(st.obs["scalar_state"]), dtype=torch.float32, device=enc.device
             ).reshape(1, -1)
-            proj = scalar_branch(s)
-            board_n.append(float(pooled.norm()))
-            scalar_n.append(float(proj.norm()))
+            if is_global:
+                # There is no additive fusion point any more: the scalar state
+                # is the global node's input token. The meaningful comparison is
+                # therefore the magnitude of that token against a typical tile
+                # token, i.e. what the two sources bring into attention.
+                board = x.norm(dim=-1).mean()
+            else:
+                x = enc._run_layers(
+                    x, enc._get_edge_index(st.Nx, st.Ny).to(enc.device))
+                board = x.amax(dim=0).norm()
+            board_n.append(float(board))
+            scalar_n.append(float(scalar_branch(s).norm()))
     b = float(np.mean(board_n))
     sc = float(np.mean(scalar_n))
     return {
@@ -408,6 +428,89 @@ def readout_dispersion(policy, states) -> Dict[str, float]:
         "mean_ch_std":  float(ch_std.mean()),
         "mean_abs_ch":  float(ch_mean.mean()),
         "dead_channels": float((ch_std < 1e-6).sum()),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# P4 - attention entropy  /  P4b - RoPE sanity
+# ══════════════════════════════════════════════════════════════════════════════
+
+def attention_entropy(policy, states, n: int = 24) -> Dict[str, float]:
+    """Normalised attention entropy per layer at init.
+
+    Sharp (low-entropy) attention at init is the Zhai et al. entropy-collapse
+    failure mode, and here it would be a direct regression: the global node's
+    attention row IS the readout, so a peaked row reintroduces exactly the
+    discontinuity that max-pooling caused. 1.0 = uniform over all tokens.
+    """
+    enc = policy.encoder
+    if getattr(enc, "attention", "local") != "global":
+        return {}
+    per_layer: Dict[int, List[float]] = {}
+    global_row: List[float] = []
+
+    with torch.no_grad():
+        for st in states[:n]:
+            x = torch.as_tensor(np.asarray(st.obs["partial_graph"]),
+                                dtype=torch.float32, device=enc.device)
+            x = enc.input_proj(x).unsqueeze(0)
+            s = torch.as_tensor(np.asarray(st.obs["scalar_state"]),
+                                dtype=torch.float32, device=enc.device).reshape(1, -1)
+            g = enc._global_token(s, batch=1)
+            rows, cols = grid_row_col(x.shape[1], st.Ny, enc.device)
+            rows, cols = rows.unsqueeze(0), cols.unsqueeze(0)
+
+            tok = torch.cat([g, x], dim=1)
+            for i, (attn, n1, n2, ff) in enumerate(zip(
+                enc.attn_layers, enc.norms1, enc.norms2, enc.ff_layers
+            )):
+                h = n1(tok)
+                q = h.clone()
+                q[:, 1:] = apply_rope_2d(h[:, 1:], rows, cols)
+                out, w = attn(q, q, h, need_weights=True, average_attn_weights=True)
+                p = w[0].clamp_min(1e-12)                       # (T, T)
+                ent = -(p * p.log()).sum(-1) / np.log(p.shape[-1])
+                per_layer.setdefault(i, []).append(float(ent.mean()))
+                global_row.append(float(ent[0]))                # readout row
+                tok = tok + out
+                tok = tok + ff(n2(tok))
+
+    out: Dict[str, float] = {
+        f"layer{i}": float(np.mean(v)) for i, v in sorted(per_layer.items())
+    }
+    out["min_layer"]   = min(out.values()) if out else float("nan")
+    out["global_node"] = float(np.mean(global_row)) if global_row else float("nan")
+    return out
+
+
+def rope_sanity(policy, states) -> Dict[str, float]:
+    """Is the encoder position-aware at all?
+
+    A RoPE wiring error silently degrades the encoder to a set transformer over
+    tiles - strictly worse than the message passing it replaced, and invisible
+    to every other probe here. Two checks:
+
+      shift_delta   the same board content at a different offset must produce
+                    different embeddings (position is read at all)
+      perm_delta    shuffling tiles must change embeddings (order matters)
+    """
+    enc = policy.encoder
+    if getattr(enc, "attention", "local") != "global":
+        return {}
+    st = states[0]
+    g  = np.asarray(st.obs["partial_graph"])
+    shifted = np.roll(g, shift=1, axis=0)          # every tile moves one slot
+    rng = np.random.default_rng(0)
+    permuted = g[rng.permutation(g.shape[0])]
+
+    with torch.no_grad():
+        base = enc.encode(g,        st.Nx, st.Ny, st.obs["scalar_state"])[0]
+        sh   = enc.encode(shifted,  st.Nx, st.Ny, st.obs["scalar_state"])[0]
+        pm   = enc.encode(permuted, st.Nx, st.Ny, st.obs["scalar_state"])[0]
+    scale = float(base.abs().mean()) + 1e-12
+    return {
+        "shift_delta": float((base - sh).abs().mean()) / scale,
+        "perm_delta":  float((base - pm).abs().mean()) / scale,
     }
 
 

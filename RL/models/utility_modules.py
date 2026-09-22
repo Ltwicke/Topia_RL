@@ -1,6 +1,6 @@
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Sequence
+from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -108,6 +108,64 @@ def init_weights(m: nn.Module, gain: float = math.sqrt(2)) -> None:
     # nn.LayerNorm keeps PyTorch's default (weight=1, bias=0), which is correct.
     for child in m.children():
         init_weights(child, gain)
+
+
+# ==============================================================================
+# 2-D rotary position embedding (RoPE)
+# ==============================================================================
+#
+# Hoisted from AttackUnitSelector / MovementUnitSelector, which carried two
+# byte-identical private copies. The encoder needs it too (sc-48): once its
+# attention is global rather than masked to `edge_index`, nothing else tells the
+# model which tiles are adjacent, and without a positional signal it degenerates
+# into a set transformer over tiles.
+#
+# `dim` must be divisible by 4: 2-D RoPE splits the feature dim in half (rows |
+# cols) and each half must itself be even to rotate in pairs.
+
+def rope_1d(x: torch.Tensor, pos: torch.Tensor) -> torch.Tensor:
+    """1-D rotary position embedding.
+
+    x   : (..., dim)  dim must be even
+    pos : (...,)      float positions, broadcasting against x's leading dims
+    """
+    dim  = x.shape[-1]
+    half = dim // 2
+    theta = 1.0 / (
+        10_000 ** (torch.arange(0, half, device=x.device).float() / half)
+    )
+    angles = pos.unsqueeze(-1) * theta                      # (..., half)
+    x1, x2 = x[..., :half], x[..., half:]
+    return torch.cat([
+        x1 * angles.cos() - x2 * angles.sin(),
+        x1 * angles.sin() + x2 * angles.cos(),
+    ], dim=-1)
+
+
+def apply_rope_2d(
+    x: torch.Tensor, rows: torch.Tensor, cols: torch.Tensor
+) -> torch.Tensor:
+    """2-D RoPE: rotate the first half of the feature dim by row position and
+    the second half by column position.
+
+    x          : (..., D)   D divisible by 4
+    rows, cols : (...,)     float positions matching x's leading dims
+    """
+    half = x.shape[-1] // 2
+    return torch.cat(
+        [rope_1d(x[..., :half], rows), rope_1d(x[..., half:], cols)], dim=-1
+    )
+
+
+def grid_row_col(
+    n_tiles: int, Ny: int, device: torch.device
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Row / column index of every tile on an (Nx, Ny) board, as floats.
+
+    Tile ids are row-major, matching `_build_grid_edge_index`.
+    """
+    ids = torch.arange(n_tiles, device=device, dtype=torch.float32)
+    return torch.div(ids, Ny, rounding_mode="floor"), ids % Ny
 
 
 def _shannon_entropy(probs: torch.Tensor) -> torch.Tensor:

@@ -46,7 +46,9 @@ import torch.nn.functional as F
 from torch_geometric.data import Batch, Data
 from torch_geometric.nn import TransformerConv, global_max_pool
 
-from RL.models.utility_modules import _mlp, _build_grid_edge_index
+from RL.models.utility_modules import (
+    _mlp, _build_grid_edge_index, apply_rope_2d, grid_row_col,
+)
 from game.enums import (
     NODE_FEAT_DIM,
     TILE_TYPE_SLICE,
@@ -121,6 +123,8 @@ class GraphTransformerEncoder(nn.Module):
         score_tau:   float = 1342.0,
         scalar_mode: str   = "derived",
         fusion:      str   = "concat",
+        attention:   str   = "global",
+        readout:     str   = "global_node_mean",
     ) -> None:
         super().__init__()
 
@@ -132,20 +136,57 @@ class GraphTransformerEncoder(nn.Module):
 
         self.hidden_dim = hidden_dim
         self.scalar_dim = scalar_dim
+        self.attention  = attention
+        self.readout    = readout
         head_dim        = hidden_dim // n_heads
 
         self.input_proj = nn.Linear(in_feats, hidden_dim)
 
-        self.tf_layers = nn.ModuleList([
-            TransformerConv(
-                hidden_dim, head_dim,
-                heads=n_heads, concat=True, dropout=0.0, beta=True,
-            )
-            for _ in range(depth)
-        ])
-        self.norms = nn.ModuleList([
-            nn.LayerNorm(hidden_dim) for _ in range(depth)
-        ])
+        if attention == "global":
+            # TRUE global self-attention (sc-48). PyG's TransformerConv, despite
+            # the class name, masks attention to `edge_index` - it is a
+            # message-passing GNN, so information moves one tile per layer and
+            # depth bounds the receptive field at 2 tiles. A board valuation in
+            # a territory-control game is inherently global, so that
+            # representation was not reachable at any affordable depth.
+            #
+            # Measured (eval/probe_encoder_cost.py): global attention is
+            # 1.4-2.3x FASTER and uses less memory than the local encoder here.
+            # The O(N^2) vs O(8N) argument is real but irrelevant at N<=256,
+            # D=48 - dense attention is two small GEMMs, while sparse scatter is
+            # launch-overhead bound.
+            if hidden_dim % 4 != 0:
+                raise ValueError(
+                    f"hidden_dim ({hidden_dim}) must be divisible by 4 for 2-D "
+                    f"RoPE (rows | cols, each rotated in pairs)"
+                )
+            self.attn_layers = nn.ModuleList([
+                nn.MultiheadAttention(hidden_dim, n_heads, batch_first=True)
+                for _ in range(depth)
+            ])
+            self.norms1 = nn.ModuleList(
+                [nn.LayerNorm(hidden_dim) for _ in range(depth)])
+            self.norms2 = nn.ModuleList(
+                [nn.LayerNorm(hidden_dim) for _ in range(depth)])
+            self.ff_layers = nn.ModuleList([
+                nn.Sequential(
+                    nn.Linear(hidden_dim, 2 * hidden_dim), nn.ReLU(),
+                    nn.Linear(2 * hidden_dim, hidden_dim),
+                )
+                for _ in range(depth)
+            ])
+            self.out_norm = nn.LayerNorm(hidden_dim)
+        else:
+            self.tf_layers = nn.ModuleList([
+                TransformerConv(
+                    hidden_dim, head_dim,
+                    heads=n_heads, concat=True, dropout=0.0, beta=True,
+                )
+                for _ in range(depth)
+            ])
+            self.norms = nn.ModuleList([
+                nn.LayerNorm(hidden_dim) for _ in range(depth)
+            ])
 
         # ── Scalar-state fusion (sc-48) ───────────────────────────────────────
         # `scalar_state` arrives RAW and unnormalised, and own/opp score are
@@ -164,11 +205,25 @@ class GraphTransformerEncoder(nn.Module):
         self.scalar_enc  = ScalarEncoder(
             hidden_dim, scalar_dim, score_tau=score_tau, mode=scalar_mode,
         )
-        if fusion == "concat":
-            self.fuse      = nn.Linear(2 * hidden_dim, hidden_dim)
-            self.fuse_norm = nn.LayerNorm(hidden_dim)
-        elif fusion != "add":
-            raise ValueError(f"unknown fusion mode {fusion!r}")
+        # Under global attention the scalar state is a TOKEN, not something
+        # fused into a pooled vector, so `fuse` would be dead parameters that
+        # never receive a gradient. Only build it on the local path.
+        if attention != "global":
+            if fusion == "concat":
+                self.fuse      = nn.Linear(2 * hidden_dim, hidden_dim)
+                self.fuse_norm = nn.LayerNorm(hidden_dim)
+            elif fusion != "add":
+                raise ValueError(f"unknown fusion mode {fusion!r}")
+
+        # Readout projection: global-node embedding concatenated with the mean
+        # over tiles. The global node alone is the obvious readout (it has
+        # attended to every tile, like a [CLS] token), but a single token
+        # collapses the whole board into one highly-parameterised weighted sum.
+        # Concatenating a plain mean costs one Linear and guarantees a floor of
+        # board information that does not depend on attention having learned
+        # anything yet - which matters most at init, the regime sc-48 is about.
+        if attention == "global" and readout == "global_node_mean":
+            self.readout_proj = nn.Linear(2 * hidden_dim, hidden_dim)
 
         # Edge-index cache: (Nx, Ny) → CPU LongTensor
         self._edge_cache: Dict[Tuple[int, int], torch.Tensor] = {}
@@ -198,6 +253,71 @@ class GraphTransformerEncoder(nn.Module):
         for layer, norm in zip(self.tf_layers, self.norms):
             x = norm(x + layer(x, edge_index))
         return x
+
+    # ── Global attention forward ───────────────────────────────────────────
+
+    def _run_global(
+        self,
+        tiles:    torch.Tensor,             # (B, N, D)  projected tile tokens
+        g_tok:    torch.Tensor,             # (B, 1, D)  global node token
+        rows:     torch.Tensor,             # (B, N)     float row index
+        cols:     torch.Tensor,             # (B, N)     float col index
+        pad_mask: Optional[torch.Tensor],   # (B, 1+N)   True = ignore
+    ) -> torch.Tensor:
+        """Pre-norm transformer over [global_node, tiles]. -> (B, 1+N, D)
+
+        2-D RoPE is applied to the TILE tokens' Q and K only:
+
+          * V is left un-rotated, matching the convention already used by the
+            selection heads (`attack_module.py`).
+          * The global node carries no board position, so rotating it would
+            invent one. It is excluded and attends positionally-neutrally.
+
+        RoPE is not optional here. Without `edge_index` nothing else tells the
+        model which tiles are adjacent, and the encoder would degenerate into a
+        set transformer over tiles - strictly worse than what it replaced.
+        """
+        x = torch.cat([g_tok, tiles], dim=1)              # (B, 1+N, D)
+        for attn, n1, n2, ff in zip(
+            self.attn_layers, self.norms1, self.norms2, self.ff_layers
+        ):
+            h = n1(x)
+            q = h.clone()
+            q[:, 1:] = apply_rope_2d(h[:, 1:], rows, cols)
+            # q is used for BOTH query and key; h (un-rotated) supplies V.
+            x = x + attn(q, q, h, need_weights=False,
+                         key_padding_mask=pad_mask)[0]
+            x = x + ff(n2(x))
+        return self.out_norm(x)
+
+    def _global_token(
+        self, scalar: Optional[torch.Tensor], batch: int
+    ) -> torch.Tensor:
+        """Scalar state as the global node's input token. -> (B, 1, D)
+
+        This is where scalar context enters under global attention, replacing
+        the old "project and add to the pooled vector" path. Two consequences
+        beyond fixing defect (A): the scalar reaches `node_emb` and therefore
+        every downstream selection head - a head choosing what to build can now
+        see how many stars there are, which it never could before - and the
+        global node's output doubles as the readout.
+        """
+        if scalar is None:
+            return self.input_proj.weight.new_zeros(batch, 1, self.hidden_dim)
+        return self.scalar_enc(scalar).reshape(batch, 1, self.hidden_dim)
+
+    def _readout(
+        self, tokens: torch.Tensor, pad_mask: Optional[torch.Tensor]
+    ) -> torch.Tensor:
+        """[global_node, tiles] -> (B, D) pooled board representation."""
+        g_out = tokens[:, 0]                                        # (B, D)
+        tiles = tokens[:, 1:]                                       # (B, N, D)
+        if pad_mask is None:
+            mean = tiles.mean(dim=1)
+        else:
+            valid = (~pad_mask[:, 1:]).unsqueeze(-1).to(tiles.dtype)
+            mean  = (tiles * valid).sum(1) / valid.sum(1).clamp_min(1.0)
+        return self.readout_proj(torch.cat([g_out, mean], dim=-1))
 
     # ── Scalar fusion ──────────────────────────────────────────────────────
 
@@ -243,19 +363,28 @@ class GraphTransformerEncoder(nn.Module):
         global_emb : Tensor (1, hidden_dim)         — max-pooled board repr
                                                       + scalar_proj(scalar)
         """
-        dev        = self.device
-        x          = torch.tensor(np.asarray(graph_np),
-                                  dtype=torch.float32, device=dev)
-        x          = self.input_proj(x)
-        edge_index = self._get_edge_index(Nx, Ny).to(dev)
-        x          = self._run_layers(x, edge_index)
-        pooled     = x.amax(dim=0, keepdim=True)   # (1, hidden_dim)
+        dev = self.device
+        x   = torch.tensor(np.asarray(graph_np), dtype=torch.float32, device=dev)
+        x   = self.input_proj(x)
 
         scalar = None
         if scalar_state is not None:
             scalar = torch.as_tensor(np.asarray(scalar_state),
                                      dtype=torch.float32, device=dev).reshape(1, -1)
 
+        if self.attention == "global":
+            n_tiles   = x.shape[0]
+            rows, cols = grid_row_col(n_tiles, Ny, dev)
+            g_tok  = self._global_token(scalar, batch=1)             # (1, 1, D)
+            tokens = self._run_global(
+                x.unsqueeze(0), g_tok,
+                rows.unsqueeze(0), cols.unsqueeze(0), pad_mask=None,
+            )
+            return tokens[0, 1:], self._readout(tokens, None)
+
+        edge_index = self._get_edge_index(Nx, Ny).to(dev)
+        x          = self._run_layers(x, edge_index)
+        pooled     = x.amax(dim=0, keepdim=True)   # (1, hidden_dim)
         return x, self._fuse(pooled, scalar)
 
     def encode_batch(
@@ -284,6 +413,16 @@ class GraphTransformerEncoder(nn.Module):
         """
         dev = self.device
 
+        scalars = None
+        if scalar_states is not None:
+            scalars = torch.as_tensor(
+                np.stack([np.asarray(s) for s in scalar_states], axis=0),
+                dtype=torch.float32, device=dev,
+            )
+
+        if self.attention == "global":
+            return self._encode_batch_global(graphs, board_sizes, scalars, dev)
+
         data_list = [
             Data(
                 x=torch.tensor(np.asarray(g), dtype=torch.float32),
@@ -296,20 +435,55 @@ class GraphTransformerEncoder(nn.Module):
         x           = self.input_proj(big.x)
         x           = self._run_layers(x, big.edge_index)
 
-        pooled = global_max_pool(x, big.batch)   # (B, hidden_dim)
-
-        scalars = None
-        if scalar_states is not None:
-            scalars = torch.as_tensor(
-                np.stack([np.asarray(s) for s in scalar_states], axis=0),
-                dtype=torch.float32, device=dev,
-            )
+        pooled      = global_max_pool(x, big.batch)   # (B, hidden_dim)
         global_embs = self._fuse(pooled, scalars)
 
         sizes     = [np.asarray(g).shape[0] for g in graphs]
         node_embs = list(torch.split(x, sizes, dim=0))
 
         return node_embs, global_embs
+
+    def _encode_batch_global(
+        self,
+        graphs:      List[np.ndarray],
+        board_sizes: List[Tuple[int, int]],
+        scalars:     Optional[torch.Tensor],
+        dev:         torch.device,
+    ) -> Tuple[List[torch.Tensor], torch.Tensor]:
+        """Batched global attention over right-padded boards.
+
+        PyG's Batch handles variable board sizes by concatenating into one
+        disconnected graph; dense attention cannot, so boards are padded to the
+        largest in the minibatch and the padding is masked out of attention and
+        out of the mean readout. Board sizes are drawn from `board_size_range`
+        and are usually equal within a batch, in which case no padding happens.
+        """
+        B     = len(graphs)
+        sizes = [int(np.asarray(g).shape[0]) for g in graphs]
+        N_max = max(sizes)
+
+        x = torch.zeros(B, N_max, self.input_proj.in_features,
+                        dtype=torch.float32, device=dev)
+        rows = torch.zeros(B, N_max, dtype=torch.float32, device=dev)
+        cols = torch.zeros(B, N_max, dtype=torch.float32, device=dev)
+        # +1 leading slot for the global node, which is never padding.
+        pad_mask = torch.zeros(B, 1 + N_max, dtype=torch.bool, device=dev)
+
+        for i, (g, (Nx, Ny), n) in enumerate(zip(graphs, board_sizes, sizes)):
+            x[i, :n] = torch.as_tensor(np.asarray(g), dtype=torch.float32,
+                                       device=dev)
+            r, c = grid_row_col(n, Ny, dev)
+            rows[i, :n], cols[i, :n] = r, c
+            pad_mask[i, 1 + n:] = True
+
+        tokens = self._run_global(
+            self.input_proj(x), self._global_token(scalars, batch=B),
+            rows, cols, pad_mask if N_max != min(sizes) else None,
+        )
+        node_embs = [tokens[i, 1:1 + n] for i, n in enumerate(sizes)]
+        return node_embs, self._readout(
+            tokens, pad_mask if N_max != min(sizes) else None
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
