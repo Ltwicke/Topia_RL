@@ -60,7 +60,7 @@ class City:
         self.controlled_tile_ids: list[int] = []
 
     @property
-    def max_unit_cap(self) -> int:
+    def max_unit_cap(self) -> int: # the model currently has no way to see this...
         if self.player_id is None:  # village
             return 0
         return self.times_upgraded + 2 # 2 IS THE CORRECT VALUE HERE!

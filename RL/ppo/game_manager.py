@@ -90,8 +90,8 @@ class TrainConfig:
     context_bias: int = 5
 
     # ── Parallelism ───────────────────────────────────────────────────────────
-    n_processes:        int = 16
-    n_envs_per_process: int = 2
+    n_processes:        int = 4 #16
+    n_envs_per_process: int = 1 #2
 
     # ── Environment ───────────────────────────────────────────────────────────
     # board_type is randomised per env from board_type_pool — Dummy is dropped.
@@ -123,10 +123,10 @@ class TrainConfig:
     dense_reward:         bool  = True
     # Scales the raw event table so an actively played episode totals ~1-2,
     # comparable to a timeout payout and well below the conquest bonus.
-    dense_scale:          float = 0.02
+    dense_scale:          float = 0.04
     # Penalty for passing while other action types were legal. Forced
     # end-of-turns are never penalised. 0.0 = off; the dial for pass-pressure.
-    endturn_voluntary_penalty: float = 0.0
+    endturn_voluntary_penalty: float = 1.0
     # terminal_reward_mode: "none" | "constant_sum"
     terminal_reward_mode: str   = "constant_sum"
     # Each seat is paid sigma(its own margin / terminal_tau) * terminal_weight,
@@ -137,15 +137,15 @@ class TrainConfig:
     # At tau=2000 that same margin pays 0.679 and improving it keeps paying.
     # Still inferred rather than measured — eval/calibrate_terminal_tau.py.
     terminal_weight:      float = 1.0
-    terminal_tau:         float = 2000.0
+    terminal_tau:         float = 1342.0
     # A conquest ends the game outright; a score lead only indicates a likely
     # win. At 3.0 against a timeout maximum near 0.92, conquest is worth >4x
     # any score win, which is the gradient that was missing.
-    conquest_reward:      float = 3.0
+    conquest_reward:      float = 2.0
     # gamma=1 removes all time preference (deliberately — it is what stops the
     # rush to the turn limit). This restores it for conquest ONLY, so an early
     # kill beats a late one without paying anything for reaching a timeout.
-    conquest_early_bonus: float = 0.5
+    conquest_early_bonus: float = 0.0
 
     # ── Frozen-opponent self-play ─────────────────────────────────────────────
     # The trained policy occupies seat `active_player_id`; the other seat is
@@ -153,12 +153,12 @@ class TrainConfig:
     # updates. Only the active seat's transitions train PPO.
     self_play_frozen_opponent: bool = True
     active_player_id:          int  = 0
-    opponent_refresh_interval: int  = 10
+    opponent_refresh_interval: int  = 1
 
     # ── Estimator pretraining (Phase A of each update) ────────────────────────
     estimator_lr:             float = 3e-4
-    estimator_n_epochs:       int   = 4
-    estimator_minibatch_size: int   = 512
+    estimator_n_epochs:       int   = 3
+    estimator_minibatch_size: int   = 32 #512
     estimator_train_fraction: float = 1.0    
 
     # ── Scenario eval (Phase C — runs after PPO update) ───────────────────────
@@ -178,15 +178,16 @@ class TrainConfig:
             "Estimate_Drylands_endgame",
             "Rider_hit_and_run",
             "Dont_attack",
+            "Get_defender_and_wall",
         ]
     )
 
     # ── Rollout ───────────────────────────────────────────────────────────────
-    n_steps: int = 512
+    n_steps: int = 128 # 512
 
     # ── PPO epochs & batching ─────────────────────────────────────────────────
-    n_epochs:       int   = 3
-    n_minibatches:  int   = 64   # determines cfg.minibatch_size
+    n_epochs:       int   = 4 #2
+    n_minibatches:  int   = 4 #64  # determines cfg.minibatch_size
     # Fraction ∈ (0,1]: what share of the assembled minibatches to train on
     # per epoch.  Reduces PPO update time without wasting simulation data.
     train_fraction: float = 1.0
@@ -215,7 +216,7 @@ class TrainConfig:
     n_updates:     int = 1000
     log_interval:  int = 1
     ckpt_interval:           int = 1     # rolling checkpoints (last MAX_CKPT kept)
-    permanent_ckpt_interval: int = 100   # never-evicted snapshots every N updates
+    permanent_ckpt_interval: int = 50   # never-evicted snapshots every N updates
 
     # ── Speed / diagnostic ────────────────────────────────────────────────────
     use_amp:    bool = True   # AMP mixed precision training

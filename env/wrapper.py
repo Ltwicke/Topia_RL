@@ -329,7 +329,7 @@ class EnvWrapper(object):
                 r_dense += message["hp_diff"] * 0.1
 
             elif message["action_type"] == ActionTypes.PlaceRoad:
-                r_dense -= 0.3
+                r_dense -= 0.0
 
             elif message["action_type"] == ActionTypes.CaptureCity:
                 r_dense += 5.0
