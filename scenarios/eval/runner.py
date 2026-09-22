@@ -61,7 +61,12 @@ class DecisionRecord:
     joint_probs:   np.ndarray                   # shape (n_traj,) probabilities
     traj_actions:  list                         # parallel list of trajectories
     log_prob:      float
-    value:         float                        # terminal (V_TERM) stream only
+    value:         float                        # E[V_TERM], raw return space
+    # Full categorical distribution behind `value` (sc-48). None when the
+    # critic is queried through a path that does not expose it.
+    value_probs:   Optional[np.ndarray] = None  # (n_bins,)
+    value_bins:    Optional[np.ndarray] = None  # (n_bins,) the support
+    dense_value:   Optional[float]      = None  # E[V_DENSE]
 
 
 @dataclass
@@ -138,14 +143,35 @@ class ScenarioRunner:
             last_action, avg_probs_t, traj_actions,
         )
 
+        # Critic readout from the last sample. V_TERM is logged as a scalar
+        # metric so it lands in summary.csv - it never did before, even though
+        # the runner has always computed it - and the distribution is carried in
+        # metrics_extra for render() to plot.
+        last = records[-1]
+        critic_metrics = {"v_term": float(last.value)}
+        if last.dense_value is not None:
+            critic_metrics["v_dense"] = float(last.dense_value)
+        if last.value_probs is not None:
+            p, b = last.value_probs, last.value_bins
+            mean = float((p * b).sum())
+            critic_metrics["v_term_std"] = float(((p * (b - mean) ** 2).sum()) ** 0.5)
+
         return RunnerResult(
             prob_overlay   = prob_overlay,
             atype_probs    = atype_probs,
             sampled_action = last_action,
+            metrics_extra  = {
+                "critic_value": float(last.value),
+                "critic_dist":  (
+                    (last.value_probs, last.value_bins)
+                    if last.value_probs is not None else None
+                ),
+            },
             metrics        = {
                 "n_samples":    int(self.n_samples),
                 "n_decisions":  int(self.n_decisions),
                 "n_trajectories": int(len(traj_actions)),
+                **critic_metrics,
             },
             title          = (
                 f"{scenario.name} — averaged over {self.n_samples} samples"
@@ -170,10 +196,15 @@ class ScenarioRunner:
         adapter  = GameEnvAdapter(scenario)
         renderer = BoardRenderer(adapter.env)
 
-        fig = plt.figure(figsize=(13, 7))
-        gs  = fig.add_gridspec(1, 2, width_ratios=[adapter.Ny, 4.2], wspace=0.08)
-        ax_board = fig.add_subplot(gs[0])
-        ax_info  = fig.add_subplot(gs[1])
+        # Reuse the renderer's own layout rather than hand-rolling a gridspec,
+        # so scenario PNGs pick up the critic value-distribution subplot for
+        # free when the runner recorded one (sc-48).
+        critic_dist = result.metrics_extra.get("critic_dist")
+        fig, axes = renderer.build_figure(
+            figsize=None, dual=False, with_dist=critic_dist is not None,
+        )
+        ax_board = axes['board']
+        ax_info  = axes['info']
 
         # Render from the active player's POV.
         active_pid = adapter.game.player_go_id
@@ -185,6 +216,9 @@ class ScenarioRunner:
             uncovered    = uncovered,
             prob_overlay = result.prob_overlay or None,
             atype_probs  = result.atype_probs  or None,
+            critic_value = result.metrics_extra.get("critic_value"),
+            critic_dist  = critic_dist,
+            ax_dist      = axes.get('dist'),
             title        = result.title or scenario.name,
         )
 
@@ -214,16 +248,35 @@ class ScenarioRunner:
         except AttributeError:
             lp_f = float(log_prob)
         # The critic returns one value per reward stream, so a bare .item()
-        # raises on a multi-element tensor. Scenarios record the terminal head,
-        # which reads as a win probability.
+        # raises on a multi-element tensor. Scenarios record the terminal head.
+        #
+        # Since sc-48 that head is CATEGORICAL over [0, conquest_reward], so the
+        # scalar below is an expectation, not a win probability - a conquest
+        # pays conquest_reward while a timeout pays at most terminal_weight, and
+        # the expectation mixes both. The distribution is recorded alongside it
+        # because the two are genuinely different pieces of information: a
+        # confident mid-range value and an even split between a loss and a
+        # conquest have the same mean.
         v_np = np.asarray(value.detach().cpu() if hasattr(value, "detach") else value)
         v_f  = float(v_np[V_TERM]) if v_np.ndim else float(v_np)
+
+        probs = bins = None
+        dense = None
+        try:
+            rep = policy.critic_report(obs)
+            probs, bins, dense = rep["term_probs"], rep["bin_values"], rep["dense_value"]
+        except (AttributeError, KeyError):
+            pass          # older policy without a categorical head
+
         return DecisionRecord(
             action       = list(action),
             joint_probs  = jp_np,
             traj_actions = list(traj_actions),
             log_prob     = lp_f,
             value        = v_f,
+            value_probs  = probs,
+            value_bins   = bins,
+            dense_value  = dense,
         )
 
     def _one_rollout(
@@ -330,6 +383,8 @@ class EstimatorRunner(ScenarioRunner):
         adapter.env.render(
             show_hidden     = True,
             hidden_estimate = est_pair,
+            critic_value    = result.metrics_extra.get("critic_value"),
+            critic_dist     = result.metrics_extra.get("critic_dist"),
             save_path       = str(out_path),
             show            = False,
         )

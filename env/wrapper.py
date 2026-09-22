@@ -634,6 +634,7 @@ class EnvWrapper(object):
         joint_probs=None,
         traj_actions=None,
         critic_value=None,
+        critic_dist=None,
         # — hidden-tile estimator overlay (optional) —
         show_hidden=False,
         hidden_estimate=None,
@@ -644,6 +645,11 @@ class EnvWrapper(object):
         kwargs are no-ops when omitted; callers that previously used the
         non-keyword `render(figsize, shared_fog, ...)` signature must move
         to keyword-only — `figsize` etc. are now keyword-only by design.
+
+        `critic_value` is the scalar expectation of the terminal head;
+        `critic_dist` is `(probs, bin_values)` for the full categorical
+        distribution behind it (sc-48), which the info panel plots. Build both
+        in one call with `policy.critic_report(global_emb)`.
         """
         from env.renderer import BoardRenderer
 
@@ -664,7 +670,10 @@ class EnvWrapper(object):
         if not (joint_probs is not None and traj_actions is not None):
             atype_probs = None  # info panel suppresses bar chart when no probs given
 
-        fig, axes = renderer.build_figure(figsize=figsize, dual=show_hidden)
+        # The critic distribution gets its own subplot when one is supplied.
+        fig, axes = renderer.build_figure(
+            figsize=figsize, dual=show_hidden, with_dist=critic_dist is not None,
+        )
 
         if not show_hidden:
             renderer.draw(
@@ -675,6 +684,8 @@ class EnvWrapper(object):
                 atype_probs=atype_probs,
                 show_action_overlay=show_action_overlay,
                 critic_value=critic_value,
+                critic_dist=critic_dist,
+                ax_dist=axes.get('dist'),
                 info_horizontal=False,
             )
         else:
@@ -689,6 +700,8 @@ class EnvWrapper(object):
                 prob_overlay=prob_overlay,
                 atype_probs=atype_probs,
                 critic_value=critic_value,
+                critic_dist=critic_dist,
+                ax_dist=axes.get('dist'),
                 show_action_overlay=show_action_overlay,
             )
 

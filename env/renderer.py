@@ -96,10 +96,32 @@ class BoardRenderer:
         return col + 0.5, (self.Nx - 1 - row) + 0.5
 
     # ── Figure construction ─────────────────────────────────────────────
-    def build_figure(self, *, figsize, dual):
+    def build_figure(self, *, figsize, dual, with_dist=True):
+        """Build the figure and return (fig, axes_dict).
+
+        `with_dist` adds a dedicated axes for the critic's value distribution
+        (sc-48). It gets its own subplot rather than being squeezed into the
+        info panel: the panel was already tight enough that the action-type bars
+        overlapped, and a 51-bin distribution deserves real axes with a value
+        scale on them.
+        """
         if dual:
             fs = figsize if figsize is not None else (18, 8)
             fig = plt.figure(figsize=fs)
+            if with_dist:
+                gs = fig.add_gridspec(
+                    2, 2,
+                    height_ratios=[1.3, 6.0],
+                    width_ratios=[self.Ny * 2.0, 3.2],
+                    hspace=0.16, wspace=0.10,
+                )
+                ax_info = fig.add_subplot(gs[0, 0])
+                ax_dist = fig.add_subplot(gs[0, 1])
+                sub = gs[1, :].subgridspec(1, 2, wspace=0.10)
+                ax_pov_a = fig.add_subplot(sub[0, 0])
+                ax_pov_b = fig.add_subplot(sub[0, 1])
+                return fig, {'info': ax_info, 'dist': ax_dist,
+                             'pov_a': ax_pov_a, 'pov_b': ax_pov_b}
             gs  = fig.add_gridspec(
                 2, 2,
                 height_ratios=[1.0, 6.0],
@@ -111,6 +133,19 @@ class BoardRenderer:
             ax_pov_b = fig.add_subplot(gs[1, 1])
             return fig, {'info': ax_info, 'pov_a': ax_pov_a, 'pov_b': ax_pov_b}
         else:
+            if with_dist:
+                fs = figsize if figsize is not None else (13, 8)
+                fig = plt.figure(figsize=fs)
+                gs  = fig.add_gridspec(
+                    2, 2,
+                    width_ratios=[self.Ny, 4.2],
+                    height_ratios=[4.6, 1.4],
+                    wspace=0.08, hspace=0.30,
+                )
+                ax      = fig.add_subplot(gs[:, 0])
+                ax_info = fig.add_subplot(gs[0, 1])
+                ax_dist = fig.add_subplot(gs[1, 1])
+                return fig, {'board': ax, 'info': ax_info, 'dist': ax_dist}
             fs = figsize if figsize is not None else (13, 7)
             fig = plt.figure(figsize=fs)
             gs  = fig.add_gridspec(1, 2, width_ratios=[self.Ny, 4.2], wspace=0.08)
@@ -124,7 +159,8 @@ class BoardRenderer:
         prob_overlay=None, atype_probs=None,
         hidden_estimate=None, hidden_tile_ids=None,
         show_action_overlay=True,
-        info_horizontal=False, critic_value=None,
+        info_horizontal=False, critic_value=None, critic_dist=None,
+        ax_dist=None,
         pov_pid=None,
         title='Board State',
     ):
@@ -159,12 +195,19 @@ class BoardRenderer:
                 horizontal=info_horizontal,
             )
 
+        if ax_dist is not None:
+            if critic_dist is not None:
+                self.draw_value_distribution(ax_dist, *critic_dist)
+            else:
+                ax_dist.axis('off')
+
     # ── Public dual-POV entry ───────────────────────────────────────────
     def draw_dual_pov(
         self, *, ax_pov_a, ax_pov_b, ax_info,
         hidden_estimate_pov_a, hidden_estimate_pov_b,
         prob_overlay=None, atype_probs=None,
-        critic_value=None, show_action_overlay=True,
+        critic_value=None, critic_dist=None, ax_dist=None,
+        show_action_overlay=True,
     ):
         # Fixed layout: P0 always left, P1 always right — independent of whose
         # turn it currently is. The two estimates come in (current_pov, opp_pov)
@@ -208,6 +251,11 @@ class BoardRenderer:
             critic_value=critic_value,
             horizontal=True,
         )
+        if ax_dist is not None:
+            if critic_dist is not None:
+                self.draw_value_distribution(ax_dist, *critic_dist)
+            else:
+                ax_dist.axis('off')
 
     # ── Pass 1: terrain / fog / road / city / hidden estimator ─────────
     def _render_board(
@@ -729,6 +777,60 @@ class BoardRenderer:
         else:
             self._draw_info_panel_vertical(ax_info, atype_probs, critic_value)
 
+    # ── Critic value distribution ───────────────────────────────────────
+    #
+    # The critic's V_TERM head is categorical (sc-48): it predicts a
+    # distribution over terminal-return bins, and the scalar V-hat everything
+    # else reports is only its expectation. A single number hides exactly what
+    # the head was rebuilt to represent - the terminal return is trimodal (0 on
+    # a conquest loss, a band over (0,1) on a timeout, conquest_reward on a
+    # conquest win), so "is the critic bimodal or confidently mid-range?" is the
+    # question worth being able to see.
+    #
+    # Drawn in AXES coordinates so it can be placed inside an existing info
+    # panel without disturbing the surrounding layout.
+    def draw_value_distribution(self, ax, probs, bins, *,
+                                color='#1a5fb4', title='Critic V_term distribution'):
+        """Plot the critic's categorical terminal-value distribution.
+
+        The V_TERM head is categorical (sc-48): it predicts a distribution over
+        terminal-return bins, and the scalar V-hat reported everywhere else is
+        only its expectation. That scalar hides exactly what the head exists to
+        represent - the terminal return is trimodal (0 on a conquest loss, a
+        band over (0, 1) on a timeout, conquest_reward on a conquest win), so a
+        confident mid-range value and an even split between a loss and a
+        conquest are the same number and completely different beliefs.
+        """
+        probs = np.asarray(probs, dtype=float).reshape(-1)
+        bins  = np.asarray(bins,  dtype=float).reshape(-1)
+        ax.clear()
+        if probs.size == 0 or probs.size != bins.size:
+            ax.axis('off')
+            return
+
+        mean = float((probs * bins).sum())
+        std  = float(((probs * (bins - mean) ** 2).sum()) ** 0.5)
+        mode = float(bins[int(probs.argmax())])
+        width = (bins[-1] - bins[0]) / max(probs.size - 1, 1)
+
+        ax.bar(bins, probs, width=width * 0.95, color=color, alpha=0.75,
+               edgecolor='none', zorder=2)
+        ax.axvline(mean, color='#cc2200', linewidth=1.4, zorder=3,
+                   label=f"E = {mean:.3f}")
+        ax.axvline(mode, color='#1a7a1a', linewidth=1.0, linestyle='--',
+                   zorder=3, label=f"mode = {mode:.2f}")
+        ax.set_xlim(bins[0] - width, bins[-1] + width)
+        ax.set_ylim(0, max(float(probs.max()) * 1.18, 1e-6))
+        ax.set_xlabel("terminal return", fontsize=8)
+        ax.set_ylabel("P", fontsize=8)
+        ax.set_title(f"{title}   (sd = {std:.3f})", fontsize=9,
+                     fontweight='bold', pad=4)
+        ax.tick_params(labelsize=7)
+        ax.grid(True, axis='y', alpha=0.25, linewidth=0.5)
+        ax.legend(fontsize=7, framealpha=0.85, loc='upper right')
+        for side in ('top', 'right'):
+            ax.spines[side].set_visible(False)
+
     def _draw_info_panel_vertical(self, ax_info, atype_probs, critic_value):
         ax_info.axis('off')
         ax_info.set_xlim(0, 1); ax_info.set_ylim(0, 1)
@@ -754,10 +856,16 @@ class BoardRenderer:
         _row(0.76, "Decisions", self.n_decisions)
         if critic_value is not None:
             v  = critic_value.item() if hasattr(critic_value, 'item') else float(critic_value)
-            vc = '#1a7a1a' if v >= 0 else '#cc2200'
-            _row(0.70, "Critic V̂", f"{v:+.3f}", vc=vc)
-
-        sep_y = 0.66 if critic_value is not None else 0.72
+            # V_TERM lives in [0, conquest_reward] and is never negative, so the
+            # old sign-based green/red said nothing - it was always green.
+            # Colour against an even score game instead (terminal_weight / 2):
+            # above it the player is ahead on the timeout scale, and above 1.0
+            # the critic is putting real mass on a conquest.
+            vc = '#1a7a1a' if v >= 0.5 else '#cc2200'
+            _row(0.70, "Critic V̂", f"{v:.3f}", vc=vc)
+            sep_y = 0.66
+        else:
+            sep_y = 0.72
         ax_info.plot([0.05, 0.95], [sep_y, sep_y],
             color='#CCCCCC', linewidth=0.6)
 
@@ -789,9 +897,14 @@ class BoardRenderer:
                 ha='center', va='top', fontsize=8.5, fontweight='bold',
                 color='#333333')
             row_y = bars_top - 0.06
-            row_h = 0.028
             available = max(row_y - 0.02, 0.05)
             row_step = available / max(len(ActionTypes), 1)
+            # Clamp the bar height to the row pitch. It was a fixed 0.028 while
+            # row_step is only ~0.022 even with the full panel, so the bars
+            # overlapped and the labels ran together regardless of what else is
+            # in the panel - it just got more obvious once the value
+            # distribution took some vertical space.
+            row_h = min(0.028, row_step * 0.78)
             for at in ActionTypes:
                 p = atype_probs.get(at.name, 0.0)
                 bar_w = float(p) * 0.60
@@ -849,9 +962,11 @@ class BoardRenderer:
 
         if critic_value is not None:
             v  = critic_value.item() if hasattr(critic_value, 'item') else float(critic_value)
-            vc = '#1a7a1a' if v >= 0 else '#cc2200'
+            # See the vertical panel: V_TERM is never negative, so the sign
+            # test was always green. 0.5 is an even game on the timeout scale.
+            vc = '#1a7a1a' if v >= 0.5 else '#cc2200'
             ax_info.text(col_x, 0.82, "V̂", fontsize=8, color='#555555')
-            ax_info.text(col_x, 0.62, f"{v:+.3f}",
+            ax_info.text(col_x, 0.62, f"{v:.3f}",
                 fontsize=10, fontweight='bold', color=vc)
             col_x += 0.10
 

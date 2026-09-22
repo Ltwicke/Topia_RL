@@ -596,6 +596,25 @@ class PolicyNetwork(nn.Module):
         # this via load_state_dict, so restarts are unaffected.
         init_weights(self, gain=nn.init.calculate_gain("tanh"))
 
+    # ── Value inspection ──────────────────────────────────────────────────
+
+    @torch.no_grad()
+    def critic_report(self, obs: dict) -> dict:
+        """Value + full categorical distribution for one observation.
+
+        Convenience wrapper over `CriticHead.report` that does the encoding, so
+        notebooks, scenario runners and the renderer all read the critic the
+        same way. Feed the result straight to
+        `env.render(critic_value=r["term_value"],
+                    critic_dist=(r["term_probs"], r["bin_values"]))`.
+        """
+        graph_np = np.asarray(obs["partial_graph"])
+        Nx = Ny  = int(round(graph_np.shape[0] ** 0.5))
+        _, global_emb = self.encoder.encode(
+            graph_np, Nx, Ny, obs.get("scalar_state")
+        )
+        return self.critic.report(global_emb)
+
     # ── Device helper ─────────────────────────────────────────────────────
 
     @property

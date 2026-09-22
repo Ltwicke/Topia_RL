@@ -750,6 +750,39 @@ class CriticHead(nn.Module):
         """(B, D) -> (B, n_streams) values in raw return space."""
         return self.value(*self(global_emb))
 
+    @torch.no_grad()
+    def report(self, global_emb: torch.Tensor, index: int = 0) -> dict:
+        """Everything a human wants to see about one state's value.
+
+        Returns numpy, detached, for row `index` of the batch:
+
+            term_value  float   expectation of the categorical head
+            term_probs  (n_bins,)  the full distribution
+            bin_values  (n_bins,)  the support those probabilities sit on
+            dense_value float
+            term_mode   float   value of the single most likely bin
+            term_std    float   spread of the distribution
+
+        The scalar expectation is what GAE and the renderer's V-hat use, but it
+        hides what the categorical head exists to express: the terminal return
+        is trimodal, so a confident 1.0 and an even split between 0 and 2 are
+        the same number and completely different beliefs. `term_std` and
+        `term_mode` are the cheap summary of which one it is.
+        """
+        term_logits, dense = self(global_emb)
+        p    = term_logits[index].softmax(-1)
+        bins = self.term_head.bin_values
+        mean = float((p * bins).sum())
+        var  = float((p * (bins - mean) ** 2).sum())
+        return {
+            "term_value":  mean,
+            "term_probs":  p.detach().cpu().numpy(),
+            "bin_values":  bins.detach().cpu().numpy(),
+            "dense_value": float(dense[index].squeeze(-1)),
+            "term_mode":   float(bins[int(p.argmax())]),
+            "term_std":    float(var ** 0.5),
+        }
+
     def stream_losses(
         self, term_logits: torch.Tensor, dense: torch.Tensor, targets: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:

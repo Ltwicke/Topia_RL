@@ -133,6 +133,7 @@ class ScenarioBank:
                     t0 = time.time()
                     try:
                         result = runner.play(policy, scenario, device)
+                        self._attach_critic_readout(result, scenario, policy)
                         if getattr(runner, "render_enabled", True):
                             runner.render(scenario, result,
                                           output_dir / f"{name}.png")
@@ -154,6 +155,38 @@ class ScenarioBank:
                 policy.train()
 
         return results
+
+
+    # ── Critic readout ───────────────────────────────────────────────────────
+
+    @staticmethod
+    def _attach_critic_readout(result, scenario, policy) -> None:
+        """Record the critic's value and its distribution on every scenario.
+
+        Done here rather than in ScenarioRunner.play because every scenario in
+        scenarios/configs overrides play() and builds its own RunnerResult, so a
+        base-class change reaches none of them. Doing it once at the bank level
+        means the value distribution shows up in every scenario PNG and
+        summary.csv row without touching thirteen config files.
+
+        V_TERM is worth logging per scenario for its own sake: these are
+        hand-built positions with a known correct answer, so a critic that
+        cannot separate them is visible long before the win rate moves.
+        """
+        try:
+            from scenarios.eval.runner import GameEnvAdapter
+            adapter = GameEnvAdapter(scenario)
+            adapter.reset()
+            rep = policy.critic_report(adapter.env._get_obs())
+        except Exception:
+            return          # never let a diagnostic break a scenario run
+
+        result.metrics.setdefault("v_term",     round(rep["term_value"], 6))
+        result.metrics.setdefault("v_dense",    round(rep["dense_value"], 6))
+        result.metrics.setdefault("v_term_std", round(rep["term_std"], 6))
+        result.metrics_extra.setdefault("critic_value", rep["term_value"])
+        result.metrics_extra.setdefault(
+            "critic_dist", (rep["term_probs"], rep["bin_values"]))
 
     # ── Per-update summary CSV ───────────────────────────────────────────────
 
