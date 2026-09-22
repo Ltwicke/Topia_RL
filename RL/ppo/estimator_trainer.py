@@ -62,7 +62,9 @@ class EstimatorPretrainer:
 
     Public attributes
     ─────────────────
-    optimizer : torch.optim.Adam   — Adam over encoder + hidden_estimator
+    optimizer : torch.optim.Adam   — Adam over hidden_estimator ONLY; the
+                                     encoder is excluded so that PPO is the
+                                     single objective moving the trunk (sc-48)
     scaler    : torch.cuda.amp.GradScaler
     """
 
@@ -76,11 +78,21 @@ class EstimatorPretrainer:
         self.cfg    = cfg
         self.device = device
 
-        # Encoder + estimator only — heads + critic are not on this loss path.
-        self._params = (
-            list(policy.encoder.parameters())
-            + list(policy.hidden_estimator.parameters())
-        )
+        # Estimator parameters ONLY — the encoder is deliberately excluded.
+        #
+        # Phase A runs before the PPO update, so when it also trained the
+        # encoder it moved the critic's input representation between the
+        # rollout (which recorded `values` and `log_probs` under the old
+        # weights) and the PPO update that regresses against them. The critic
+        # was chasing a representation that shifted under it every update from
+        # a loss it has no influence over, and the PPO ratio carried an
+        # uncontrolled off-policy shift at epoch 0.
+        #
+        # Trade-off: the estimator no longer doubles as an auxiliary
+        # representation-learning task for the trunk, so it must work on top of
+        # whatever PPO produces and may itself get worse. That is the right
+        # trade while the critic is the bottleneck (sc-48).
+        self._params = list(policy.hidden_estimator.parameters())
         self.optimizer = torch.optim.Adam(self._params, lr=cfg.estimator_lr)
         self.scaler    = torch.cuda.amp.GradScaler(
             enabled=(cfg.use_amp and device.type == "cuda")

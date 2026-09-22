@@ -1277,7 +1277,11 @@ class PolicyNetwork(nn.Module):
     # estimator_loss — auxiliary pretraining for the encoder
     # ══════════════════════════════════════════════════════════════════════
 
-    def estimator_loss(self, obs_snaps: List[dict]) -> torch.Tensor:
+    def estimator_loss(
+        self,
+        obs_snaps: List[dict],
+        detach_encoder: bool = True,
+    ) -> torch.Tensor:
         """Auxiliary cross-entropy loss for the HiddenTileEstimator.
 
         For each snapshot, the encoder produces node embeddings from the
@@ -1285,8 +1289,15 @@ class PolicyNetwork(nn.Module):
         groups; the per-sample loss is the sum of per-group cross-entropies
         (plus BCE on road / opp_ctrl bits), summed over hidden tiles, then
         divided by the number of hidden tiles (per-tile normalisation).
-        The minibatch loss is the mean of per-sample losses.  Gradients flow
-        back into the encoder and the estimator.
+        The minibatch loss is the mean of per-sample losses.
+
+        `detach_encoder=True` (the default since sc-48) runs the encoder under
+        no_grad, so gradients reach the estimator ONLY. Phase A runs before the
+        PPO update, and letting it move the trunk shifted the critic's input
+        representation between the rollout that recorded `values` / `log_probs`
+        and the update that regresses against them. Pass False to restore the
+        old behaviour of using this as an auxiliary representation-learning
+        task for the encoder.
 
         Per-tile normalisation rationale
         ────────────────────────────────
@@ -1319,7 +1330,11 @@ class PolicyNetwork(nn.Module):
         scalars     = [s['scalar_state'] for s in obs_snaps] \
                       if 'scalar_state' in obs_snaps[0] else None
 
-        node_embs, _ = self.encoder.encode_batch(graphs, board_sizes, scalars)
+        if detach_encoder:
+            with torch.no_grad():
+                node_embs, _ = self.encoder.encode_batch(graphs, board_sizes, scalars)
+        else:
+            node_embs, _ = self.encoder.encode_batch(graphs, board_sizes, scalars)
 
         losses: List[torch.Tensor] = []
         for b, snap in enumerate(obs_snaps):
