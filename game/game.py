@@ -306,6 +306,16 @@ class Game(object):
                 assert self._bridge_axis(tile) is not None, "invalid bridge placement"
                 tile.has_road = True
                 player.stars -= 9
+            else:
+                # Mountains (and anything else) can never carry a road. Adding
+                # the bridge branch replaced a blanket
+                # `assert tile.tile_type == field` with this if/elif and left no
+                # else, so a road on a mountain became a SILENT no-op: no road,
+                # no stars spent, no error. A mis-masked action then burns a
+                # decision with nothing to detect it by.
+                raise AssertionError(
+                    f"roads cannot be placed on {tile.tile_type} tiles"
+                )
             self.game_board._update_road_edge_weights()
 
         elif action["type"] == ActionTypes.Upgrade2Vet:

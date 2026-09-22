@@ -261,14 +261,25 @@ def test_place_road_mask_requires_4_stars(fresh_env):
     assert mask[7].sum() == 0.0
 
 
-def test_place_road_mask_field_only(fresh_env):
-    """Water tiles must not appear in the road mask."""
+def test_place_road_mask_field_or_bridgeable_water(fresh_env):
+    """Only field tiles, or water tiles that can carry a bridge, may be masked.
+
+    Water IS legal now: a bridge may be built on a water tile whose opposite
+    neighbours are both walkable, either N-S or W-E. `_bridge_axis` returns the
+    orientation, or None when neither axis works. Mountains are never legal.
+    """
     env = fresh_env
     env.game.players[0].stars = 50
     mask = env.get_action_mask()
     for tile_id in np.flatnonzero(mask[7]):
         tile = env.game.game_board.board[int(tile_id)]
-        assert tile.tile_type == TileType.field
+        assert tile.tile_type in (TileType.field, TileType.water), (
+            f"tile {tile_id} of type {tile.tile_type} is in the road mask"
+        )
+        if tile.tile_type == TileType.water:
+            assert env.game._bridge_axis(tile) is not None, (
+                f"water tile {tile_id} is masked but has no valid bridge axis"
+            )
 
 
 def test_place_road_mask_own_neutral_only(fresh_env):
