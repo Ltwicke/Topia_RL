@@ -290,8 +290,7 @@ def main() -> None:
         f"  Reward            : dense={cfg.dense_reward} "
         f"(beta={cfg.dense_beta}, scale={cfg.dense_scale})  "
         f"terminal={cfg.terminal_reward_mode} W={cfg.terminal_weight} "
-        f"τ={cfg.terminal_tau}  conquest={cfg.conquest_reward} "
-        f"(+{cfg.conquest_early_bonus} early)",
+        f"τ={cfg.terminal_tau}  conquest={cfg.conquest_reward} (flat)",
         f"  Self-play         : active seat P{cfg.active_player_id} vs frozen "
         f"(refresh every {cfg.opponent_refresh_interval} updates)",
         f"  LR                : {cfg.lr}",

@@ -21,7 +21,7 @@ class EnvWrapper(object):
                  endturn_voluntary_penalty=0.0,
                  terminal_reward_mode="constant_sum",
                  terminal_weight=1.0, terminal_tau=2000.0,
-                 conquest_reward=3.0, conquest_early_bonus=0.5):
+                 conquest_reward=3.0):
 
         self.Nx, self.Ny = board_config["board_size"][0], board_config["board_size"][1]
         self.n_tiles = self.Nx * self.Ny
@@ -60,11 +60,11 @@ class EnvWrapper(object):
         self.terminal_tau = terminal_tau
         # A conquest ends the game outright, whereas a score lead only indicates
         # a likely win, so it pays several times the best possible timeout.
+        # Flat: a conquest pays conquest_reward regardless of when it happens.
+        # The early-conquest bonus was removed (sc-48) so the terminal stream has
+        # a fixed, closed support of [0, conquest_reward], which is what the
+        # categorical value head bins over.
         self.conquest_reward = conquest_reward
-        # gamma=1 removes all time preference, which is what stops the agent
-        # rushing the turn limit. This adds it back for conquest ONLY, so an
-        # early kill beats a late one without rewarding a race to timeout.
-        self.conquest_early_bonus = conquest_early_bonus
         self.max_turns_per_game = max_turns_per_game
 
         self.last_action = None
@@ -359,11 +359,8 @@ class EnvWrapper(object):
         r_term = r_term_opp = 0.0
         if done and self.terminal_reward_mode != "none":
             if is_conquest:
-                winner_id = actor_id
-                early     = 1.0 + self.conquest_early_bonus * (
-                    1.0 - self.game.turn / float(self.max_turns_per_game)
-                )
-                r_term     = self.conquest_reward * early
+                winner_id  = actor_id
+                r_term     = self.conquest_reward
                 r_term_opp = 0.0
             else:                                  # timeout → higher score wins
                 delta = self._terminal_score(actor) - self._terminal_score(other)

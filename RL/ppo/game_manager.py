@@ -139,13 +139,11 @@ class TrainConfig:
     terminal_weight:      float = 1.0
     terminal_tau:         float = 1342.0
     # A conquest ends the game outright; a score lead only indicates a likely
-    # win. At 3.0 against a timeout maximum near 0.92, conquest is worth >4x
-    # any score win, which is the gradient that was missing.
+    # win. Paid flat, so the terminal stream has the fixed, closed support
+    # [0, conquest_reward] that the categorical value head bins over (sc-48).
+    # Changing this REQUIRES re-deriving the head's bin support and invalidates
+    # existing checkpoints; CriticHead asserts the two agree at construction.
     conquest_reward:      float = 2.0
-    # gamma=1 removes all time preference (deliberately — it is what stops the
-    # rush to the turn limit). This restores it for conquest ONLY, so an early
-    # kill beats a late one without paying anything for reaching a timeout.
-    conquest_early_bonus: float = 0.0
 
     # ── Frozen-opponent self-play ─────────────────────────────────────────────
     # The trained policy occupies seat `active_player_id`; the other seat is
@@ -290,7 +288,6 @@ def _make_env(cfg: TrainConfig) -> EnvWrapper:
         terminal_weight=cfg.terminal_weight,
         terminal_tau=cfg.terminal_tau,
         conquest_reward=cfg.conquest_reward,
-        conquest_early_bonus=cfg.conquest_early_bonus,
     )
 
 

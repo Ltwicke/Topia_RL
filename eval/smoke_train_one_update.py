@@ -137,7 +137,7 @@ def main() -> None:
             # the terminal buffer sums to that per game, give or take the
             # undelivered shares.
             term_sum = float(rew_t.sum())
-            max_per_game = cfg.conquest_reward * (1.0 + cfg.conquest_early_bonus)
+            max_per_game = cfg.conquest_reward
             assert -1e-4 <= term_sum <= n_games * max_per_game + 1e-4, (
                 f"terminal stream sums to {term_sum:.4f}, outside [0, "
                 f"{n_games * max_per_game:.4f}] for {n_games} games"

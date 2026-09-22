@@ -91,8 +91,7 @@ def random_valid_action(env: EnvWrapper) -> list[int]:
 def play_one_game(seed: int, mode: str, dense: bool,
                   terminal_weight: float = 1.0,
                   terminal_tau: float = 2000.0,
-                  conquest_reward: float = 3.0,
-                  conquest_early_bonus: float = 0.5) -> dict:
+                  conquest_reward: float = 3.0) -> dict:
     random.seed(seed)
     np.random.seed(seed)
     board_config = {
@@ -109,7 +108,6 @@ def play_one_game(seed: int, mode: str, dense: bool,
         terminal_weight=terminal_weight,
         terminal_tau=terminal_tau,
         conquest_reward=conquest_reward,
-        conquest_early_bonus=conquest_early_bonus,
     )
     env.reset()
 
@@ -145,8 +143,10 @@ def play_one_game(seed: int, mode: str, dense: bool,
 
 def main() -> None:
     n_games = 24
-    W, CONQ, EARLY = 1.0, 3.0, 0.5
-    CONQ_MAX = CONQ * (1.0 + EARLY)
+    # Conquest pays flat since sc-48 removed conquest_early_bonus, so the
+    # terminal support is exactly [0, CONQ] and CONQ_MAX == CONQ.
+    W, CONQ = 1.0, 3.0
+    CONQ_MAX = CONQ
 
     # ── constant_sum: seat attribution, sum, non-negativity ───────────────
     # The attribution half is the sc-41 regression: _get_done_and_rewards used
@@ -190,8 +190,7 @@ def main() -> None:
 
         if r["is_conquest"]:
             seen_conquest += 1
-            # Flat bonus plus the early-win multiplier, so it lands in
-            # [CONQ, CONQ*(1+EARLY)] and the loser gets nothing.
+            # Flat: a conquest always pays exactly CONQ, loser gets nothing.
             assert CONQ - 1e-6 <= r["terminal_r"] <= CONQ_MAX + 1e-6, (
                 f"[seed {seed}] conquest paid {r['terminal_r']:.4f}, expected "
                 f"[{CONQ}, {CONQ_MAX}]"
