@@ -73,6 +73,7 @@ from game.enums import ActionTypes, UnitType
 
 from RL.models.main_modules        import (
     GraphTransformerEncoder, CriticHead, HiddenTileEstimator,
+    V_TERM, V_DENSE, N_VALUE_STREAMS,
 )
 from RL.models.movement_module     import MovementTargetHead, MovementTargetResult
 from RL.models.attack_module       import AttackTargetHead, AttackTargetResult
@@ -83,7 +84,7 @@ from RL.models.version2_modules    import (
     UpgradeCityHead, UpgradeCityChoiceResult,
     PlaceRoadHead,   PlaceRoadResult,
 )
-from RL.models.utility_modules     import _mlp, _shannon_entropy
+from RL.models.utility_modules     import _mlp, _shannon_entropy, init_weights
 
 N_ACTION_TYPES: int = len(ActionTypes)
 N_UNIT_TYPES:   int = len(UnitType)
@@ -432,15 +433,32 @@ class PolicyNetwork(nn.Module):
 
         # ── Encoder + Critic ───────────────────────────────────────────────
         self.encoder = GraphTransformerEncoder(
-            hidden_dim = D,
-            n_heads    = enc_heads,
-            depth      = enc_depth,
-            scalar_dim = scalar_dim,
+            hidden_dim  = D,
+            n_heads     = enc_heads,
+            depth       = enc_depth,
+            scalar_dim  = scalar_dim,
+            # The score-margin feature is scaled by the SAME tau the terminal
+            # reward uses, which is what makes V_TERM nearly linear in it.
+            score_tau   = getattr(cfg, "terminal_tau", 1342.0),
+            scalar_mode = getattr(cfg, "scalar_mode", "derived"),
+            fusion      = getattr(cfg, "scalar_fusion", "concat"),
         )
+        # The V_TERM categorical support is derived from the reward config, so
+        # it cannot drift out of sync with what the env can actually pay. With
+        # conquest_early_bonus removed (sc-48) a conquest pays conquest_reward
+        # flat, so [0, conquest_reward] is the exact closed support.
         self.critic = CriticHead(
-            hidden_dim = D,
-            mlp_hidden = mlp_hid,
-            mlp_depth  = mlp_dep,
+            hidden_dim  = D,
+            mlp_hidden  = mlp_hid,
+            mlp_depth   = mlp_dep,
+            v_min       = 0.0,
+            v_max       = max(
+                getattr(cfg, "conquest_reward", 2.0),
+                getattr(cfg, "terminal_weight", 1.0),
+            ),
+            n_bins      = getattr(cfg, "value_n_bins", 51),
+            sigma_ratio = getattr(cfg, "value_sigma_ratio", 0.75),
+            out_gain    = getattr(cfg, "value_out_gain", 0.01),
         )
 
         # ── Action type head ───────────────────────────────────────────────
@@ -566,6 +584,36 @@ class PolicyNetwork(nn.Module):
             mlp_hidden = est_hid,
             mlp_depth  = est_dep,
         )
+
+        # ── Weight initialisation (sc-48) ──────────────────────────────────
+        # Must run last, once every submodule exists. Before sc-48 nothing in
+        # this repo initialised weights at all - every layer used PyTorch's
+        # legacy kaiming_uniform_(a=sqrt(5)) default, including every output
+        # layer. `init_weights` walks the tree (it cannot be `.apply()`, see the
+        # note in utility_modules.py) and honours the `_out_gain` tags that
+        # `_mlp` puts on output layers. Gain 5/3 matches the Tanh MLPs that make
+        # up most of the heads; resuming from a checkpoint overwrites all of
+        # this via load_state_dict, so restarts are unaffected.
+        init_weights(self, gain=nn.init.calculate_gain("tanh"))
+
+    # ── Value inspection ──────────────────────────────────────────────────
+
+    @torch.no_grad()
+    def critic_report(self, obs: dict) -> dict:
+        """Value + full categorical distribution for one observation.
+
+        Convenience wrapper over `CriticHead.report` that does the encoding, so
+        notebooks, scenario runners and the renderer all read the critic the
+        same way. Feed the result straight to
+        `env.render(critic_value=r["term_value"],
+                    critic_dist=(r["term_probs"], r["bin_values"]))`.
+        """
+        graph_np = np.asarray(obs["partial_graph"])
+        Nx = Ny  = int(round(graph_np.shape[0] ** 0.5))
+        _, global_emb = self.encoder.encode(
+            graph_np, Nx, Ny, obs.get("scalar_state")
+        )
+        return self.critic.report(global_emb)
 
     # ── Device helper ─────────────────────────────────────────────────────
 
@@ -1075,7 +1123,10 @@ class PolicyNetwork(nn.Module):
         # node_emb   : (N_tiles, D)
         # global_emb : (1, D)  — already includes scalar fusion when given
 
-        value = self.critic(global_emb)   # ()
+        # (N_VALUE_STREAMS,) in RAW return space — index with V_TERM / V_DENSE.
+        # The head is always batched now, so take row 0 here rather than having
+        # the head squeeze (which made B == 1 return a different shape).
+        value = self.critic.value_from_emb(global_emb)[0]
 
         # ── Run all decision heads ──────────────────────────────────────────
         heads = self._run_heads(
@@ -1184,7 +1235,8 @@ class PolicyNetwork(nn.Module):
                       if 'scalar_state' in obs_snaps[0] else None
         _, global_embs = self.encoder.encode_batch(graphs, board_sizes, scalars)
         # global_embs : (B, D)
-        return self.critic(global_embs)   # (B,)
+        # (B, N_VALUE_STREAMS) in RAW return space, always 2-D.
+        return self.critic.value_from_emb(global_embs)
 
     # ══════════════════════════════════════════════════════════════════════
     # evaluate_actions — PPO update re-scoring
@@ -1195,9 +1247,14 @@ class PolicyNetwork(nn.Module):
         obs_snaps: List[dict],
         actions:   List[list],
         masks:     List[list],
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Re-score a minibatch of stored transitions under current network weights.
+
+        Returns `(log_probs, entropies, term_logits, dense_val)`. Since sc-48
+        the critic returns the RAW head outputs rather than values, because the
+        V_TERM loss is a cross-entropy over bins and needs the logits; call
+        `policy.critic.value(term_logits, dense_val)` for the scalar values.
 
         Batching strategy
         ─────────────────
@@ -1236,7 +1293,9 @@ class PolicyNetwork(nn.Module):
         # node_embs   : list of B tensors, each (N_b, D)
         # global_embs : (B, D)
 
-        values = self.critic(global_embs)   # (B,)
+        # Raw head outputs, NOT values: the PPO value loss needs the term
+        # logits to compute cross-entropy against the binned return targets.
+        term_logits, dense_val = self.critic(global_embs)
 
         # ── 2. Per-sample decision heads + scoring ───────────────────────────
         log_probs_list: List[torch.Tensor] = []
@@ -1270,13 +1329,17 @@ class PolicyNetwork(nn.Module):
         log_probs = torch.stack(log_probs_list)   # (B,)
         entropies = torch.stack(entropies_list)   # (B,)
 
-        return log_probs, entropies, values
+        return log_probs, entropies, term_logits, dense_val
 
     # ══════════════════════════════════════════════════════════════════════
     # estimator_loss — auxiliary pretraining for the encoder
     # ══════════════════════════════════════════════════════════════════════
 
-    def estimator_loss(self, obs_snaps: List[dict]) -> torch.Tensor:
+    def estimator_loss(
+        self,
+        obs_snaps: List[dict],
+        detach_encoder: bool = True,
+    ) -> torch.Tensor:
         """Auxiliary cross-entropy loss for the HiddenTileEstimator.
 
         For each snapshot, the encoder produces node embeddings from the
@@ -1284,8 +1347,15 @@ class PolicyNetwork(nn.Module):
         groups; the per-sample loss is the sum of per-group cross-entropies
         (plus BCE on road / opp_ctrl bits), summed over hidden tiles, then
         divided by the number of hidden tiles (per-tile normalisation).
-        The minibatch loss is the mean of per-sample losses.  Gradients flow
-        back into the encoder and the estimator.
+        The minibatch loss is the mean of per-sample losses.
+
+        `detach_encoder=True` (the default since sc-48) runs the encoder under
+        no_grad, so gradients reach the estimator ONLY. Phase A runs before the
+        PPO update, and letting it move the trunk shifted the critic's input
+        representation between the rollout that recorded `values` / `log_probs`
+        and the update that regresses against them. Pass False to restore the
+        old behaviour of using this as an auxiliary representation-learning
+        task for the encoder.
 
         Per-tile normalisation rationale
         ────────────────────────────────
@@ -1318,7 +1388,11 @@ class PolicyNetwork(nn.Module):
         scalars     = [s['scalar_state'] for s in obs_snaps] \
                       if 'scalar_state' in obs_snaps[0] else None
 
-        node_embs, _ = self.encoder.encode_batch(graphs, board_sizes, scalars)
+        if detach_encoder:
+            with torch.no_grad():
+                node_embs, _ = self.encoder.encode_batch(graphs, board_sizes, scalars)
+        else:
+            node_embs, _ = self.encoder.encode_batch(graphs, board_sizes, scalars)
 
         losses: List[torch.Tensor] = []
         for b, snap in enumerate(obs_snaps):

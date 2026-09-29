@@ -1,0 +1,51 @@
+==============================================================================
+sc-48 critic init probes - 192 states, fresh network, no training
+==============================================================================
+
+collecting states ...
+  192 states, board 11x11
+
+running probes ...
+
+-- P1  value distribution (V_TERM) ------------------------------------------
+  mean -0.3403   std 0.0812   range [-0.6885, -0.2639]   ptp 0.4246
+  unique values 161/192  (0.839)     gap ratio 159.7
+
+-- P2  minimal perturbations ------------------------------------------------
+  graph-only : dead 0.229   mean dV 0.0009   max dV 0.0086   jump 7.0
+  scalar-only: mean dV 0.0613   max dV 0.2308
+  reference std across unrelated states: 0.0812
+
+-- P3  activation saturation (|pre-act| > 4) --------------------------------
+  encoder.input_proj     absmean     0.080   absmax      0.633   sat 0.000
+  encoder.scalar_proj    absmean   127.438   absmax    454.292   sat 0.995  <-- SATURATED
+  critic[0]              absmean    67.530   absmax    287.004   sat 0.950  <-- SATURATED
+  critic[2]              absmean     0.435   absmax      1.903   sat 0.000
+  critic[5]              absmean     0.286   absmax      0.688   sat 0.000
+
+-- P3b branch balance at the fusion point -----------------------------------
+  board 8.183   scalar 1095.103   ratio 133.8x   board share 0.0074
+
+-- P5  readout dispersion ---------------------------------------------------
+  dispersion 0.1351   mean ch std 17.1858   mean |ch| 127.1947   dead ch 0
+
+-- P8  gradient flow --------------------------------------------------------
+  encoder 2.682e+01   critic 7.695e+01   ratio 3.486e-01   params w/o grad 0
+
+==============================================================================
+check                                    value         threshold      result
+------------------------------------------------------------------------------
+P1  unique value fraction               0.8385          > 0.9500      FAIL
+P1  gap ratio (max/median)            159.6637         < 20.0000      FAIL
+P1  std across states                   0.0812          > 0.0001      PASS
+P2  graph dead fraction                 0.2292          < 0.0200      FAIL
+P2  graph jump ratio                    7.0347          < 8.0000      PASS
+P2  graph L_rel                         0.0116          < 0.2500      PASS
+P2b graph/scalar sensitivity            0.0154          > 0.2500      FAIL
+P3  max saturated fraction              0.9947          < 0.0100      FAIL
+P3b scalar/board norm ratio           133.8186          < 5.0000      FAIL
+P5  readout dispersion                  0.1351          > 0.5000      FAIL
+P8  encoder/head grad ratio             0.3486          > 0.0010      PASS
+------------------------------------------------------------------------------
+4/11 passed
+==============================================================================

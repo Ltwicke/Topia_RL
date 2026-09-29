@@ -17,30 +17,53 @@ from game.components.units import _UNIT_COSTS
 class EnvWrapper(object):
 
     def __init__(self, board_config, player_tribes, max_turns_per_game=30,
-                 dense_reward=False, terminal_reward_mode="zero_sum",
-                 terminal_weight=1.0, terminal_tau=666.0, conquest_reward=2.0):
+                 dense_reward=True, dense_scale=0.02,
+                 endturn_voluntary_penalty=0.0,
+                 terminal_reward_mode="constant_sum",
+                 terminal_weight=1.0, terminal_tau=2000.0,
+                 conquest_reward=3.0):
 
         self.Nx, self.Ny = board_config["board_size"][0], board_config["board_size"][1]
         self.n_tiles = self.Nx * self.Ny
         self.n_players = len(player_tribes)
 
         self.game = Game(board_config, player_tribes)
+
+        # Dense rewards are a human-play bootstrap and are kept on their OWN
+        # reward stream (see info["r_dense"]) so the critic can learn them in a
+        # separate head and they can be switched off mid-training without
+        # invalidating the terminal value function.
         self.dense_reward = dense_reward
-        # terminal_reward_mode: "none" | "zero_sum" | "winner_only"
-        #   none        — no terminal reward (pure dense)
-        #   zero_sum    — winner +z, loser -z
-        #   winner_only — winner +z, loser 0 (non-zero-sum ablation)
+        # Scales the raw event table down to terminal magnitude: an actively
+        # played episode should total roughly 1-2, i.e. comparable to a timeout
+        # payout and well below the conquest bonus. Dense guides; it must never
+        # outrank actually winning.
+        self.dense_scale = dense_scale
+        # Penalty for ending the turn while other action types were still
+        # available. Forced end-of-turns are never penalised. 0.0 = disabled;
+        # this is the dial for pass-pressure if the dense rewards alone do not
+        # stop the agent short-cutting to the turn limit.
+        self.endturn_voluntary_penalty = endturn_voluntary_penalty
+
+        # terminal_reward_mode: "none" | "constant_sum"
+        #   none         — no terminal reward (dense only)
+        #   constant_sum — each seat receives sigma(its own margin / tau), so
+        #                  the two shares sum to terminal_weight. The loser
+        #                  tends to 0 rather than going negative, and the value
+        #                  head reads directly as a win probability.
         self.terminal_reward_mode = terminal_reward_mode
-        # Timeout margin is squashed to ±terminal_weight; terminal_tau sets the
-        # score difference at which tanh reaches ~0.76 of that, so it must be
-        # calibrated to the empirical |Δ _terminal_score| distribution
-        # (eval/calibrate_terminal_tau.py). The 666.0 default is a placeholder,
-        # not a calibrated value.
         self.terminal_weight = terminal_weight
+        # Score margin at which a seat is paid ~0.73 of terminal_weight. Must be
+        # large enough that a NARROW win does not already saturate the payout —
+        # that was what let the agent settle for scraping a turn-30 score lead.
+        # Measure it with eval/calibrate_terminal_tau.py rather than guessing.
         self.terminal_tau = terminal_tau
-        # Flat bonus for an outright win. Deliberately above terminal_weight: a
-        # conquest can happen early while both scores are low, where a
-        # margin-based reward would badly undervalue it.
+        # A conquest ends the game outright, whereas a score lead only indicates
+        # a likely win, so it pays several times the best possible timeout.
+        # Flat: a conquest pays conquest_reward regardless of when it happens.
+        # The early-conquest bonus was removed (sc-48) so the terminal stream has
+        # a fixed, closed support of [0, conquest_reward], which is what the
+        # categorical value head bins over.
         self.conquest_reward = conquest_reward
         self.max_turns_per_game = max_turns_per_game
 
@@ -58,15 +81,28 @@ class EnvWrapper(object):
         return self._get_obs()
 
 
-    def step(self, action):
+    def step(self, action, n_valid_action_types=None):
         """
         Return the tuple for RL training in the 'gymnasium' setting.
 
-        The opponent's terminal reward is exposed via `info["reward_opp"]` so
-        the rollout worker can back-fill it onto the opponent's last decision
-        step (and cut that trajectory). `info["winner_id"]` is the terminal
-        winner (0/1 on conquest, score-leader on timeout, None on a tie);
-        `info["is_conquest"]` distinguishes conquest from a turn-limit timeout.
+        The returned `reward` is the COMBINED dense + terminal reward, kept for
+        renderer/eval callers. Training must use the split streams in `info`,
+        because the critic learns them in separate heads:
+
+            info["r_dense"]    — dense shaping for the acting player
+            info["r_term"]     — terminal share for the acting player
+            info["r_term_opp"] — terminal share for the other player; the
+                                 rollout worker delivers it onto that player's
+                                 own last decision step and cuts its trajectory
+
+        `info["winner_id"]` is the terminal winner (conqueror on conquest,
+        score-leader on timeout, None on a tie); `info["is_conquest"]`
+        distinguishes conquest from a turn-limit timeout.
+
+        `n_valid_action_types` is mask[0].sum() at the decision point, i.e. how
+        many action types were legal. Pass it to enable the voluntary-EndTurn
+        penalty; without it a forced and a chosen EndTurn are indistinguishable
+        here and neither is penalised.
         """
         translated_action = self._translate_action(action)
         self._snapshot_overlay_ctx(translated_action) # only for rendering
@@ -84,17 +120,19 @@ class EnvWrapper(object):
 
         obs = self._get_obs()
 
-        done, reward, reward_opp, winner_id, is_conquest = \
-            self._get_done_and_rewards(message, actor_id)
+        done, r_dense, r_term, r_term_opp, winner_id, is_conquest = \
+            self._get_done_and_rewards(message, actor_id, n_valid_action_types)
 
         info = {
             "log":         message,
-            "reward_opp":  reward_opp,
+            "r_dense":     r_dense,
+            "r_term":      r_term,
+            "r_term_opp":  r_term_opp,
             "winner_id":   winner_id,
             "is_conquest": is_conquest,
         }
 
-        return obs, reward, done, info
+        return obs, r_dense + r_term, done, info
 
 
     def _snapshot_overlay_ctx(self, translated):
@@ -210,9 +248,14 @@ class EnvWrapper(object):
         return full
         
 
-    def _get_done_and_rewards(self, message, actor_id):
+    def _get_done_and_rewards(self, message, actor_id, n_valid_action_types=None):
         """
         Reward routing controlled by (dense_reward, terminal_reward_mode).
+
+        Dense and terminal rewards are returned SEPARATELY and never summed
+        here: the critic learns one head per stream, which is what lets dense
+        shaping be switched off mid-training without invalidating the terminal
+        value function.
 
         Everything here is keyed off `actor_id` — the seat that produced
         `message`, captured before `game.apply_action` swapped `player_go_id`.
@@ -220,12 +263,13 @@ class EnvWrapper(object):
         timeout (which can only fire on player 1's EndTurn) the post-action seat
         is always player 0, i.e. the player who did NOT act.
 
-        Returns: (done, r_actor, r_other, winner_id, is_conquest).
-            r_actor      — reward for the player who just acted (dense + any
-                           terminal share that lands on this player).
-            r_other      — terminal reward for the other player; the rollout
-                           worker back-fills it onto that player's last
-                           decision step. 0.0 for the loser in winner_only mode.
+        Returns: (done, r_dense, r_term, r_term_opp, winner_id, is_conquest).
+            r_dense      — dense shaping for the acting player (0 unless
+                           dense_reward); already scaled by dense_scale.
+            r_term       — terminal share for the acting player.
+            r_term_opp   — terminal share for the other player; the rollout
+                           worker delivers it onto that player's own last
+                           decision step.
             winner_id    — terminal winner: conqueror on conquest, higher-score
                            seat on timeout, None on a tie or non-terminal step.
             is_conquest  — True iff the game ended by capturing the last city.
@@ -234,7 +278,7 @@ class EnvWrapper(object):
         other_id = (actor_id + 1) % 2
         actor = self.game.players[actor_id]
         other = self.game.players[other_id]
-        r_actor, r_other = 0.0, 0.0
+        r_dense = 0.0
 
         is_conquest = False
         if len(other.cities_under_control) == 0:
@@ -245,85 +289,96 @@ class EnvWrapper(object):
 
         if self.dense_reward:
             if message["action_type"] == ActionTypes.MoveUnit:
-                r_actor += 0.3 * message["tiles_uncovered"]
+                r_dense += 0.3 * message["tiles_uncovered"]
 
             elif message["action_type"] == ActionTypes.Attack:
                 if message["killed_unit"] == 1:
-                    r_actor += 1.0
+                    r_dense += 1.0
 
             elif message["action_type"] == ActionTypes.CreateUnit:
                 if message["unit_type"] == UnitType.Rider:
-                    r_actor += 0.5
+                    r_dense += 0.5
                 elif message["unit_type"] == UnitType.Sword:
-                    r_actor += 1.0
+                    r_dense += 1.0
                 elif message["unit_type"] == UnitType.Knight:
-                    r_actor += 2.5
+                    r_dense += 2.5
                 elif message["unit_type"] == UnitType.Catapult:
-                    r_actor += 1.0
+                    r_dense += 1.0
                 elif message["unit_type"] == UnitType.Defender:
-                    r_actor -= 0.3
+                    r_dense -= 0.3
 
             elif message["action_type"] == ActionTypes.HealUnit:
                 if message["heal_amount"] == 4.0:
-                    r_actor += 0.5
+                    r_dense += 0.5
                 else:
-                    r_actor -= 0.5
+                    r_dense -= 0.5
             
             elif message["action_type"] == ActionTypes.UpgradeCity:
                 if message["new_lvl"] == CityType.lvl2_workshop:
-                    r_actor += 1.0
+                    r_dense += 1.0
                 elif message["new_lvl"] == CityType.lvl2_explorer:
-                    r_actor += 1.0
+                    r_dense += 1.0
                 elif message["new_lvl"] == CityType.lvl3_resources:
-                    r_actor += 1.0
+                    r_dense += 1.0
                 elif message["new_lvl"] == CityType.lvl3_wall:
-                    r_actor += 1.0
+                    r_dense += 1.0
                 else:
-                    r_actor += _CITY_UPGRADE_COST[message["new_lvl"]] / 10.0
+                    r_dense += _CITY_UPGRADE_COST[message["new_lvl"]] / 10.0
                      
             elif message["action_type"] == ActionTypes.Upgrade2Vet:
-                r_actor += message["hp_diff"] * 0.1
+                r_dense += message["hp_diff"] * 0.1
 
             elif message["action_type"] == ActionTypes.PlaceRoad:
-                r_actor -= 0.3
+                r_dense -= 0.0
 
             elif message["action_type"] == ActionTypes.CaptureCity:
-                r_actor += 5.0
+                r_dense += 5.0
+
             elif message["action_type"] == ActionTypes.EndTurn:
-                r_actor -= 2.0
+                # Only a VOLUNTARY pass is penalised. The old blanket -2.0 also
+                # hit the ~30 forced end-of-turns per episode, which the agent
+                # cannot avoid, and at -60 per episode it swamped every other
+                # signal. Disabled by default.
+                if (n_valid_action_types is not None
+                        and n_valid_action_types > 1
+                        and self.endturn_voluntary_penalty):
+                    r_dense -= self.endturn_voluntary_penalty
+
+            r_dense *= self.dense_scale
 
         ################################
         ##### End of dense rewards #####
         ################################
 
-        # ── Terminal reward: bounded and exactly antisymmetric ──────────────
-        # `z` is always expressed from the ACTOR's perspective, so the actor
-        # gets +z and the other seat -z regardless of who won.
+        # ── Terminal reward ─────────────────────────────────────────────────
+        # Timeout pays each seat sigma(its own margin / tau), so the two shares
+        # sum to terminal_weight and the loser tends to 0 instead of going
+        # negative. Conquest pays a flat bonus several times larger, because it
+        # ends the game outright rather than merely indicating a likely win.
         winner_id = None
+        r_term = r_term_opp = 0.0
         if done and self.terminal_reward_mode != "none":
             if is_conquest:
-                winner_id = actor_id
-                z = self.conquest_reward
+                winner_id  = actor_id
+                r_term     = self.conquest_reward
+                r_term_opp = 0.0
             else:                                  # timeout → higher score wins
                 delta = self._terminal_score(actor) - self._terminal_score(other)
-                z = self.terminal_weight * float(np.tanh(delta / self.terminal_tau))
+                # sigma(x) == (1 + tanh(x/2)) / 2, written this way because tanh
+                # will not overflow on a large negative margin the way
+                # 1/(1+exp(-x)) does.
+                p = 0.5 * (1.0 + float(np.tanh(delta / (2.0 * self.terminal_tau))))
+                r_term     = self.terminal_weight * p
+                r_term_opp = self.terminal_weight - r_term
                 if   delta > 0.0: winner_id = actor_id
                 elif delta < 0.0: winner_id = other_id
-                # exact tie → winner_id stays None and z is 0.0
-
-            if self.terminal_reward_mode == "zero_sum":
-                r_actor += z
-                r_other -= z
-            elif z > 0.0:                          # winner_only: pay the winner
-                r_actor += z
-            else:
-                r_other += -z
+                # exact tie → winner_id stays None and both shares are 0.5·W
 
         # `self.winner` keeps conquest-only semantics for existing callers
         # (renderer, eval); the score-leader on timeout is reported only via
         # the returned winner_id.
         self.winner = actor_id if is_conquest else None
-        return (done, r_actor, r_other, winner_id, is_conquest)
+        return (done, r_dense, r_term, r_term_opp, winner_id, is_conquest)
 
     def _terminal_score(self, player):
         """Per-player terminal score: official × uncovered-ratio + stars/spt bonuses."""
@@ -579,6 +634,7 @@ class EnvWrapper(object):
         joint_probs=None,
         traj_actions=None,
         critic_value=None,
+        critic_dist=None,
         # — hidden-tile estimator overlay (optional) —
         show_hidden=False,
         hidden_estimate=None,
@@ -589,6 +645,11 @@ class EnvWrapper(object):
         kwargs are no-ops when omitted; callers that previously used the
         non-keyword `render(figsize, shared_fog, ...)` signature must move
         to keyword-only — `figsize` etc. are now keyword-only by design.
+
+        `critic_value` is the scalar expectation of the terminal head;
+        `critic_dist` is `(probs, bin_values)` for the full categorical
+        distribution behind it (sc-48), which the info panel plots. Build both
+        in one call with `policy.critic_report(global_emb)`.
         """
         from env.renderer import BoardRenderer
 
@@ -609,7 +670,10 @@ class EnvWrapper(object):
         if not (joint_probs is not None and traj_actions is not None):
             atype_probs = None  # info panel suppresses bar chart when no probs given
 
-        fig, axes = renderer.build_figure(figsize=figsize, dual=show_hidden)
+        # The critic distribution gets its own subplot when one is supplied.
+        fig, axes = renderer.build_figure(
+            figsize=figsize, dual=show_hidden, with_dist=critic_dist is not None,
+        )
 
         if not show_hidden:
             renderer.draw(
@@ -620,6 +684,8 @@ class EnvWrapper(object):
                 atype_probs=atype_probs,
                 show_action_overlay=show_action_overlay,
                 critic_value=critic_value,
+                critic_dist=critic_dist,
+                ax_dist=axes.get('dist'),
                 info_horizontal=False,
             )
         else:
@@ -634,6 +700,8 @@ class EnvWrapper(object):
                 prob_overlay=prob_overlay,
                 atype_probs=atype_probs,
                 critic_value=critic_value,
+                critic_dist=critic_dist,
+                ax_dist=axes.get('dist'),
                 show_action_overlay=show_action_overlay,
             )
 

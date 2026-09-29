@@ -39,7 +39,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 from env.wrapper import EnvWrapper
 from game.enums import BoardType, Tribes
 
-from smoke_zero_sum_rewards import random_valid_action
+from smoke_terminal_rewards import random_valid_action
 
 
 def collect_margins(n_games: int, max_turns: int) -> tuple[list[float], int]:
@@ -58,7 +58,7 @@ def collect_margins(n_games: int, max_turns: int) -> tuple[list[float], int]:
             [Tribes.Omaji, Tribes.Imperius],
             max_turns_per_game=max_turns,
             dense_reward=False,
-            terminal_reward_mode="zero_sum",
+            terminal_reward_mode="constant_sum",
         )
         env.reset()
 
