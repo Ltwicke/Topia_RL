@@ -66,13 +66,13 @@ class TrainConfig:
     """
 
     # ── Checkpoint / resume ───────────────────────────────────────────────────
-    pretrained_ckpt: str = r""   # path to .pt; "" = train from scratch
-    start_update:    int = 0    # first update index (set > 0 when resuming)
+    pretrained_ckpt: str = r"C:\Users\laure\1own_projects\1polytopia_score\RL\checkpoints_training\policy_update_00204.pt "   # path to .pt; "" = train from scratch
+    start_update:    int = 205   # first update index (set > 0 when resuming)
 
     # ── Encoder ───────────────────────────────────────────────────────────────
     encoder_hidden_dim: int = 48
     encoder_n_heads:    int = 4
-    encoder_depth:      int = 2
+    encoder_depth:      int = 3
 
     # ── Selection heads ───────────────────────────────────────────────────────
     sel_n_heads:  int = 4
@@ -90,8 +90,8 @@ class TrainConfig:
     context_bias: int = 5
 
     # ── Parallelism ───────────────────────────────────────────────────────────
-    n_processes:        int = 4 #16
-    n_envs_per_process: int = 1 #2
+    n_processes:        int = 16
+    n_envs_per_process: int = 2
 
     # ── Environment ───────────────────────────────────────────────────────────
     # board_type is randomised per env from board_type_pool — Dummy is dropped.
@@ -109,7 +109,7 @@ class TrainConfig:
         default_factory=lambda: [Tribes.Omaji, Tribes.Imperius]
     )
     max_turns_per_game: int   = 30
-    board_size_range:   tuple = (11, 16)
+    board_size_range:   tuple = (11, 14)
 
     # ── Reward shaping ────────────────────────────────────────────────────────
     # Two independent reward streams, each with its own critic head:
@@ -119,11 +119,11 @@ class TrainConfig:
     # switch shaping off mid-training: V_TERM is regressed solely on terminal
     # returns, so it stays valid and no value relearning is needed. Resume from
     # the checkpoint after flipping it.
-    dense_beta:           float = 1.0
+    dense_beta:           float = 0
     dense_reward:         bool  = True
     # Scales the raw event table so an actively played episode totals ~1-2,
     # comparable to a timeout payout and well below the conquest bonus.
-    dense_scale:          float = 0.04
+    dense_scale:          float = 0.0367
     # Penalty for passing while other action types were legal. Forced
     # end-of-turns are never penalised. 0.0 = off; the dial for pass-pressure.
     endturn_voluntary_penalty: float = 1.0
@@ -137,7 +137,7 @@ class TrainConfig:
     # At tau=2000 that same margin pays 0.679 and improving it keeps paying.
     # Still inferred rather than measured — eval/calibrate_terminal_tau.py.
     terminal_weight:      float = 1.0
-    terminal_tau:         float = 1342.0
+    terminal_tau:         float = 2000.0
     # A conquest ends the game outright; a score lead only indicates a likely
     # win. Paid flat, so the terminal stream has the fixed, closed support
     # [0, conquest_reward] that the categorical value head bins over (sc-48).
@@ -151,12 +151,12 @@ class TrainConfig:
     # updates. Only the active seat's transitions train PPO.
     self_play_frozen_opponent: bool = True
     active_player_id:          int  = 0
-    opponent_refresh_interval: int  = 1
+    opponent_refresh_interval: int  = 10
 
     # ── Estimator pretraining (Phase A of each update) ────────────────────────
     estimator_lr:             float = 3e-4
-    estimator_n_epochs:       int   = 3
-    estimator_minibatch_size: int   = 32 #512
+    estimator_n_epochs:       int   = 2
+    estimator_minibatch_size: int   = 512
     estimator_train_fraction: float = 1.0    
 
     # ── Scenario eval (Phase C — runs after PPO update) ───────────────────────
@@ -181,11 +181,11 @@ class TrainConfig:
     )
 
     # ── Rollout ───────────────────────────────────────────────────────────────
-    n_steps: int = 128 # 512
+    n_steps: int = 1024 # 512
 
     # ── PPO epochs & batching ─────────────────────────────────────────────────
-    n_epochs:       int   = 4 #2
-    n_minibatches:  int   = 4 #64  # determines cfg.minibatch_size
+    n_epochs:       int   = 4
+    n_minibatches:  int   = 128  # determines cfg.minibatch_size
     # Fraction ∈ (0,1]: what share of the assembled minibatches to train on
     # per epoch.  Reduces PPO update time without wasting simulation data.
     train_fraction: float = 1.0
@@ -214,7 +214,7 @@ class TrainConfig:
     # i.e. for spamming EndTurn once ahead on score. Episodes are hard-bounded
     # by max_turns_per_game, so the undiscounted return is well defined.
     gamma:                    float = 1.0
-    gae_lambda:               float = 0.95   # single λ for all trajectories
+    gae_lambda:               float = 0.96   # single λ for all trajectories
     recompute_gae_each_epoch: bool  = True   # refresh values + GAE before each
                                               # PPO epoch (uses compute_values_batch)
 
