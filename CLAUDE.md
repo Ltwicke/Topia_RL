@@ -46,6 +46,7 @@ This repository contains two interconnected projects:
 
 ### Training and logging
 - `RL/logs`: This folder holds the training and scenario logs; png are inside the update folders that can be found in each run. If a run is continued, multiple run folders are emerging and can be stitched together for post trainig analysis
+- `eval/run_report`: builds the plotting handbook of one complete run from any number of segments, stitched along the checkpoint lineage: `python -m eval.run_report --name <run> <segment tag or path> ...` writes `RL/logs/reports/<run>/`. What is plotted lives in `eval/run_report/specs.py`.
 
 
 ### Testing game simulations
