@@ -198,8 +198,8 @@ def test_ranged_melee_retaliation_still_applies(fresh_game):
         assert archer.current_hp < hp_before
 
 
-def test_ranged_melee_kill_advances(fresh_game):
-    """Archer killing an adjacent defender advances into the defender's tile."""
+def test_ranged_adjacent_kill_does_not_advance(fresh_game):
+    """Archer killing an adjacent defender stays on its original tile."""
     g = fresh_game
     archer = _swap_unit_class(g, 0, Archer, UnitType.Archer)
     defender = next(iter(g.players[1].units_under_control.values()))
@@ -209,12 +209,15 @@ def test_ranged_melee_kill_advances(fresh_game):
     g.game_board.board[adj_tid].tile_type = TileType.field
     _place_at(g, defender, adj_tid)
 
+    archer_tile_before = archer.tile.id
     archer.atk_stat = 999
     g.player_go_id = 0
     g.apply_action(_attack_action(archer, defender))
 
-    assert archer.tile.id == adj_tid
-    assert g.game_board.board[adj_tid].unit is archer
+    assert archer.tile.id == archer_tile_before
+    assert g.game_board.board[archer_tile_before].unit is archer
+    assert g.game_board.board[adj_tid].unit is None
+    assert defender.unit_id not in g.players[1].units_under_control
 
 
 # ---------------------------------------------------------------------------

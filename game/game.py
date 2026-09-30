@@ -146,7 +146,7 @@ class Game(object):
             o_unit_result_hp = o_unit.current_hp - attackResult
 
             if o_unit_result_hp <= 0: ## attacker deletes defender --> No current_hp change
-                is_ranged_attack = dist > 1  # no advance into defender tile on ranged kill
+                is_ranged_attack = unit.attack_range > 1  # ranged units never advance into the defender tile on a kill
                 if not is_ranged_attack:
                     attack_path = [unit_tile.id, o_unit_tile.id]
                     unit_tile.unit = None ## attacker moves tile!
